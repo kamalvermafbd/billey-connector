@@ -1,6 +1,7 @@
 const io = require("socket.io-client");
-
+const os = require("os");
 const config = require("../config/config");
+const { loadConfig } = require("../config/connectorConfig");
 
 let socket = null;
 
@@ -27,6 +28,28 @@ function connectServer() {
         console.log("Socket ID :", socket.id);
         console.log("=================================");
 
+  const connectorConfig = loadConfig();
+
+if (!connectorConfig) {
+
+    console.log("❌ Connector not configured");
+
+    return;
+
+}
+
+socket.emit("register", {
+
+    company_code: connectorConfig.company_code,
+
+    connector_version: config.CONNECTOR_VERSION,
+
+    computer_name: os.hostname()
+
+});
+
+    socket.emit("testExport");
+
     });
 
     socket.on("disconnect", () => {
@@ -36,6 +59,15 @@ function connectServer() {
         console.log("=================================");
 
     });
+
+    socket.on("export", async (data) => {
+
+    console.log("=================================");
+    console.log("📦 Export Event Received");
+    console.log(data);
+    console.log("=================================");
+
+});
 
     socket.on("connect_error", (err) => {
 
