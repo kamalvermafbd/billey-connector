@@ -1,11 +1,19 @@
+const cors = require("cors");
+
 const express = require("express");
 
 const config = require("./config/config");
 
 const { connectServer } = require("./socket/client");
 
+const {
+    getTallyCompanies
+} = require("./tally/tallyService");
+
 
 const app = express();
+
+app.use(cors());
 
 app.use(express.json());
 
@@ -22,8 +30,30 @@ app.get("/test", (req, res) => {
     res.send("TEST OK");
 });
 
-app.post("/hello", (req, res) => {
-    res.json({ ok: true });
+app.get("/getTallyCompanies", async (req, res) => {
+
+    try {
+
+        const result =
+            await getTallyCompanies();
+
+        res.json(result);
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            success: false,
+
+            error:
+                err.response?.data || err.message
+
+        });
+
+    }
+
 });
 
 const { saveConfig } = require("./config/connectorConfig");
