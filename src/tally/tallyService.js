@@ -65,15 +65,15 @@ async function sendToTally(xml) {
   try {
 
     // Har API call pe purani log clear
-    fs.writeFileSync(DEBUG_FILE, "");
+    //fs.writeFileSync(DEBUG_FILE, "");
 
     // XML save
-    fs.appendFileSync(
-      DEBUG_FILE,
-      "\n========== XML SENT ==========\n\n" +
-      xml +
-      "\n\n"
-    );
+   // fs.appendFileSync(
+ //     DEBUG_FILE,
+  //    "\n========== XML SENT ==========\n\n" +
+ //     xml +
+  //    "\n\n"
+ //   );
 
     const response = await axios.post(
       TALLY_URL,
@@ -86,23 +86,23 @@ async function sendToTally(xml) {
     );
 
     // Tally response save
-    fs.appendFileSync(
-      DEBUG_FILE,
-      "\n========== TALLY RESPONSE ==========\n\n" +
-      response.data +
-      "\n"
-    );
+ //   fs.appendFileSync(
+ //     DEBUG_FILE,
+  //    "\n========== TALLY RESPONSE ==========\n\n" +
+ //     response.data +
+ //     "\n"
+  //  );
 
     return response.data;
 
   } catch (err) {
 
-    fs.appendFileSync(
-      DEBUG_FILE,
-      "\n========== ERROR ==========\n\n" +
-      (err.response?.data || err.message) +
-      "\n"
-    );
+ //   fs.appendFileSync(
+  //    DEBUG_FILE,
+  //    "\n========== ERROR ==========\n\n" +
+  //    (err.response?.data || err.message) +
+ //     "\n"
+ //   );
 
     throw err;
 
@@ -154,8 +154,6 @@ while ((match = regex.exec(result)) !== null) {
   });
 
 }
-
-
 
 return {
   success: true,
@@ -516,6 +514,100 @@ async function getUnits(company) {
 }
 
 
+
+// =========================
+// GET TALLY MAPPING DATA
+// =========================
+
+async function getTallyMappingData(company) {
+console.log("COMPANY RECEIVED:", company);
+  // =========================
+  // GET SALES LEDGERS
+  // =========================
+
+  const ledgerData =
+    await getAllLedgers(company);
+
+  console.log("LEDGER DATA", ledgerData);
+
+  // =========================
+  // GET STOCK ITEMS
+  // =========================
+
+  const stockJson =
+    await getStockItems(company);
+
+  const stockRaw =
+    stockJson?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKITEM;
+
+  const stock =
+    Array.isArray(stockRaw)
+      ? stockRaw
+      : stockRaw
+      ? [stockRaw]
+      : [];
+
+  const stockList = stock.map((item) => ({
+    name: item.NAME,
+    unit:
+      typeof item.BASEUNITS === "object"
+        ? item.BASEUNITS["#text"]
+        : item.BASEUNITS || ""
+  }));
+
+  // =========================
+  // GET UNITS
+  // =========================
+
+  const unitJson =
+    await getUnits(company);
+
+  const unitRaw =
+    unitJson?.ENVELOPE?.BODY?.DATA?.TALLYMESSAGE;
+
+  const units =
+    Array.isArray(unitRaw)
+      ? unitRaw
+      : unitRaw
+      ? [unitRaw]
+      : [];
+
+  const unitList =
+    units
+      .filter(x => x.UNIT)
+      .map(x => ({
+        name: x.UNIT.NAME
+      }));
+
+  // =========================
+  // FINAL RESPONSE
+  // =========================
+
+  return {
+
+    success: true,
+
+    data: {
+
+      salesGL: ledgerData.salesGL,
+
+      taxGL: ledgerData.taxGL,
+
+      units: unitList,
+
+      stock: stockList,
+
+      hsn: [],
+
+      debtors: ledgerData.debtors
+
+    }
+
+  };
+
+}
+
+
 async function createStockItem({
 
   company,
@@ -588,6 +680,7 @@ async function createStockItem({
   return result;
 
 }
+
 async function createSalesLedger({
 
   company,
@@ -997,7 +1090,7 @@ module.exports = {
 
   getStockItems,
 
-  
+  getTallyMappingData,
 
   getUnits,
 

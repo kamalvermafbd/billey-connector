@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "bundle": "node esbuild.config.js"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +19,10 @@
     "fast-xml-parser": "^5.9.3",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "nexe": "^5.0.0-beta.4",
+    "pkg": "^5.8.1"
   }
 }
