@@ -1,7 +1,37 @@
 const fs = require("fs");
 const path = require("path");
 
-const CONFIG_FILE = path.join(__dirname, "connector.json");
+const os = require("os");
+
+const CONFIG_DIR = path.join(
+
+    os.homedir(),
+
+    "AppData",
+
+    "Roaming",
+
+    "Billey Connector"
+
+);
+
+if (!fs.existsSync(CONFIG_DIR)) {
+
+    fs.mkdirSync(CONFIG_DIR, {
+
+        recursive: true
+
+    });
+
+}
+
+const CONFIG_FILE = path.join(
+
+    CONFIG_DIR,
+
+    "connector.json"
+
+);
 
 function loadConfig() {
 

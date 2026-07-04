@@ -7,7 +7,8 @@ const config = require("./config/config");
 const { connectServer } = require("./socket/client");
 
 const {
-    getTallyCompanies
+  getTallyCompanies,
+  getTallyMappingData
 } = require("./tally/tallyService");
 
 
@@ -53,6 +54,30 @@ app.get("/getTallyCompanies", async (req, res) => {
         });
 
     }
+
+});
+
+app.get("/getTallyMappingData", async (req, res) => {
+   
+
+  try {
+ console.log(req.query);
+    const result = await getTallyMappingData(
+      req.query.company
+    );
+
+    res.json(result);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      error: err.response?.data || err.message
+    });
+
+  }
 
 });
 

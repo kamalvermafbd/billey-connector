@@ -2,6 +2,9 @@ const io = require("socket.io-client");
 const os = require("os");
 const config = require("../config/config");
 const { loadConfig } = require("../config/connectorConfig");
+const {
+    getTallyMappingData
+} = require("../tally/tallyService");
 
 let socket = null;
 
@@ -68,6 +71,20 @@ socket.emit("register", {
     console.log("=================================");
 
 });
+
+socket.on("getTallyMappingData", async (data) => {
+
+    const result =
+        await getTallyMappingData(data.company);
+
+    socket.emit(
+        "getTallyMappingDataResult",
+        result
+    );
+
+});
+
+
 
     socket.on("connect_error", (err) => {
 
