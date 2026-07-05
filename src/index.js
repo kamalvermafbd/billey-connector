@@ -21,7 +21,8 @@ app.use(express.json());
 const PORT = 5001;
 
 // Start Socket Connection
-connectServer();
+// Start Socket Connection
+const socket = connectServer();
 
 app.get("/", (req, res) => {
     res.send(config.CONNECTOR_NAME);
@@ -87,6 +88,9 @@ app.post("/pair", (req, res) => {
 
     const { company_code } = req.body;
 
+    console.log("PAIR API HIT");
+    console.log("PAIR COMPANY :", company_code);
+
     if (!company_code) {
 
         return res.status(400).json({
@@ -99,6 +103,21 @@ app.post("/pair", (req, res) => {
     saveConfig({
         company_code
     });
+
+    socket.emit("register", {
+
+    company_code,
+
+    connector_version:
+        config.CONNECTOR_VERSION,
+
+    computer_name:
+        require("os").hostname()
+
+});
+console.log("REGISTER EMITTED");
+
+console.log("🔄 Connector Re-Registered :", company_code);
 
     res.json({
         success: true,
