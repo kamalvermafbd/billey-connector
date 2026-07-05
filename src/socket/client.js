@@ -3,6 +3,7 @@ const os = require("os");
 const config = require("../config/config");
 const { loadConfig } = require("../config/connectorConfig");
 const {
+    sendToTally,
     getTallyCompanies,
     getTallyMappingData
 } = require("../tally/tallyService");
@@ -84,6 +85,84 @@ socket.on("getTallyCompanies", async () => {
     );
 
 });
+
+socket.on("createUnitsInTally", async (data) => {
+
+    const result =
+        await sendToTally(
+            data.xml
+        );
+
+    socket.emit(
+        "createUnitsInTallyResult",
+        result
+    );
+
+});
+
+socket.on("createStocksInTally", async (data) => {
+
+    const result =
+        await sendToTally(
+            data.xml
+        );
+
+    socket.emit(
+        "createStocksInTallyResult",
+        result
+    );
+
+});
+
+socket.on("createSalesLedgersInTally", async (data) => {
+
+    const result =
+        await sendToTally(
+            data.xml
+        );
+
+    socket.emit(
+        "createSalesLedgersInTallyResult",
+        result
+    );
+
+});
+
+socket.on("pair", async (data) => {
+
+    const {
+        saveConfig
+    } = require("../config/connectorConfig");
+
+    saveConfig({
+
+        company_code:
+            data.company_code
+
+    });
+
+    socket.emit("register", {
+
+        company_code:
+            data.company_code,
+
+        connector_version:
+            config.CONNECTOR_VERSION,
+
+        computer_name:
+            os.hostname()
+
+    });
+
+    socket.emit(
+        "pairResult",
+        {
+            success: true
+        }
+    );
+
+});
+
 
 socket.on("getTallyMappingData", async (data) => {
 

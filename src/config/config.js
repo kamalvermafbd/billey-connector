@@ -1,6 +1,6 @@
 module.exports = {
 
-    SERVER_URL: "https://webthaali-api.onrender.com",
+   SERVER_URL: "https://webthaali-api.onrender.com",
 
    //SERVER_URL: "http://localhost:5000",
 

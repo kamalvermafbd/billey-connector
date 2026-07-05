@@ -655,32 +655,13 @@ async function createStockItem({
 
   );
 
-  const result =
-    await sendToTally(xml);
-
   // =========================
-  // DEBUG RESPONSE
+  // RETURN XML
   // =========================
 
-  fs.appendFileSync(
-
-    path.join(
-      __dirname,
-      "stock-debug.log"
-    ),
-
-    "========== RESPONSE ==========\n\n" +
-
-    result +
-
-    "\n"
-
-  );
-
-  return result;
+  return xml;
 
 }
-
 async function createSalesLedger({
 
   company,
@@ -716,28 +697,11 @@ async function createSalesLedger({
 
   );
 
-  const result = await sendToTally(xml);
-
   // =========================
-  // DEBUG RESPONSE
+  // RETURN XML
   // =========================
 
-  fs.appendFileSync(
-
-    path.join(
-      __dirname,
-      "sales-ledger-debug.log"
-    ),
-
-    "========== RESPONSE ==========\n\n" +
-
-    result +
-
-    "\n"
-
-  );
-
-  return result;
+  return xml;
 
 }
 
