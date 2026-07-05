@@ -3,6 +3,7 @@ const os = require("os");
 const config = require("../config/config");
 const { loadConfig } = require("../config/connectorConfig");
 const {
+    getTallyCompanies,
     getTallyMappingData
 } = require("../tally/tallyService");
 
@@ -69,6 +70,18 @@ socket.emit("register", {
     console.log("📦 Export Event Received");
     console.log(data);
     console.log("=================================");
+
+});
+
+socket.on("getTallyCompanies", async () => {
+
+    const result =
+        await getTallyCompanies();
+
+    socket.emit(
+        "getTallyCompaniesResult",
+        result
+    );
 
 });
 
