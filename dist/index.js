@@ -24316,7 +24316,8 @@ var require_express2 = __commonJS({
 var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
-      SERVER_URL: "http://localhost:5000",
+      SERVER_URL: "https://webthaali-api.onrender.com",
+      //SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -32577,64 +32578,6 @@ var require_connectorConfig = __commonJS({
     module2.exports = {
       loadConfig,
       saveConfig
-    };
-  }
-});
-
-// src/socket/client.js
-var require_client = __commonJS({
-  "src/socket/client.js"(exports2, module2) {
-    var io = require_cjs5();
-    var os = require("os");
-    var config = require_config();
-    var { loadConfig } = require_connectorConfig();
-    var socket = null;
-    function connectServer() {
-      console.log("Connecting to Billey Server...");
-      socket = io(config.SERVER_URL, {
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 5e3
-      });
-      socket.on("connect", () => {
-        console.log("=================================");
-        console.log("\u2705 Connected to Billey Server");
-        console.log("Socket ID :", socket.id);
-        console.log("=================================");
-        const connectorConfig = loadConfig();
-        if (!connectorConfig) {
-          console.log("\u274C Connector not configured");
-          return;
-        }
-        socket.emit("register", {
-          company_code: connectorConfig.company_code,
-          connector_version: config.CONNECTOR_VERSION,
-          computer_name: os.hostname()
-        });
-        socket.emit("testExport");
-      });
-      socket.on("disconnect", () => {
-        console.log("=================================");
-        console.log("\u274C Disconnected from Billey Server");
-        console.log("=================================");
-      });
-      socket.on("export", async (data) => {
-        console.log("=================================");
-        console.log("\u{1F4E6} Export Event Received");
-        console.log(data);
-        console.log("=================================");
-      });
-      socket.on("connect_error", (err) => {
-        console.log("=================================");
-        console.log("\u274C Connection Failed");
-        console.log(err.message);
-        console.log("=================================");
-      });
-      return socket;
-    }
-    module2.exports = {
-      connectServer
     };
   }
 });
@@ -50204,6 +50147,35 @@ var require_tallyService = __commonJS({
       const json = parser.parse(result);
       return json;
     }
+    async function getTallyMappingData(company) {
+      console.log("COMPANY RECEIVED:", company);
+      const ledgerData = await getAllLedgers(company);
+      console.log("LEDGER DATA", ledgerData);
+      const stockJson = await getStockItems(company);
+      const stockRaw = stockJson?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKITEM;
+      const stock = Array.isArray(stockRaw) ? stockRaw : stockRaw ? [stockRaw] : [];
+      const stockList = stock.map((item) => ({
+        name: item.NAME,
+        unit: typeof item.BASEUNITS === "object" ? item.BASEUNITS["#text"] : item.BASEUNITS || ""
+      }));
+      const unitJson = await getUnits(company);
+      const unitRaw = unitJson?.ENVELOPE?.BODY?.DATA?.TALLYMESSAGE;
+      const units = Array.isArray(unitRaw) ? unitRaw : unitRaw ? [unitRaw] : [];
+      const unitList = units.filter((x) => x.UNIT).map((x) => ({
+        name: x.UNIT.NAME
+      }));
+      return {
+        success: true,
+        data: {
+          salesGL: ledgerData.salesGL,
+          taxGL: ledgerData.taxGL,
+          units: unitList,
+          stock: stockList,
+          hsn: [],
+          debtors: ledgerData.debtors
+        }
+      };
+    }
     async function createStockItem({
       company,
       stockName,
@@ -50225,15 +50197,7 @@ var require_tallyService = __commonJS({
         ),
         "========== XML ==========\n\n" + xml + "\n\n"
       );
-      const result = await sendToTally(xml);
-      fs.appendFileSync(
-        path.join(
-          __dirname,
-          "stock-debug.log"
-        ),
-        "========== RESPONSE ==========\n\n" + result + "\n"
-      );
-      return result;
+      return xml;
     }
     async function createSalesLedger({
       company,
@@ -50250,15 +50214,7 @@ var require_tallyService = __commonJS({
         ),
         "========== XML ==========\n\n" + xml + "\n\n"
       );
-      const result = await sendToTally(xml);
-      fs.appendFileSync(
-        path.join(
-          __dirname,
-          "sales-ledger-debug.log"
-        ),
-        "========== RESPONSE ==========\n\n" + result + "\n"
-      );
-      return result;
+      return xml;
     }
     function createUnit({
       company,
@@ -50471,8 +50427,132 @@ var require_tallyService = __commonJS({
       selectCompany,
       getAllLedgers,
       getStockItems,
+      getTallyMappingData,
       getUnits
       //getStockMasters
+    };
+  }
+});
+
+// src/socket/client.js
+var require_client = __commonJS({
+  "src/socket/client.js"(exports2, module2) {
+    var io = require_cjs5();
+    var os = require("os");
+    var config = require_config();
+    var { loadConfig } = require_connectorConfig();
+    var {
+      sendToTally,
+      getTallyCompanies,
+      getTallyMappingData
+    } = require_tallyService();
+    var socket = null;
+    function connectServer() {
+      console.log("Connecting to Billey Server...");
+      socket = io(config.SERVER_URL, {
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 5e3
+      });
+      socket.on("connect", () => {
+        console.log("=================================");
+        console.log("\u2705 Connected to Billey Server");
+        console.log("Socket ID :", socket.id);
+        console.log("=================================");
+        const connectorConfig = loadConfig();
+        if (!connectorConfig) {
+          console.log("\u274C Connector not configured");
+          return;
+        }
+        socket.emit("register", {
+          company_code: connectorConfig.company_code,
+          connector_version: config.CONNECTOR_VERSION,
+          computer_name: os.hostname()
+        });
+        socket.emit("testExport");
+      });
+      socket.on("disconnect", () => {
+        console.log("=================================");
+        console.log("\u274C Disconnected from Billey Server");
+        console.log("=================================");
+      });
+      socket.on("export", async (data) => {
+        console.log("=================================");
+        console.log("\u{1F4E6} Export Event Received");
+        console.log(data);
+        console.log("=================================");
+      });
+      socket.on("getTallyCompanies", async () => {
+        const result = await getTallyCompanies();
+        socket.emit(
+          "getTallyCompaniesResult",
+          result
+        );
+      });
+      socket.on("createUnitsInTally", async (data) => {
+        const result = await sendToTally(
+          data.xml
+        );
+        socket.emit(
+          "createUnitsInTallyResult",
+          result
+        );
+      });
+      socket.on("createStocksInTally", async (data) => {
+        const result = await sendToTally(
+          data.xml
+        );
+        socket.emit(
+          "createStocksInTallyResult",
+          result
+        );
+      });
+      socket.on("createSalesLedgersInTally", async (data) => {
+        const result = await sendToTally(
+          data.xml
+        );
+        socket.emit(
+          "createSalesLedgersInTallyResult",
+          result
+        );
+      });
+      socket.on("pair", async (data) => {
+        const {
+          saveConfig
+        } = require_connectorConfig();
+        saveConfig({
+          company_code: data.company_code
+        });
+        socket.emit("register", {
+          company_code: data.company_code,
+          connector_version: config.CONNECTOR_VERSION,
+          computer_name: os.hostname()
+        });
+        socket.emit(
+          "pairResult",
+          {
+            success: true
+          }
+        );
+      });
+      socket.on("getTallyMappingData", async (data) => {
+        const result = await getTallyMappingData(data.company);
+        socket.emit(
+          "getTallyMappingDataResult",
+          result
+        );
+      });
+      socket.on("connect_error", (err) => {
+        console.log("=================================");
+        console.log("\u274C Connection Failed");
+        console.log(err.message);
+        console.log("=================================");
+      });
+      return socket;
+    }
+    module2.exports = {
+      connectServer
     };
   }
 });
@@ -50485,13 +50565,14 @@ var require_src3 = __commonJS({
     var config = require_config();
     var { connectServer } = require_client();
     var {
-      getTallyCompanies
+      getTallyCompanies,
+      getTallyMappingData
     } = require_tallyService();
     var app = express();
     app.use(cors());
     app.use(express.json());
     var PORT = 5001;
-    connectServer();
+    var socket = connectServer();
     app.get("/", (req, res) => {
       res.send(config.CONNECTOR_NAME);
     });
@@ -50510,9 +50591,26 @@ var require_src3 = __commonJS({
         });
       }
     });
+    app.get("/getTallyMappingData", async (req, res) => {
+      try {
+        console.log(req.query);
+        const result = await getTallyMappingData(
+          req.query.company
+        );
+        res.json(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({
+          success: false,
+          error: err.response?.data || err.message
+        });
+      }
+    });
     var { saveConfig } = require_connectorConfig();
     app.post("/pair", (req, res) => {
       const { company_code } = req.body;
+      console.log("PAIR API HIT");
+      console.log("PAIR COMPANY :", company_code);
       if (!company_code) {
         return res.status(400).json({
           success: false,
@@ -50522,6 +50620,13 @@ var require_src3 = __commonJS({
       saveConfig({
         company_code
       });
+      socket.emit("register", {
+        company_code,
+        connector_version: config.CONNECTOR_VERSION,
+        computer_name: require("os").hostname()
+      });
+      console.log("REGISTER EMITTED");
+      console.log("\u{1F504} Connector Re-Registered :", company_code);
       res.json({
         success: true,
         message: "Connector paired successfully"
