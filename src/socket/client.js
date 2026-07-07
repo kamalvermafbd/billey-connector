@@ -114,6 +114,20 @@ socket.on("createStocksInTally", async (data) => {
 
 });
 
+socket.on("createTaxLedgersInTally", async (data) => {
+
+    const result =
+        await sendToTally(
+            data.xml
+        );
+
+    socket.emit(
+        "createTaxLedgersInTallyResult",
+        result
+    );
+
+});
+
 socket.on("createSalesLedgersInTally", async (data) => {
 
     const result =
@@ -123,6 +137,20 @@ socket.on("createSalesLedgersInTally", async (data) => {
 
     socket.emit(
         "createSalesLedgersInTallyResult",
+        result
+    );
+
+});
+
+socket.on("createDebtorsInTally", async (data) => {
+
+    const result =
+        await sendToTally(
+            data.xml
+        );
+
+    socket.emit(
+        "createDebtorsInTallyResult",
         result
     );
 

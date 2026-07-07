@@ -35,6 +35,8 @@ module.exports = ({
 
             <NAME>${ledgerName}</NAME>
 
+            <GSTTYPEOFSUPPLY>Goods</GSTTYPEOFSUPPLY>
+
             <PARENT>Sales Accounts</PARENT>
 
           </LEDGER>
