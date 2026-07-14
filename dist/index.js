@@ -49821,6 +49821,8 @@ var require_sales_ledger_template = __commonJS({
 
             <NAME>${ledgerName}</NAME>
 
+            <GSTTYPEOFSUPPLY>Goods</GSTTYPEOFSUPPLY>
+
             <PARENT>Sales Accounts</PARENT>
 
           </LEDGER>
@@ -50012,6 +50014,14 @@ var require_tallyService = __commonJS({
         "TALLY LEDGERS",
         ledgers
       );
+      const roundOffGL = ledgers.filter((x) => {
+        const name = x.name.toUpperCase();
+        return name.includes("ROUND");
+      });
+      console.log(
+        "ROUND OFF GL",
+        roundOffGL
+      );
       const salesGL = ledgers.filter((x) => {
         const name = x.name.toUpperCase();
         return name.includes("SALE");
@@ -50039,6 +50049,7 @@ var require_tallyService = __commonJS({
       return {
         salesGL,
         taxGL,
+        roundOffGL,
         debtors
       };
     }
@@ -50169,6 +50180,7 @@ var require_tallyService = __commonJS({
         data: {
           salesGL: ledgerData.salesGL,
           taxGL: ledgerData.taxGL,
+          roundOffGL: ledgerData.roundOffGL,
           units: unitList,
           stock: stockList,
           hsn: [],
@@ -50508,12 +50520,46 @@ var require_client = __commonJS({
           result
         );
       });
+      socket.on("createTaxLedgersInTally", async (data) => {
+        const result = await sendToTally(
+          data.xml
+        );
+        socket.emit(
+          "createTaxLedgersInTallyResult",
+          result
+        );
+      });
       socket.on("createSalesLedgersInTally", async (data) => {
         const result = await sendToTally(
           data.xml
         );
         socket.emit(
           "createSalesLedgersInTallyResult",
+          result
+        );
+      });
+      socket.on("createDebtorsInTally", async (data) => {
+        const result = await sendToTally(
+          data.xml
+        );
+        socket.emit(
+          "createDebtorsInTallyResult",
+          result
+        );
+      });
+      socket.on("exportSalesToTally", async (data) => {
+        console.log("=================================");
+        console.log("\u{1F4E6} SALES EXPORT RECEIVED");
+        console.log("=================================");
+        const result = await sendToTally(
+          data.xml
+        );
+        console.log(
+          "SALES EXPORT TALLY RESULT:",
+          result
+        );
+        socket.emit(
+          "exportSalesToTallyResult",
           result
         );
       });

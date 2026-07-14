@@ -156,6 +156,29 @@ socket.on("createDebtorsInTally", async (data) => {
 
 });
 
+socket.on("exportSalesToTally", async (data) => {
+
+    console.log("=================================");
+    console.log("📦 SALES EXPORT RECEIVED");
+    console.log("=================================");
+
+    const result =
+        await sendToTally(
+            data.xml
+        );
+
+    console.log(
+        "SALES EXPORT TALLY RESULT:",
+        result
+    );
+
+    socket.emit(
+        "exportSalesToTallyResult",
+        result
+    );
+
+});
+
 socket.on("pair", async (data) => {
 
     const {

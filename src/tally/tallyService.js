@@ -287,6 +287,24 @@ async function getAllLedgers(
   );
 
   // =========================
+// BUILD ROUND OFF GL
+// =========================
+
+const roundOffGL = ledgers.filter((x) => {
+
+  const name =
+    x.name.toUpperCase();
+
+  return name.includes("ROUND");
+
+});
+
+console.log(
+  "ROUND OFF GL",
+  roundOffGL
+);
+
+  // =========================
 // BUILD SALES GL
 // =========================
 
@@ -374,6 +392,8 @@ return {
   salesGL,
 
   taxGL,
+
+  roundOffGL,
 
   debtors
 
@@ -592,6 +612,8 @@ console.log("COMPANY RECEIVED:", company);
       salesGL: ledgerData.salesGL,
 
       taxGL: ledgerData.taxGL,
+
+      roundOffGL: ledgerData.roundOffGL,
 
       units: unitList,
 
