@@ -1,0 +1,201 @@
+[
+  {
+    "name": "Cash",
+    "parent": "Cash-in-Hand",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Cash-in-Hand",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Cash",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Cash",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "IGST 18%",
+    "parent": "Duties & Taxes",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Duties & Taxes",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "IGST 18%",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "IGST 18%",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "IGST Sale 18%",
+    "parent": "Sales Accounts",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Sales Accounts",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "IGST Sale 18%",
+          "TYPE": "String"
+        }
+      },
+      "NAME": "IGST Sale 18%",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "Profit & Loss A/c",
+    "parent": "Primary",
+    "reservedName": "Profit & Loss A/c",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Profit & Loss A/c",
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Profit & Loss A/c",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Profit & Loss A/c"
+    }
+  },
+  {
+    "name": "Purchae Local",
+    "parent": "Purchase Accounts",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Purchase Accounts",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Purchae Local",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Purchae Local",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "Rahul Trading",
+    "parent": "Sundry Debtors",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Sundry Debtors",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Rahul Trading",
+          "TYPE": "String"
+        }
+      },
+      "NAME": "Rahul Trading",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "Round Off",
+    "parent": "Indirect Expenses",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Indirect Expenses",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Round Off",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Round Off",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "Sudhir Traders",
+    "parent": "Sundry Creditors",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Sundry Creditors",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Sudhir Traders",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Sudhir Traders",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "Sunil Capital Account",
+    "parent": "Capital Account",
+    "reservedName": "",
+    "raw": {
+      "PARENT": {
+        "#text": "Capital Account",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Sunil Capital Account",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Sunil Capital Account",
+      "RESERVEDNAME": ""
+    }
+  }
+]

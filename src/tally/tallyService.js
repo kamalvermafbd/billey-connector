@@ -29,6 +29,18 @@ const stockTemplate =
   const salesLedgerTemplate =
 require("./sales-ledger-template");
 
+const {
+
+    getSalesGL,
+
+    getTaxGL,
+
+    getDebtors,
+
+    getRoundOffGL
+
+} = require("./ledgerClassifier");
+
 const TALLY_URL = "http://localhost:9000";
 
 const parser =
@@ -57,6 +69,90 @@ function toArray(value) {
     ? value
 
     : [value];
+
+}
+
+function getValue(v) {
+
+    if (v == null) return "";
+
+    if (typeof v === "string") return v;
+
+    if (typeof v === "number") return v;
+
+    if (typeof v === "object") {
+
+        if ("#text" in v) return v["#text"];
+
+        if ("TEXT" in v) return v.TEXT;
+
+    }
+
+    return "";
+
+}
+
+// =========================
+// BUILD GROUP TREE
+// =========================
+
+function buildGroupTree(groups) {
+
+  const tree = {};
+
+groups.forEach(group => {
+
+    tree[group.name] = group.parent;
+
+});
+
+return tree;
+
+}
+
+function getNumber(v) {
+
+    const value = Number(getValue(v));
+
+    return isNaN(value) ? 0 : value;
+
+}
+
+function getDate(v) {
+
+    const value = String(getValue(v));
+
+    if (value.length !== 8) return value;
+
+    return `${value.substring(0,4)}-${value.substring(4,6)}-${value.substring(6,8)}`;
+
+}
+
+function splitQuantity(value) {
+
+    value = getValue(value);
+
+    if (!value) {
+
+        return {
+
+            qty: 0,
+
+            unit: ""
+
+        };
+
+    }
+
+    const parts = value.trim().split(/\s+/);
+
+    return {
+
+        qty: Number(parts[0]) || 0,
+
+        unit: parts.slice(1).join(" ")
+
+    };
 
 }
 
@@ -213,11 +309,146 @@ async function selectCompany(
 }
 
 // =========================
+// GET GROUP MASTERS
+// =========================
+
+async function getGroups(company) {
+
+    await selectCompany(company);
+
+    const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyGroupCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyGroupCollection">
+
+                        <TYPE>Group</TYPE>
+
+                       <FETCH>
+
+    Name,
+    Parent,
+    GUID,
+    MASTERID,
+    ALTERID,
+    RESERVEDNAME,
+    GSTREGISTRATIONTYPE,
+    GSTIN,
+    ADDRESS,
+    STATE,
+    COUNTRY,
+    PINCODE,
+    LEDGERPHONE,
+    EMAIL,
+    CONTACTPERSON,
+    ISBILLWISEON
+
+</FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+    const result = await sendToTally(xml);
+
+    fs.writeFileSync(
+    path.join(__dirname, "groups.xml"),
+    result,
+    "utf8"
+);
+
+const json = parser.parse(result);
+
+   const groupsRaw =
+    json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP;
+
+const groups =
+    Array.isArray(groupsRaw)
+        ? groupsRaw
+        : groupsRaw
+        ? [groupsRaw]
+        : [];
+
+return groups.map(group => ({
+
+    name: group.NAME,
+
+    parent: getValue(group.PARENT),
+
+    reservedName: group.RESERVEDNAME || ""
+
+}));
+    
+
+}
+
+
+// =========================
+// GET ROOT GROUP
+// =========================
+
+function getRootGroup(groupName, groupTree) {
+
+  let current = groupName;
+
+while (
+    groupTree[current] &&
+    groupTree[current] !== "Primary" &&
+    groupTree[current] !== " Primary"
+) {
+
+    current = groupTree[current];
+
+}
+
+return current;
+
+}
+
+
+// =========================
 // GET ALL LEDGERS
 // =========================
 
 async function getAllLedgers(
-  company
+  company,
+  groupTree
 ) {
 
   // Company select (future compatibility)
@@ -236,7 +467,7 @@ async function getAllLedgers(
 
     <TYPE>Collection</TYPE>
 
-    <ID>List of Ledgers</ID>
+   <ID>BilleyLedgerCollection</ID>
 
   </HEADER>
 
@@ -256,6 +487,27 @@ async function getAllLedgers(
 
       </STATICVARIABLES>
 
+      <TDL>
+
+    <TDLMESSAGE>
+
+        <COLLECTION NAME="BilleyLedgerCollection">
+
+            <TYPE>Ledger</TYPE>
+
+            <FETCH>
+
+                Name,
+                Parent
+
+            </FETCH>
+
+        </COLLECTION>
+
+    </TDLMESSAGE>
+
+</TDL>
+
     </DESC>
 
   </BODY>
@@ -265,139 +517,45 @@ async function getAllLedgers(
 
   const result = await sendToTally(xml);
 
-  const ledgers = [];
+  fs.writeFileSync(
+    path.join(__dirname, "ledgers.xml"),
+    result,
+    "utf8"
+);
 
-  const regex = /<LEDGER NAME="([^"]+)"/g;
+const json = parser.parse(result);
 
-  let match;
+const ledgersRaw =
+    json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.LEDGER;
 
-  while ((match = regex.exec(result)) !== null) {
+const ledgers =
+    Array.isArray(ledgersRaw)
+        ? ledgersRaw
+        : ledgersRaw
+        ? [ledgersRaw]
+        : [];
 
-    ledgers.push({
+const ledgerList = ledgers.map(ledger => ({
 
-      name: match[1]
+    name: ledger.NAME,
 
-    });
+    parent: getValue(ledger.PARENT),
 
-  }
+    rootGroup: getRootGroup(
+        getValue(ledger.PARENT),
+        groupTree
+    )
+
+}));
+ 
 
   console.log(
     "TALLY LEDGERS",
-    ledgers
+    ledgerList
   );
 
-  // =========================
-// BUILD ROUND OFF GL
-// =========================
-
-const roundOffGL = ledgers.filter((x) => {
-
-  const name =
-    x.name.toUpperCase();
-
-  return name.includes("ROUND");
-
-});
-
-console.log(
-  "ROUND OFF GL",
-  roundOffGL
-);
-
-  // =========================
-// BUILD SALES GL
-// =========================
-
-const salesGL = ledgers.filter((x) => {
-
-  const name =
-    x.name.toUpperCase();
-
-  return (
-
-    name.includes("SALE")
-
-  );
-
-});
-
-console.log(
-  "SALES GL",
-  salesGL
-);
-
-// =========================
-// BUILD TAX GL
-// =========================
-
-const taxGL = ledgers.filter((x) => {
-
-  const name =
-    x.name.toUpperCase();
-
-  return (
-
-    name.includes("CGST") ||
-
-    name.includes("SGST") ||
-
-    name.includes("IGST")
-
-  );
-
-});
-
-console.log(
-  "TAX GL",
-  taxGL
-);
-
-// =========================
-// BUILD DEBTORS
-// =========================
-
-const debtors = ledgers.filter((x) => {
-
-  const name =
-    x.name.toUpperCase();
-
-  return !(
-
-    name.includes("SALE") ||
-
-    name.includes("CGST") ||
-
-    name.includes("SGST") ||
-
-    name.includes("IGST") ||
-
-    name.includes("CASH") ||
-
-    name.includes("ROUND") ||
-
-    name.includes("PROFIT")
-
-  );
-
-});
-
-console.log(
-  "DEBTORS",
-  debtors
-);
-
-
-return {
-
-  salesGL,
-
-  taxGL,
-
-  roundOffGL,
-
-  debtors
-
-};
+ 
+return ledgerList;
 
 }
 
@@ -534,21 +692,159 @@ async function getUnits(company) {
 }
 
 
+async function getSalesVouchers(company) {
+   await selectCompany(company);
+const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleySalesCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+    <TDLMESSAGE>
+
+        <COLLECTION NAME="BilleySalesCollection">
+
+            <TYPE>Voucher</TYPE>
+
+            <CHILDOF>Sales</CHILDOF>
+
+           <FETCH>
+    Date,
+    VoucherNumber,
+    PartyLedgerName,
+    Narration,
+    AllInventoryEntries,
+    LedgerEntries,
+    PartyGSTIN,
+    PlaceOfSupply,
+    BasicBuyerName,
+    BasicBuyerAddress,
+    GSTRegistrationType,
+    PersistedView,
+    VoucherTypeName
+</FETCH>
+
+        </COLLECTION>
+
+    </TDLMESSAGE>
+
+</TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+const result = await sendToTally(xml);
+const fs = require("fs");
+const path = require("path");
+
+const outputFile = path.join(
+    __dirname,
+    "sales-vouchers.xml"
+);
+
+fs.writeFileSync(outputFile, result, "utf8");
+
+console.log(
+    "✅ Sales vouchers saved to:",
+    outputFile
+);
+
+const json = parser.parse(result);
+
+return json;
+
+}
+
 
 // =========================
 // GET TALLY MAPPING DATA
 // =========================
 
 async function getTallyMappingData(company) {
-console.log("COMPANY RECEIVED:", company);
+  console.log("COMPANY RECEIVED:", company);
+
+const groups =
+    await getGroups(company);
+
+console.log(
+    JSON.stringify(groups, null, 2)
+);
+
+const groupTree =
+    buildGroupTree(groups);
+
+const salesJson =
+    await getSalesVouchers(company);
+
+const vouchers =
+    toArray(
+        salesJson?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
+    );
+
+    console.log(
+    "TOTAL VOUCHERS:",
+    vouchers.length
+);
+const sales = vouchers.map(normalizeVoucher);
+console.log(JSON.stringify(sales[0], null, 2));
   // =========================
   // GET SALES LEDGERS
   // =========================
 
-  const ledgerData =
-    await getAllLedgers(company);
+const allLedgers =
+    await getAllLedgers(
+        company,
+        groupTree
+    );
 
-  console.log("LEDGER DATA", ledgerData);
+console.log(
+    "ALL LEDGERS",
+    allLedgers
+);
+
+const ledgerData = {
+
+    salesGL: getSalesGL(allLedgers),
+
+    taxGL: getTaxGL(allLedgers),
+
+    roundOffGL: getRoundOffGL(allLedgers),
+
+    debtors: getDebtors(allLedgers)
+
+};
+
+console.log(
+    "LEDGER DATA",
+    ledgerData
+);
 
   // =========================
   // GET STOCK ITEMS
@@ -618,6 +914,7 @@ console.log("COMPANY RECEIVED:", company);
       units: unitList,
 
       stock: stockList,
+      sales,
 
       hsn: [],
 
@@ -626,6 +923,122 @@ console.log("COMPANY RECEIVED:", company);
     }
 
   };
+
+}
+
+function normalizeVoucher(v) {
+
+    return {
+
+        voucherNumber: getNumber(v.VOUCHERNUMBER),
+
+        date: getDate(v.DATE),
+
+        party: getValue(v.PARTYLEDGERNAME),
+
+        gstin: getValue(v.PARTYGSTIN),
+
+        gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
+
+        placeOfSupply: getValue(v.PLACEOFSUPPLY),
+
+        buyerName: getValue(v.BASICBUYERNAME),
+
+        narration: getValue(v.NARRATION),
+
+        items: parseItems(v),
+
+        ledgers: parseLedgers(v),
+
+        taxes: parseTaxes(v)
+
+    };
+
+}
+
+function parseItems(v) {
+
+    return toArray(v["ALLINVENTORYENTRIES.LIST"]).map(item => {
+
+        const qty = splitQuantity(item.ACTUALQTY);
+
+        const billed = splitQuantity(item.BILLEDQTY);
+
+        const rate = splitQuantity(item.RATE);
+
+        return {
+
+            stockItem: getValue(item.STOCKITEMNAME),
+
+            hsn: String(getValue(item.GSTHSNNAME)),
+
+            qty: qty.qty,
+
+            qtyUnit: qty.unit,
+
+            billedQty: billed.qty,
+
+            billedQtyUnit: billed.unit,
+
+            rate: rate.qty,
+
+            rateUnit: rate.unit,
+
+            amount: getNumber(item.AMOUNT)
+
+        };
+
+    });
+
+}
+
+function parseLedgers(v) {
+
+    const ledgers = toArray(v["LEDGERENTRIES.LIST"]);
+
+    return ledgers.map(l => ({
+
+        ledger: l.LEDGERNAME,
+
+        amount: Number(l.AMOUNT)
+
+    }));
+
+}
+
+function parseTaxes(v) {
+
+    const taxes = {
+        cgst: 0,
+        sgst: 0,
+        igst: 0
+    };
+
+    toArray(v["ALLINVENTORYENTRIES.LIST"]).forEach(item => {
+
+        toArray(item["RATEDETAILS.LIST"]).forEach(rate => {
+
+            switch (rate.GSTRATEDUTYHEAD) {
+
+                case "CGST":
+                    taxes.cgst = Number(rate.GSTRATE);
+                    break;
+
+                case "SGST/UTGST":
+                    taxes.sgst = Number(rate.GSTRATE);
+                    break;
+
+                case "IGST":
+                    taxes.igst = Number(rate.GSTRATE);
+                    break;
+
+            }
+
+        });
+
+    });
+
+    return taxes;
 
 }
 
@@ -1079,6 +1492,10 @@ module.exports = {
   getTallyMappingData,
 
   getUnits,
+
+  getSalesVouchers,
+
+  getGroups,
 
   //getStockMasters
 

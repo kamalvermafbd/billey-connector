@@ -1,0 +1,46 @@
+[
+  {
+    "name": "Delhi Godown",
+    "parent": "Primary",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Delhi Godown",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Delhi Godown",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "Main Location",
+    "parent": "Primary",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Main Location",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Main Location",
+      "RESERVEDNAME": ""
+    }
+  }
+]

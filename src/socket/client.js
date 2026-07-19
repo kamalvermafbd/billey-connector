@@ -5,8 +5,15 @@ const { loadConfig } = require("../config/connectorConfig");
 const {
     sendToTally,
     getTallyCompanies,
-    getTallyMappingData
+    getTallyMappingData,
+     getSalesVouchers
 } = require("../tally/tallyService");
+
+
+const {
+    getTrialBalance
+} = require("../tally/reportService");
+
 
 let socket = null;
 
@@ -224,6 +231,66 @@ socket.on("getTallyMappingData", async (data) => {
         "getTallyMappingDataResult",
         result
     );
+
+});
+
+socket.on("getSalesVouchers", async (data) => {
+
+    try {
+
+        const result = await getSalesVouchers(data.company);
+
+        socket.emit(
+            "getSalesVouchersResult",
+            result
+        );
+
+    } catch (err) {
+
+        console.error("GET SALES VOUCHERS ERROR");
+        console.error(err);
+
+        socket.emit(
+            "getSalesVouchersResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("getTrialBalance", async (data) => {
+
+    try {
+
+        const result =
+            await getTrialBalance({
+    company: data.company,
+    asOnDate: data.asOnDate
+});
+
+        socket.emit(
+            "getTrialBalanceResult",
+            {
+                success: true,
+                data: result
+            }
+        );
+
+    } catch (err) {
+
+        socket.emit(
+            "getTrialBalanceResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
 
 });
 
