@@ -1,0 +1,977 @@
+[
+  {
+    "name": "Bank Accounts",
+    "parent": "Current Assets",
+    "reservedName": "Bank Accounts",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Assets",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Bank Accounts",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Bank Accounts",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Bank Accounts"
+    }
+  },
+  {
+    "name": "Bank OD A/c",
+    "parent": "Loans (Liability)",
+    "reservedName": "Bank OD A/c",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Loans (Liability)",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Bank OD A/c",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": [
+            "Bank OD A/c",
+            "Bank OCC A/c"
+          ],
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Bank OD A/c"
+    }
+  },
+  {
+    "name": "Branch / Divisions",
+    "parent": "Primary",
+    "reservedName": "Branch / Divisions",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Branch / Divisions",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Branch / Divisions",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Branch / Divisions"
+    }
+  },
+  {
+    "name": "Capital Account",
+    "parent": "Primary",
+    "reservedName": "Capital Account",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Capital Account",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Capital Account",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Capital Account"
+    }
+  },
+  {
+    "name": "Cash-in-Hand",
+    "parent": "Current Assets",
+    "reservedName": "Cash-in-Hand",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Assets",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Cash-in-Hand",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Cash-in-Hand",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Cash-in-Hand"
+    }
+  },
+  {
+    "name": "Current Assets",
+    "parent": "Primary",
+    "reservedName": "Current Assets",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Current Assets",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Current Assets",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Current Assets"
+    }
+  },
+  {
+    "name": "Current Liabilities",
+    "parent": "Primary",
+    "reservedName": "Current Liabilities",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Current Liabilities",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Current Liabilities",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Current Liabilities"
+    }
+  },
+  {
+    "name": "Deposits (Asset)",
+    "parent": "Current Assets",
+    "reservedName": "Deposits (Asset)",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Assets",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Deposits (Asset)",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Deposits (Asset)",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Deposits (Asset)"
+    }
+  },
+  {
+    "name": "Direct Expenses",
+    "parent": "Primary",
+    "reservedName": "Direct Expenses",
+    "isRevenue": true,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Direct Expenses",
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": [
+            "Direct Expenses",
+            "Expenses (Direct)"
+          ],
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Direct Expenses"
+    }
+  },
+  {
+    "name": "Direct Incomes",
+    "parent": "Primary",
+    "reservedName": "Direct Incomes",
+    "isRevenue": true,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Direct Incomes",
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": [
+            "Direct Incomes",
+            "Income (Direct)"
+          ],
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Direct Incomes"
+    }
+  },
+  {
+    "name": "Duties & Taxes",
+    "parent": "Current Liabilities",
+    "reservedName": "Duties & Taxes",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Liabilities",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Duties & Taxes",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Duties & Taxes",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Duties & Taxes"
+    }
+  },
+  {
+    "name": "Fixed Assets",
+    "parent": "Primary",
+    "reservedName": "Fixed Assets",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Fixed Assets",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Fixed Assets",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Fixed Assets"
+    }
+  },
+  {
+    "name": "Indirect Expenses",
+    "parent": "Primary",
+    "reservedName": "Indirect Expenses",
+    "isRevenue": true,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Indirect Expenses",
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": [
+            "Indirect Expenses",
+            "Expenses (Indirect)"
+          ],
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Indirect Expenses"
+    }
+  },
+  {
+    "name": "Indirect Incomes",
+    "parent": "Primary",
+    "reservedName": "Indirect Incomes",
+    "isRevenue": true,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Indirect Incomes",
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": [
+            "Indirect Incomes",
+            "Income (Indirect)"
+          ],
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Indirect Incomes"
+    }
+  },
+  {
+    "name": "Investments",
+    "parent": "Primary",
+    "reservedName": "Investments",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Investments",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Investments",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Investments"
+    }
+  },
+  {
+    "name": "Loans & Advances (Asset)",
+    "parent": "Current Assets",
+    "reservedName": "Loans & Advances (Asset)",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Assets",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Loans & Advances (Asset)",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Loans & Advances (Asset)",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Loans & Advances (Asset)"
+    }
+  },
+  {
+    "name": "Loans (Liability)",
+    "parent": "Primary",
+    "reservedName": "Loans (Liability)",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Loans (Liability)",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Loans (Liability)",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Loans (Liability)"
+    }
+  },
+  {
+    "name": "Misc. Expenses (ASSET)",
+    "parent": "Primary",
+    "reservedName": "Misc. Expenses (ASSET)",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Misc. Expenses (ASSET)",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Misc. Expenses (ASSET)",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Misc. Expenses (ASSET)"
+    }
+  },
+  {
+    "name": "Provisions",
+    "parent": "Current Liabilities",
+    "reservedName": "Provisions",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Liabilities",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Provisions",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Provisions",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Provisions"
+    }
+  },
+  {
+    "name": "Purchase Accounts",
+    "parent": "Primary",
+    "reservedName": "Purchase Accounts",
+    "isRevenue": true,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Purchase Accounts",
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Purchase Accounts",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Purchase Accounts"
+    }
+  },
+  {
+    "name": "Reserves & Surplus",
+    "parent": "Capital Account",
+    "reservedName": "Reserves & Surplus",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Capital Account",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Reserves & Surplus",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": [
+            "Reserves & Surplus",
+            "Retained Earnings"
+          ],
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Reserves & Surplus"
+    }
+  },
+  {
+    "name": "Sales Accounts",
+    "parent": "Primary",
+    "reservedName": "Sales Accounts",
+    "isRevenue": true,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Sales Accounts",
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Sales Accounts",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Sales Accounts"
+    }
+  },
+  {
+    "name": "Secured Loans",
+    "parent": "Loans (Liability)",
+    "reservedName": "Secured Loans",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Loans (Liability)",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Secured Loans",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Secured Loans",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Secured Loans"
+    }
+  },
+  {
+    "name": "Stock-in-Hand",
+    "parent": "Current Assets",
+    "reservedName": "Stock-in-Hand",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Assets",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Stock-in-Hand",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Stock-in-Hand",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Stock-in-Hand"
+    }
+  },
+  {
+    "name": "Sundry Creditors",
+    "parent": "Current Liabilities",
+    "reservedName": "Sundry Creditors",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Liabilities",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Sundry Creditors",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Sundry Creditors",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Sundry Creditors"
+    }
+  },
+  {
+    "name": "Sundry Debtors",
+    "parent": "Current Assets",
+    "reservedName": "Sundry Debtors",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": "Current Assets",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Sundry Debtors",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Sundry Debtors",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Sundry Debtors"
+    }
+  },
+  {
+    "name": "Suspense A/c",
+    "parent": "Primary",
+    "reservedName": "Suspense A/c",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Suspense A/c",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Suspense A/c",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Suspense A/c"
+    }
+  },
+  {
+    "name": "Unsecured Loans",
+    "parent": "Loans (Liability)",
+    "reservedName": "Unsecured Loans",
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Loans (Liability)",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Unsecured Loans",
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Unsecured Loans",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Unsecured Loans"
+    }
+  },
+  {
+    "name": "Vip Group",
+    "parent": "Sundry Debtors",
+    "reservedName": "",
+    "isRevenue": false,
+    "isDeemedPositive": true,
+    "raw": {
+      "PARENT": {
+        "#text": "Sundry Debtors",
+        "TYPE": "String"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Vip Group",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Vip Group",
+      "RESERVEDNAME": ""
+    }
+  }
+]

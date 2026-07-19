@@ -1,0 +1,391 @@
+[
+  {
+    "name": "3/4 CPVC Elbow",
+    "parent": "Primary",
+    "baseUnit": "Nos",
+    "gstApplicable": "Applicable",
+    "typeOfSupply": "Goods",
+    "taxability": "Taxable",
+    "stateName": "Any",
+    "applicableFrom": "2026-04-01",
+    "hsnCode": "3918",
+    "cgst": "9",
+    "sgst": "9",
+    "igst": "18",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "GSTAPPLICABLE": {
+        "#text": " Applicable",
+        "TYPE": "String"
+      },
+      "GSTTYPEOFSUPPLY": {
+        "#text": "Goods",
+        "TYPE": "String"
+      },
+      "BASEUNITS": {
+        "#text": "Nos",
+        "TYPE": "String"
+      },
+      "GSTDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20260401,
+          "TYPE": "Date"
+        },
+        "TAXABILITY": {
+          "#text": "Taxable",
+          "TYPE": "String"
+        },
+        "SRCOFGSTDETAILS": {
+          "#text": "Specify Details Here",
+          "TYPE": "String"
+        },
+        "STATEWISEDETAILS.LIST": {
+          "STATENAME": {
+            "#text": " Any",
+            "TYPE": "String"
+          },
+          "RATEDETAILS.LIST": [
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "CGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 9,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "SGST/UTGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 9,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "IGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 18,
+                "TYPE": "Number"
+              }
+            }
+          ],
+          "GSTSLABRATES.LIST": ""
+        }
+      },
+      "HSNDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20260401,
+          "TYPE": "Date"
+        },
+        "HSNCODE": {
+          "#text": 3918,
+          "TYPE": "String"
+        },
+        "SRCOFHSNDETAILS": {
+          "#text": "Specify Details Here",
+          "TYPE": "String"
+        }
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "3/4 CPVC Elbow",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "3/4 CPVC Elbow",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "3/4 CPVC Pipe",
+    "parent": "Primary",
+    "baseUnit": "LTH",
+    "gstApplicable": "Applicable",
+    "typeOfSupply": "Goods",
+    "taxability": "Taxable",
+    "stateName": "Any",
+    "applicableFrom": "2026-04-01",
+    "hsnCode": "3918",
+    "cgst": "9",
+    "sgst": "9",
+    "igst": "18",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "GSTAPPLICABLE": {
+        "#text": " Applicable",
+        "TYPE": "String"
+      },
+      "GSTTYPEOFSUPPLY": {
+        "#text": "Goods",
+        "TYPE": "String"
+      },
+      "BASEUNITS": {
+        "#text": "LTH",
+        "TYPE": "String"
+      },
+      "GSTDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20260401,
+          "TYPE": "Date"
+        },
+        "TAXABILITY": {
+          "#text": "Taxable",
+          "TYPE": "String"
+        },
+        "SRCOFGSTDETAILS": {
+          "#text": "Specify Details Here",
+          "TYPE": "String"
+        },
+        "STATEWISEDETAILS.LIST": {
+          "STATENAME": {
+            "#text": " Any",
+            "TYPE": "String"
+          },
+          "RATEDETAILS.LIST": [
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "CGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 9,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "SGST/UTGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 9,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "IGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 18,
+                "TYPE": "Number"
+              }
+            }
+          ],
+          "GSTSLABRATES.LIST": ""
+        }
+      },
+      "HSNDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20260401,
+          "TYPE": "Date"
+        },
+        "HSNCODE": {
+          "#text": 3918,
+          "TYPE": "String"
+        },
+        "SRCOFHSNDETAILS": {
+          "#text": "Specify Details Here",
+          "TYPE": "String"
+        }
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "3/4 CPVC Pipe",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "3/4 CPVC Pipe",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "GI Nipple",
+    "parent": "Primary",
+    "baseUnit": "Inch",
+    "gstApplicable": "Applicable",
+    "typeOfSupply": "Goods",
+    "taxability": "Taxable",
+    "stateName": "Any",
+    "applicableFrom": "2017-07-01",
+    "hsnCode": "39123",
+    "cgst": "7.5",
+    "sgst": "7.5",
+    "igst": "15",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "GSTAPPLICABLE": {
+        "#text": " Applicable",
+        "TYPE": "String"
+      },
+      "GSTTYPEOFSUPPLY": {
+        "#text": "Goods",
+        "TYPE": "String"
+      },
+      "BASEUNITS": {
+        "#text": "Inch",
+        "TYPE": "String"
+      },
+      "GSTDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20170701,
+          "TYPE": "Date"
+        },
+        "TAXABILITY": {
+          "#text": "Taxable",
+          "TYPE": "String"
+        },
+        "SRCOFGSTDETAILS": {
+          "#text": "Specify Details Here",
+          "TYPE": "String"
+        },
+        "STATEWISEDETAILS.LIST": {
+          "STATENAME": {
+            "#text": " Any",
+            "TYPE": "String"
+          },
+          "RATEDETAILS.LIST": [
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "CGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 7.5,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "SGST/UTGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 7.5,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "IGST",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 15,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "Cess",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": " Not Applicable",
+                "TYPE": "String"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "State Cess",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              }
+            }
+          ],
+          "GSTSLABRATES.LIST": ""
+        }
+      },
+      "HSNDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20170701,
+          "TYPE": "Date"
+        },
+        "HSNCODE": {
+          "#text": 39123,
+          "TYPE": "String"
+        },
+        "SRCOFHSNDETAILS": {
+          "#text": "Specify Details Here",
+          "TYPE": "String"
+        }
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "GI Nipple",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "GI Nipple",
+      "RESERVEDNAME": ""
+    }
+  }
+]

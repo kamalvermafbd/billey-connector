@@ -1,0 +1,52 @@
+{
+  "ENVELOPE": {
+    "DSPACCNAME": [
+      {
+        "DSPDISPNAME": "Current Liabilities"
+      },
+      {
+        "DSPDISPNAME": "Current Assets"
+      },
+      {
+        "DSPDISPNAME": "Sales Accounts"
+      },
+      {
+        "DSPDISPNAME": "Purchase Accounts"
+      }
+    ],
+    "DSPACCINFO": [
+      {
+        "DSPCLDRAMT": {
+          "DSPCLDRAMTA": -396
+        },
+        "DSPCLCRAMT": {
+          "DSPCLCRAMTA": 6136
+        }
+      },
+      {
+        "DSPCLDRAMT": {
+          "DSPCLDRAMTA": -3540
+        },
+        "DSPCLCRAMT": {
+          "DSPCLCRAMTA": ""
+        }
+      },
+      {
+        "DSPCLDRAMT": {
+          "DSPCLDRAMTA": ""
+        },
+        "DSPCLCRAMT": {
+          "DSPCLCRAMTA": 3000
+        }
+      },
+      {
+        "DSPCLDRAMT": {
+          "DSPCLDRAMTA": -5200
+        },
+        "DSPCLCRAMT": {
+          "DSPCLCRAMTA": ""
+        }
+      }
+    ]
+  }
+}
