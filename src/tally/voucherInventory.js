@@ -28,6 +28,26 @@ function getQuantityValue(value) {
 
 }
 
+function getQuantityUnit(value) {
+
+    const str = String(getValue(value)).trim();
+
+    const parts = str.split(/\s+/);
+
+    return parts.length >= 2 ? parts.slice(1).join(" ") : "";
+
+}
+
+function getRateValue(value) {
+
+    const str = String(getValue(value));
+
+    const match = str.match(/-?\d+(\.\d+)?/);
+
+    return match ? Number(match[0]) : 0;
+
+}
+
 function parseBatchAllocations(item) {
 
     const batches = item["BATCHALLOCATIONS.LIST"];
@@ -146,7 +166,6 @@ function parseCostCentreAllocations(item) {
 
 }
 
-
 function parseVoucherInventory(voucher) {
 
     const inventory = voucher["ALLINVENTORYENTRIES.LIST"];
@@ -159,45 +178,57 @@ function parseVoucherInventory(voucher) {
         ? inventory
         : [inventory];
 
-   return items.map(item => ({
+    return items.map(item => {
 
-    stockItem: getValue(item.STOCKITEMNAME),
+        const batches = parseBatchAllocations(item);
 
-    stockMasterId: getValue(item.STOCKITEMMASTERID),
+        return {
 
-    actualQty: getValue(item.ACTUALQTY),
+            stockItem: getValue(item.STOCKITEMNAME),
 
-    actualQtyValue: getQuantityValue(item.ACTUALQTY),
+            stockMasterId: getValue(item.STOCKITEMMASTERID),
 
-    billedQty: getValue(item.BILLEDQTY),
+            actualQty: getValue(item.ACTUALQTY),
 
-    billedQtyValue: getQuantityValue(item.BILLEDQTY),
+            actualQtyValue: getQuantityValue(item.ACTUALQTY),
 
-    unit: getValue(item.BASEUNITS),
+            billedQty: getValue(item.BILLEDQTY),
 
-    rate: getValue(item.RATE),
+            billedQtyValue: getQuantityValue(item.BILLEDQTY),
 
-    rateValue: getNumber(item.RATE),
+            unit:
+                getValue(item.BASEUNITS) ||
+                getQuantityUnit(item.ACTUALQTY) ||
+                getQuantityUnit(item.BILLEDQTY),
 
-    amount: getNumber(item.AMOUNT),
+            rate: getValue(item.RATE),
 
-    hsnCode: getValue(item.GSTHSNNAME),
+            rateValue: getRateValue(item.RATE),
 
-    discount: getNumber(item.DISCOUNT),
+            amount: getNumber(item.AMOUNT),
 
-    godown: getValue(item.GODOWNNAME),
+            hsnCode: getValue(item.GSTHSNNAME),
 
-    batches: parseBatchAllocations(item),
+            discount: getNumber(item.DISCOUNT),
 
-    accounting: parseAccountingAllocations(item),
+            godown:
+                getValue(item.GODOWNNAME) ||
+                batches[0]?.godown ||
+                null,
 
-    gstRates: parseRateDetails(item),
+            batches,
 
-    costCentreAllocations: parseCostCentreAllocations(item),
+            accounting: parseAccountingAllocations(item),
 
-    raw: item
+            gstRates: parseRateDetails(item),
 
-}));
+            costCentreAllocations: parseCostCentreAllocations(item),
+
+            raw: item
+
+        };
+
+    });
 
 }
 

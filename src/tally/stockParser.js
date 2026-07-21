@@ -108,6 +108,12 @@ return stockList.map(stock => {
 
     typeOfSupply: getValue(stock.GSTTYPEOFSUPPLY),
 
+    guid: getValue(stock.STOCKGUID),
+
+masterid: getValue(stock.STOCKMASTERID),
+
+alterid: getValue(stock.STOCKALTERID),
+
     taxability,
 
     stateName,

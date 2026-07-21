@@ -12,15 +12,15 @@ const { importVouchers } = require("./src/tally/voucherImportService");
     // Saare vouchers
     fs.writeFileSync(
         "./voucher-output.json",
-        JSON.stringify(result, null, 2),
+        JSON.stringify(result.vouchers, null, 2),
         "utf8"
     );
 
     // Sirf pehle voucher ki inventory
-   fs.writeFileSync(
+  fs.writeFileSync(
     "./inventory-output.json",
     JSON.stringify(
-        result.map(v => v.inventory),
+        result.vouchers.map(v => v.inventory),
         null,
         2
     ),
