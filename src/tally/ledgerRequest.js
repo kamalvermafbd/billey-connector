@@ -1,6 +1,7 @@
-function buildLedgerRequest() {
-
-    return `
+function buildLedgerRequest({
+    booksBeginningFrom
+}) {
+const xml = `
 <ENVELOPE>
 
     <HEADER>
@@ -14,11 +15,14 @@ function buildLedgerRequest() {
 
         <DESC>
 
-            <STATICVARIABLES>
+          <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-            </STATICVARIABLES>
+  <SVFROMDATE TYPE="Date">${booksBeginningFrom}</SVFROMDATE>
+<SVTODATE TYPE="Date">${booksBeginningFrom}</SVTODATE>
+
+</STATICVARIABLES>
 
             <TDL>
 
@@ -28,13 +32,45 @@ function buildLedgerRequest() {
 
                         <TYPE>Ledger</TYPE>
 
-                        <FETCH>
+                       <FETCH>
 
-                            NAME,
-                            PARENT,
-                            RESERVEDNAME
+    NAME,
+    GUID,
+    MASTERID,
+    ALTERID,
 
-                        </FETCH>
+    PARENT,
+    RESERVEDNAME,
+
+    GSTAPPLICABLE,
+    GSTREGISTRATIONTYPE,
+    GSTIN,
+
+    MAILINGNAME,
+    ADDRESS,
+    STATENAME,
+    COUNTRY,
+    PINCODE,
+
+   LEDGERMOBILE,
+    EMAIL,
+    CONTACTPERSON,
+
+    OPENINGBALANCE,
+    OPENINGBALANCEON,
+
+    ISBILLWISEON,
+    ISREVENUE,
+    ISDEEMEDPOSITIVE,
+    LEDGSTREGDETAILS.LIST,
+    LEDMAILINGDETAILS.LIST,
+    CONTACTDETAILS.LIST
+
+</FETCH>
+
+<COMPUTE>
+    ORIGINALOPENINGBALANCE : $_OpeningBalance
+</COMPUTE>
 
                     </COLLECTION>
 
@@ -48,6 +84,13 @@ function buildLedgerRequest() {
 
 </ENVELOPE>
 `;
+
+console.log("================================");
+console.log("booksBeginningFrom:", booksBeginningFrom);
+console.log("================================");
+console.log(xml);
+
+return xml;
 
 }
 

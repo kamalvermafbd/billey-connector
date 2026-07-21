@@ -1,0 +1,1370 @@
+[
+  {
+    "name": "Attendance",
+    "parent": "Attendance",
+    "reservedName": "Attendance",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Attendance",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Attendance",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Attendance",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Attendance"
+    }
+  },
+  {
+    "name": "Contra",
+    "parent": "Contra",
+    "reservedName": "Contra",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Contra",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Contra",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Contra",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Contra"
+    }
+  },
+  {
+    "name": "Credit Note",
+    "parent": "Credit Note",
+    "reservedName": "Credit Note",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Credit Note",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Credit Note",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Credit Note",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Credit Note"
+    }
+  },
+  {
+    "name": "Debit Note",
+    "parent": "Debit Note",
+    "reservedName": "Debit Note",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Debit Note",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Debit Note",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Debit Note",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Debit Note"
+    }
+  },
+  {
+    "name": "Delivery Note",
+    "parent": "Delivery Note",
+    "reservedName": "Delivery Note",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Delivery Note",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Delivery Note",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Delivery Note",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Delivery Note"
+    }
+  },
+  {
+    "name": "Job Work In Order",
+    "parent": "Job Work In Order",
+    "reservedName": "Job Work In Order",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Job Work In Order",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Job Work In Order",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Job Work In Order",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Job Work In Order"
+    }
+  },
+  {
+    "name": "Job Work Out Order",
+    "parent": "Job Work Out Order",
+    "reservedName": "Job Work Out Order",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Job Work Out Order",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Job Work Out Order",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Job Work Out Order",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Job Work Out Order"
+    }
+  },
+  {
+    "name": "Journal",
+    "parent": "Journal",
+    "reservedName": "Journal",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Journal",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Journal",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Journal",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Journal"
+    }
+  },
+  {
+    "name": "Material In",
+    "parent": "Material In",
+    "reservedName": "Material In",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Material In",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Material In",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Material In",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Material In"
+    }
+  },
+  {
+    "name": "Material Out",
+    "parent": "Material Out",
+    "reservedName": "Material Out",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Material Out",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Material Out",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Material Out",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Material Out"
+    }
+  },
+  {
+    "name": "Memorandum",
+    "parent": "Memorandum",
+    "reservedName": "Memorandum",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Memorandum",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Memorandum",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Memorandum",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Memorandum"
+    }
+  },
+  {
+    "name": "Payment",
+    "parent": "Payment",
+    "reservedName": "Payment",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Payment",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Payment",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Payment",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Payment"
+    }
+  },
+  {
+    "name": "Payroll",
+    "parent": "Payroll",
+    "reservedName": "Payroll",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Payroll",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Payroll",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Payroll",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Payroll"
+    }
+  },
+  {
+    "name": "Physical Stock",
+    "parent": "Physical Stock",
+    "reservedName": "Physical Stock",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Physical Stock",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Physical Stock",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Physical Stock",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Physical Stock"
+    }
+  },
+  {
+    "name": "Purchase",
+    "parent": "Purchase",
+    "reservedName": "Purchase",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Purchase",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Purchase",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Purchase",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Purchase"
+    }
+  },
+  {
+    "name": "Purchase Order",
+    "parent": "Purchase Order",
+    "reservedName": "Purchase Order",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Purchase Order",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Purchase Order",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Purchase Order",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Purchase Order"
+    }
+  },
+  {
+    "name": "Receipt",
+    "parent": "Receipt",
+    "reservedName": "Receipt",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Receipt",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Receipt",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Receipt",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Receipt"
+    }
+  },
+  {
+    "name": "Receipt Note",
+    "parent": "Receipt Note",
+    "reservedName": "Receipt Note",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Receipt Note",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Receipt Note",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Receipt Note",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Receipt Note"
+    }
+  },
+  {
+    "name": "Rejections In",
+    "parent": "Rejections In",
+    "reservedName": "Rejections In",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Rejections In",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Rejections In",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Rejections In",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Rejections In"
+    }
+  },
+  {
+    "name": "Rejections Out",
+    "parent": "Rejections Out",
+    "reservedName": "Rejections Out",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Rejections Out",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Rejections Out",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Rejections Out",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Rejections Out"
+    }
+  },
+  {
+    "name": "Reversing Journal",
+    "parent": "Reversing Journal",
+    "reservedName": "Reversing Journal",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Reversing Journal",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Reversing Journal",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Reversing Journal",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Reversing Journal"
+    }
+  },
+  {
+    "name": "Sales",
+    "parent": "Sales",
+    "reservedName": "Sales",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Sales",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Sales",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Sales",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Sales"
+    }
+  },
+  {
+    "name": "Sales Order",
+    "parent": "Sales Order",
+    "reservedName": "Sales Order",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": false,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Sales Order",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Sales Order",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Sales Order",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Sales Order"
+    }
+  },
+  {
+    "name": "Stock Journal",
+    "parent": "Stock Journal",
+    "reservedName": "Stock Journal",
+    "numberingMethod": "Default",
+    "useZeroEntries": false,
+    "isActive": true,
+    "printAfterSave": false,
+    "isOptional": false,
+    "commonNarration": true,
+    "isDefaultAllocationEnabled": false,
+    "raw": {
+      "PARENT": {
+        "#text": "Stock Journal",
+        "TYPE": "String"
+      },
+      "RESERVEDNAME": "Stock Journal",
+      "NUMBERINGMETHOD": {
+        "#text": "Default",
+        "TYPE": "String"
+      },
+      "USEZEROENTRIES": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISACTIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "PRINTAFTERSAVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISOPTIONAL": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "COMMONNARRATION": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEFAULTALLOCENABLED": {
+        "TYPE": "Logical"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Stock Journal",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "Stock Journal"
+    }
+  }
+]

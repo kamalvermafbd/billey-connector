@@ -17,45 +17,46 @@ function getValue(node) {
         return String(node["#text"]).trim();
 
     return "";
+
 }
 
-function parseGodownResponse(xml) {
+function parseCompanyResponse(xml) {
 
     const parser = new XMLParser({
+
         ignoreAttributes: false,
         attributeNamePrefix: "",
         parseTagValue: true,
         trimValues: true
+
     });
 
     const json = parser.parse(xml);
 
-    const godowns =
-        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GODOWN || [];
+    const company =
+        json?.ENVELOPE?.BODY?.DATA?.TALLYMESSAGE?.COMPANY;
 
-    const godownList = Array.isArray(godowns)
-        ? godowns
-        : godowns
-            ? [godowns]
-            : [];
+    return {
 
-   return godownList.map(godown => ({
+        guid: getValue(company?.GUID),
 
-    guid: getValue(godown.GUID),
+        companyName: getValue(company?.NAME),
 
-   masterid: Number(getValue(godown.MASTERID)) || 0,
+        booksBeginningFrom:
+            getValue(company?.BOOKSFROM),
 
-alterid: Number(getValue(godown.ALTERID)) || 0,
+        financialYearBeginning:
+            getValue(company?.FINANCIALYEARFROM),
 
-    name: getValue(godown.NAME),
+        startingFrom:
+            getValue(company?.STARTINGFROM),
 
-    parent: getValue(godown.PARENT),
+        raw: company
 
-    raw: godown
+    };
 
-}));
 }
 
 module.exports = {
-    parseGodownResponse
+    parseCompanyResponse
 };

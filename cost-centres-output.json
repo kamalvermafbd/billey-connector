@@ -1,30 +1,36 @@
 [
   {
-    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000dc",
-    "masterid": 220,
-    "alterid": 236,
-    "name": "Delhi Phase -1 Godown",
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000de",
+    "masterid": 222,
+    "alterid": 230,
+    "name": "Accounts",
     "parent": "Primary",
+    "category": "Primary Cost Category",
+    "reservedName": "",
     "raw": {
       "GUID": {
-        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000dc",
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000de",
         "TYPE": "String"
       },
       "PARENT": {
         "#text": " Primary",
         "TYPE": "String"
       },
+      "CATEGORY": {
+        "#text": "Primary Cost Category",
+        "TYPE": "String"
+      },
       "ALTERID": {
-        "#text": 236,
+        "#text": 230,
         "TYPE": "Number"
       },
       "MASTERID": {
-        "#text": 220,
+        "#text": 222,
         "TYPE": "Number"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
-          "NAME": "Delhi Phase -1 Godown",
+          "NAME": "Accounts",
           "TYPE": "String"
         },
         "LANGUAGEID": {
@@ -32,36 +38,42 @@
           "TYPE": "Number"
         }
       },
-      "NAME": "Delhi Phase -1 Godown",
+      "NAME": "Accounts",
       "RESERVEDNAME": ""
     }
   },
   {
-    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-00000063",
-    "masterid": 99,
-    "alterid": 100,
-    "name": "Main Location",
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000df",
+    "masterid": 223,
+    "alterid": 231,
+    "name": "Sales",
     "parent": "Primary",
+    "category": "Primary Cost Category",
+    "reservedName": "",
     "raw": {
       "GUID": {
-        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-00000063",
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000df",
         "TYPE": "String"
       },
       "PARENT": {
         "#text": " Primary",
         "TYPE": "String"
       },
+      "CATEGORY": {
+        "#text": "Primary Cost Category",
+        "TYPE": "String"
+      },
       "ALTERID": {
-        "#text": 100,
+        "#text": 231,
         "TYPE": "Number"
       },
       "MASTERID": {
-        "#text": 99,
+        "#text": 223,
         "TYPE": "Number"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
-          "NAME": "Main Location",
+          "NAME": "Sales",
           "TYPE": "String"
         },
         "LANGUAGEID": {
@@ -69,7 +81,7 @@
           "TYPE": "Number"
         }
       },
-      "NAME": "Main Location",
+      "NAME": "Sales",
       "RESERVEDNAME": ""
     }
   }

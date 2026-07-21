@@ -17,9 +17,10 @@ function getValue(node) {
         return String(node["#text"]).trim();
 
     return "";
+
 }
 
-function parseGodownResponse(xml) {
+function parseCostCentreResponse(xml) {
 
     const parser = new XMLParser({
         ignoreAttributes: false,
@@ -30,32 +31,37 @@ function parseGodownResponse(xml) {
 
     const json = parser.parse(xml);
 
-    const godowns =
-        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GODOWN || [];
+    const centres =
+        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.COSTCENTRE || [];
 
-    const godownList = Array.isArray(godowns)
-        ? godowns
-        : godowns
-            ? [godowns]
+    const list = Array.isArray(centres)
+        ? centres
+        : centres
+            ? [centres]
             : [];
 
-   return godownList.map(godown => ({
+  return list.map(cc => ({
 
-    guid: getValue(godown.GUID),
+    guid: getValue(cc.GUID),
 
-   masterid: Number(getValue(godown.MASTERID)) || 0,
+    masterid: Number(getValue(cc.MASTERID)) || 0,
 
-alterid: Number(getValue(godown.ALTERID)) || 0,
+    alterid: Number(getValue(cc.ALTERID)) || 0,
 
-    name: getValue(godown.NAME),
+    name: getValue(cc.NAME),
 
-    parent: getValue(godown.PARENT),
+    parent: getValue(cc.PARENT),
 
-    raw: godown
+    category: getValue(cc.CATEGORY),
+
+    reservedName: getValue(cc.RESERVEDNAME),
+
+    raw: cc
 
 }));
+
 }
 
 module.exports = {
-    parseGodownResponse
+    parseCostCentreResponse
 };

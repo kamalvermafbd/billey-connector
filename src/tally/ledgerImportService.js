@@ -3,6 +3,7 @@ const {
     selectCompany
 } = require("./tallyService");
 
+
 const {
     buildLedgerRequest
 } = require("./ledgerRequest");
@@ -12,12 +13,19 @@ const {
 } = require("./ledgerParser");
 
 async function importLedgers({
-    company
+    company,
+    booksBeginningFrom
 }) {
 
+    console.log("Ledger booksBeginningFrom:", booksBeginningFrom);
+    
     await selectCompany(company);
 
-    const requestXml = buildLedgerRequest();
+    
+
+    const requestXml = buildLedgerRequest({
+    booksBeginningFrom
+});
 
     const responseXml = await sendToTally(requestXml);
 

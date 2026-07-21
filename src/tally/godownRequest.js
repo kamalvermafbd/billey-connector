@@ -28,12 +28,13 @@ function buildGodownRequest() {
 
                         <TYPE>Godown</TYPE>
 
-                        <FETCH>
-
-                            NAME,
-                            PARENT
-
-                        </FETCH>
+                      <FETCH>
+    GUID,
+    MASTERID,
+    ALTERID,
+    NAME,
+    PARENT
+</FETCH>
 
                     </COLLECTION>
 

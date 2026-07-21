@@ -40,6 +40,12 @@ function parseGroupResponse(xml) {
 
     return groupList.map(group => ({
 
+        guid: getValue(group.GUID),
+
+        masterId: getValue(group.MASTERID),
+
+        alterId: getValue(group.ALTERID),
+
         name: getValue(group.NAME),
 
         parent: getValue(group.PARENT),

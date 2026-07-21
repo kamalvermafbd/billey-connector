@@ -26,9 +26,31 @@ const requestXml = buildVoucherRequest({
 
 const responseXml = await sendToTally(requestXml);
 
+if (!responseXml) {
+
+    throw new Error("Empty response received from Tally.");
+
+}
+
 const vouchers = parseVoucherResponse(responseXml);
 
-return vouchers;
+return {
+
+    summary: {
+
+        totalVouchers: vouchers.length,
+
+        fromDate,
+
+        toDate,
+
+        company
+
+    },
+
+    vouchers
+
+};
 
 }
 
