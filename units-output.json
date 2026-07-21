@@ -1,6 +1,11 @@
 [
   {
+    "guid": "",
+    "masterId": "",
+    "alterId": "",
     "name": "Inch",
+    "formalName": "",
+    "decimalPlaces": "",
     "reservedName": "",
     "raw": {
       "NAME": "Inch",
@@ -8,7 +13,12 @@
     }
   },
   {
+    "guid": "",
+    "masterId": "",
+    "alterId": "",
     "name": "LTH",
+    "formalName": "",
+    "decimalPlaces": "",
     "reservedName": "",
     "raw": {
       "NAME": "LTH",
@@ -16,7 +26,12 @@
     }
   },
   {
+    "guid": "",
+    "masterId": "",
+    "alterId": "",
     "name": "Nos",
+    "formalName": "",
+    "decimalPlaces": "",
     "reservedName": "",
     "raw": {
       "NAME": "Nos",

@@ -10,6 +10,24 @@ function getValue(value) {
     return value ?? "";
 }
 
+function getNumber(value) {
+
+    const n = Number(getValue(value));
+
+    return isNaN(n) ? 0 : n;
+
+}
+
+function getQuantityValue(value) {
+
+    const str = String(getValue(value));
+
+    const match = str.match(/-?\d+(\.\d+)?/);
+
+    return match ? Number(match[0]) : 0;
+
+}
+
 function parseBatchAllocations(item) {
 
     const batches = item["BATCHALLOCATIONS.LIST"];
@@ -78,13 +96,53 @@ function parseAccountingAllocations(item) {
         ? allocations
         : [allocations];
 
-    return list.map(a => ({
+   return list.map(a => ({
 
-        ledgerName: getValue(a.LEDGERNAME),
+    ledgerName: getValue(a.LEDGERNAME),
 
-        amount: Number(getValue(a.AMOUNT) || 0)
+    ledgerMasterId: getValue(a.LEDGERMASTERID),
 
-    }));
+    amount: getNumber(a.AMOUNT)
+
+}));
+
+}
+
+function parseCostCentreAllocations(item) {
+
+    const categories = item["CATEGORYALLOCATIONS.LIST"];
+
+    if (!categories) {
+        return [];
+    }
+
+    const list = Array.isArray(categories)
+        ? categories
+        : [categories];
+
+    return list.flatMap(category => {
+
+        const centres = category["COSTCENTREALLOCATIONS.LIST"];
+
+        if (!centres) {
+            return [];
+        }
+
+        const ccList = Array.isArray(centres)
+            ? centres
+            : [centres];
+
+        return ccList.map(cc => ({
+
+            category: getValue(category.CATEGORY),
+
+            costCentre: getValue(cc.NAME),
+
+            amount: getNumber(cc.AMOUNT)
+
+        }));
+
+    });
 
 }
 
@@ -101,29 +159,45 @@ function parseVoucherInventory(voucher) {
         ? inventory
         : [inventory];
 
-    return items.map(item => ({
+   return items.map(item => ({
 
-        stockItem: getValue(item.STOCKITEMNAME),
+    stockItem: getValue(item.STOCKITEMNAME),
 
-        actualQty: getValue(item.ACTUALQTY),
+    stockMasterId: getValue(item.STOCKITEMMASTERID),
 
-        billedQty: getValue(item.BILLEDQTY),
+    actualQty: getValue(item.ACTUALQTY),
 
-        rate: getValue(item.RATE),
+    actualQtyValue: getQuantityValue(item.ACTUALQTY),
 
-        amount: Number(getValue(item.AMOUNT) || 0),
+    billedQty: getValue(item.BILLEDQTY),
 
-        hsnCode: getValue(item.GSTHSNNAME),
+    billedQtyValue: getQuantityValue(item.BILLEDQTY),
 
-        batches: parseBatchAllocations(item),
+    unit: getValue(item.BASEUNITS),
 
-        accounting: parseAccountingAllocations(item),
+    rate: getValue(item.RATE),
 
-        gstRates: parseRateDetails(item),
+    rateValue: getNumber(item.RATE),
 
-        raw: item
+    amount: getNumber(item.AMOUNT),
 
-    }));
+    hsnCode: getValue(item.GSTHSNNAME),
+
+    discount: getNumber(item.DISCOUNT),
+
+    godown: getValue(item.GODOWNNAME),
+
+    batches: parseBatchAllocations(item),
+
+    accounting: parseAccountingAllocations(item),
+
+    gstRates: parseRateDetails(item),
+
+    costCentreAllocations: parseCostCentreAllocations(item),
+
+    raw: item
+
+}));
 
 }
 
@@ -131,5 +205,6 @@ module.exports = {
     parseVoucherInventory,
     parseBatchAllocations,
     parseAccountingAllocations,
-    parseRateDetails
+    parseRateDetails,
+    parseCostCentreAllocations
 };

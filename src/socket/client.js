@@ -9,6 +9,9 @@ const {
      getSalesVouchers
 } = require("../tally/tallyService");
 
+const {
+    importMasters
+} = require("../tally/importMasters");
 
 const {
     getTrialBalance
@@ -252,6 +255,44 @@ socket.on("getSalesVouchers", async (data) => {
 
         socket.emit(
             "getSalesVouchersResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+
+socket.on("getMasters", async (data) => {
+
+    try {
+
+        const result =
+            await importMasters({
+
+                company:
+                    data.company
+
+            });
+
+        socket.emit(
+            "getMastersResult",
+            {
+                success: true,
+                ...result
+            }
+        );
+
+    } catch (err) {
+
+        console.error("GET MASTERS ERROR");
+        console.error(err);
+
+        socket.emit(
+            "getMastersResult",
             {
                 success: false,
                 error: err.message

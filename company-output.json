@@ -1,0 +1,35 @@
+{
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0",
+  "companyName": "Sunil Ent (Client",
+  "booksBeginningFrom": "20160401",
+  "financialYearBeginning": "",
+  "startingFrom": "20160401",
+  "raw": {
+    "STARTINGFROM": {
+      "#text": 20160401,
+      "TYPE": "Date"
+    },
+    "BOOKSFROM": {
+      "#text": 20160401,
+      "TYPE": "Date"
+    },
+    "NAME": "Sunil Ent (Client",
+    "GUID": {
+      "#text": "755da616-c913-46c0-9ad0-de5499d071a0",
+      "TYPE": "String"
+    },
+    "ISDEEMEDPOSITIVE": {
+      "TYPE": "Logical"
+    },
+    "CANDELETE": {
+      "#text": "No",
+      "TYPE": "Logical"
+    },
+    "MASTERID": {
+      "#text": 29,
+      "TYPE": "Number"
+    },
+    "RESERVEDNAME": "",
+    "REQNAME": "Sunil Ent(Client"
+  }
+}

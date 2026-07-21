@@ -1,0 +1,3105 @@
+{
+  "summary": {
+    "company": "Sunil Ent(Client)",
+    "imported_at": "2026-07-20T04:41:28.342Z",
+    "groups": 29,
+    "units": 3,
+    "ledgers": 10,
+    "stocks": 3,
+    "godowns": 2,
+    "costCentres": 2,
+    "voucherTypes": 24
+  },
+  "groups": [
+    {
+      "name": "Bank Accounts",
+      "parent": "Current Assets",
+      "reservedName": "Bank Accounts",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Assets",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Bank Accounts",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Bank Accounts",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Bank Accounts"
+      }
+    },
+    {
+      "name": "Bank OD A/c",
+      "parent": "Loans (Liability)",
+      "reservedName": "Bank OD A/c",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Loans (Liability)",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Bank OD A/c",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": [
+              "Bank OD A/c",
+              "Bank OCC A/c"
+            ],
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Bank OD A/c"
+      }
+    },
+    {
+      "name": "Branch / Divisions",
+      "parent": "Primary",
+      "reservedName": "Branch / Divisions",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Branch / Divisions",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Branch / Divisions",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Branch / Divisions"
+      }
+    },
+    {
+      "name": "Capital Account",
+      "parent": "Primary",
+      "reservedName": "Capital Account",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Capital Account",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Capital Account",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Capital Account"
+      }
+    },
+    {
+      "name": "Cash-in-Hand",
+      "parent": "Current Assets",
+      "reservedName": "Cash-in-Hand",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Assets",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Cash-in-Hand",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Cash-in-Hand",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Cash-in-Hand"
+      }
+    },
+    {
+      "name": "Current Assets",
+      "parent": "Primary",
+      "reservedName": "Current Assets",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Current Assets",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Current Assets",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Current Assets"
+      }
+    },
+    {
+      "name": "Current Liabilities",
+      "parent": "Primary",
+      "reservedName": "Current Liabilities",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Current Liabilities",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Current Liabilities",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Current Liabilities"
+      }
+    },
+    {
+      "name": "Deposits (Asset)",
+      "parent": "Current Assets",
+      "reservedName": "Deposits (Asset)",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Assets",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Deposits (Asset)",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Deposits (Asset)",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Deposits (Asset)"
+      }
+    },
+    {
+      "name": "Direct Expenses",
+      "parent": "Primary",
+      "reservedName": "Direct Expenses",
+      "isRevenue": true,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Direct Expenses",
+        "ISREVENUE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": [
+              "Direct Expenses",
+              "Expenses (Direct)"
+            ],
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Direct Expenses"
+      }
+    },
+    {
+      "name": "Direct Incomes",
+      "parent": "Primary",
+      "reservedName": "Direct Incomes",
+      "isRevenue": true,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Direct Incomes",
+        "ISREVENUE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": [
+              "Direct Incomes",
+              "Income (Direct)"
+            ],
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Direct Incomes"
+      }
+    },
+    {
+      "name": "Duties & Taxes",
+      "parent": "Current Liabilities",
+      "reservedName": "Duties & Taxes",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Liabilities",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Duties & Taxes",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Duties & Taxes",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Duties & Taxes"
+      }
+    },
+    {
+      "name": "Fixed Assets",
+      "parent": "Primary",
+      "reservedName": "Fixed Assets",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Fixed Assets",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Fixed Assets",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Fixed Assets"
+      }
+    },
+    {
+      "name": "Indirect Expenses",
+      "parent": "Primary",
+      "reservedName": "Indirect Expenses",
+      "isRevenue": true,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Indirect Expenses",
+        "ISREVENUE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": [
+              "Indirect Expenses",
+              "Expenses (Indirect)"
+            ],
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Indirect Expenses"
+      }
+    },
+    {
+      "name": "Indirect Incomes",
+      "parent": "Primary",
+      "reservedName": "Indirect Incomes",
+      "isRevenue": true,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Indirect Incomes",
+        "ISREVENUE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": [
+              "Indirect Incomes",
+              "Income (Indirect)"
+            ],
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Indirect Incomes"
+      }
+    },
+    {
+      "name": "Investments",
+      "parent": "Primary",
+      "reservedName": "Investments",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Investments",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Investments",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Investments"
+      }
+    },
+    {
+      "name": "Loans & Advances (Asset)",
+      "parent": "Current Assets",
+      "reservedName": "Loans & Advances (Asset)",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Assets",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Loans & Advances (Asset)",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Loans & Advances (Asset)",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Loans & Advances (Asset)"
+      }
+    },
+    {
+      "name": "Loans (Liability)",
+      "parent": "Primary",
+      "reservedName": "Loans (Liability)",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Loans (Liability)",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Loans (Liability)",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Loans (Liability)"
+      }
+    },
+    {
+      "name": "Misc. Expenses (ASSET)",
+      "parent": "Primary",
+      "reservedName": "Misc. Expenses (ASSET)",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Misc. Expenses (ASSET)",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Misc. Expenses (ASSET)",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Misc. Expenses (ASSET)"
+      }
+    },
+    {
+      "name": "Provisions",
+      "parent": "Current Liabilities",
+      "reservedName": "Provisions",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Liabilities",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Provisions",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Provisions",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Provisions"
+      }
+    },
+    {
+      "name": "Purchase Accounts",
+      "parent": "Primary",
+      "reservedName": "Purchase Accounts",
+      "isRevenue": true,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Purchase Accounts",
+        "ISREVENUE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Purchase Accounts",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Purchase Accounts"
+      }
+    },
+    {
+      "name": "Reserves & Surplus",
+      "parent": "Capital Account",
+      "reservedName": "Reserves & Surplus",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Capital Account",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Reserves & Surplus",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": [
+              "Reserves & Surplus",
+              "Retained Earnings"
+            ],
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Reserves & Surplus"
+      }
+    },
+    {
+      "name": "Sales Accounts",
+      "parent": "Primary",
+      "reservedName": "Sales Accounts",
+      "isRevenue": true,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Sales Accounts",
+        "ISREVENUE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sales Accounts",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sales Accounts"
+      }
+    },
+    {
+      "name": "Secured Loans",
+      "parent": "Loans (Liability)",
+      "reservedName": "Secured Loans",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Loans (Liability)",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Secured Loans",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Secured Loans",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Secured Loans"
+      }
+    },
+    {
+      "name": "Stock-in-Hand",
+      "parent": "Current Assets",
+      "reservedName": "Stock-in-Hand",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Assets",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Stock-in-Hand",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Stock-in-Hand",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Stock-in-Hand"
+      }
+    },
+    {
+      "name": "Sundry Creditors",
+      "parent": "Current Liabilities",
+      "reservedName": "Sundry Creditors",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Liabilities",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Sundry Creditors",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sundry Creditors",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sundry Creditors"
+      }
+    },
+    {
+      "name": "Sundry Debtors",
+      "parent": "Current Assets",
+      "reservedName": "Sundry Debtors",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": "Current Assets",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Sundry Debtors",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sundry Debtors",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sundry Debtors"
+      }
+    },
+    {
+      "name": "Suspense A/c",
+      "parent": "Primary",
+      "reservedName": "Suspense A/c",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Suspense A/c",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Suspense A/c",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Suspense A/c"
+      }
+    },
+    {
+      "name": "Unsecured Loans",
+      "parent": "Loans (Liability)",
+      "reservedName": "Unsecured Loans",
+      "isRevenue": false,
+      "isDeemedPositive": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Loans (Liability)",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Unsecured Loans",
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Unsecured Loans",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Unsecured Loans"
+      }
+    },
+    {
+      "name": "Vip Group",
+      "parent": "Sundry Debtors",
+      "reservedName": "",
+      "isRevenue": false,
+      "isDeemedPositive": true,
+      "raw": {
+        "PARENT": {
+          "#text": "Sundry Debtors",
+          "TYPE": "String"
+        },
+        "ISREVENUE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISDEEMEDPOSITIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Vip Group",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Vip Group",
+        "RESERVEDNAME": ""
+      }
+    }
+  ],
+  "units": [
+    {
+      "name": "Inch",
+      "reservedName": "",
+      "raw": {
+        "NAME": "Inch",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "LTH",
+      "reservedName": "",
+      "raw": {
+        "NAME": "LTH",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Nos",
+      "reservedName": "",
+      "raw": {
+        "NAME": "Nos",
+        "RESERVEDNAME": ""
+      }
+    }
+  ],
+  "ledgers": [
+    {
+      "name": "Cash",
+      "parent": "Cash-in-Hand",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Cash-in-Hand",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Cash",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Cash",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "IGST 18%",
+      "parent": "Duties & Taxes",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Duties & Taxes",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "IGST 18%",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "IGST 18%",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "IGST Sale 18%",
+      "parent": "Sales Accounts",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Sales Accounts",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "IGST Sale 18%",
+            "TYPE": "String"
+          }
+        },
+        "NAME": "IGST Sale 18%",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Profit & Loss A/c",
+      "parent": "Primary",
+      "reservedName": "Profit & Loss A/c",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Profit & Loss A/c",
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Profit & Loss A/c",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Profit & Loss A/c"
+      }
+    },
+    {
+      "name": "Purchae Local",
+      "parent": "Purchase Accounts",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Purchase Accounts",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Purchae Local",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Purchae Local",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Rahul Trading",
+      "parent": "Sundry Debtors",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Sundry Debtors",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Rahul Trading",
+            "TYPE": "String"
+          }
+        },
+        "NAME": "Rahul Trading",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Round Off",
+      "parent": "Indirect Expenses",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Indirect Expenses",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Round Off",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Round Off",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Sudhir Traders",
+      "parent": "Sundry Creditors",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Sundry Creditors",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sudhir Traders",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sudhir Traders",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Sunil Capital Account",
+      "parent": "Capital Account",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Capital Account",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sunil Capital Account",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sunil Capital Account",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Telephone",
+      "parent": "Indirect Expenses",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": "Indirect Expenses",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Telephone",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Telephone",
+        "RESERVEDNAME": ""
+      }
+    }
+  ],
+  "stocks": [
+    {
+      "name": "3/4 CPVC Elbow",
+      "parent": "Primary",
+      "baseUnit": "Nos",
+      "gstApplicable": "Applicable",
+      "typeOfSupply": "Goods",
+      "taxability": "Taxable",
+      "stateName": "Any",
+      "applicableFrom": "2026-04-01",
+      "hsnCode": "3918",
+      "cgst": "9",
+      "sgst": "9",
+      "igst": "18",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "GSTAPPLICABLE": {
+          "#text": " Applicable",
+          "TYPE": "String"
+        },
+        "GSTTYPEOFSUPPLY": {
+          "#text": "Goods",
+          "TYPE": "String"
+        },
+        "BASEUNITS": {
+          "#text": "Nos",
+          "TYPE": "String"
+        },
+        "GSTDETAILS.LIST": {
+          "APPLICABLEFROM": {
+            "#text": 20260401,
+            "TYPE": "Date"
+          },
+          "TAXABILITY": {
+            "#text": "Taxable",
+            "TYPE": "String"
+          },
+          "SRCOFGSTDETAILS": {
+            "#text": "Specify Details Here",
+            "TYPE": "String"
+          },
+          "STATEWISEDETAILS.LIST": {
+            "STATENAME": {
+              "#text": " Any",
+              "TYPE": "String"
+            },
+            "RATEDETAILS.LIST": [
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "CGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 9,
+                  "TYPE": "Number"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "SGST/UTGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 9,
+                  "TYPE": "Number"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "IGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 18,
+                  "TYPE": "Number"
+                }
+              }
+            ],
+            "GSTSLABRATES.LIST": ""
+          }
+        },
+        "HSNDETAILS.LIST": {
+          "APPLICABLEFROM": {
+            "#text": 20260401,
+            "TYPE": "Date"
+          },
+          "HSNCODE": {
+            "#text": 3918,
+            "TYPE": "String"
+          },
+          "SRCOFHSNDETAILS": {
+            "#text": "Specify Details Here",
+            "TYPE": "String"
+          }
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "3/4 CPVC Elbow",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "3/4 CPVC Elbow",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "3/4 CPVC Pipe",
+      "parent": "Primary",
+      "baseUnit": "LTH",
+      "gstApplicable": "Applicable",
+      "typeOfSupply": "Goods",
+      "taxability": "Taxable",
+      "stateName": "Any",
+      "applicableFrom": "2026-04-01",
+      "hsnCode": "3918",
+      "cgst": "9",
+      "sgst": "9",
+      "igst": "18",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "GSTAPPLICABLE": {
+          "#text": " Applicable",
+          "TYPE": "String"
+        },
+        "GSTTYPEOFSUPPLY": {
+          "#text": "Goods",
+          "TYPE": "String"
+        },
+        "BASEUNITS": {
+          "#text": "LTH",
+          "TYPE": "String"
+        },
+        "GSTDETAILS.LIST": {
+          "APPLICABLEFROM": {
+            "#text": 20260401,
+            "TYPE": "Date"
+          },
+          "TAXABILITY": {
+            "#text": "Taxable",
+            "TYPE": "String"
+          },
+          "SRCOFGSTDETAILS": {
+            "#text": "Specify Details Here",
+            "TYPE": "String"
+          },
+          "STATEWISEDETAILS.LIST": {
+            "STATENAME": {
+              "#text": " Any",
+              "TYPE": "String"
+            },
+            "RATEDETAILS.LIST": [
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "CGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 9,
+                  "TYPE": "Number"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "SGST/UTGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 9,
+                  "TYPE": "Number"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "IGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 18,
+                  "TYPE": "Number"
+                }
+              }
+            ],
+            "GSTSLABRATES.LIST": ""
+          }
+        },
+        "HSNDETAILS.LIST": {
+          "APPLICABLEFROM": {
+            "#text": 20260401,
+            "TYPE": "Date"
+          },
+          "HSNCODE": {
+            "#text": 3918,
+            "TYPE": "String"
+          },
+          "SRCOFHSNDETAILS": {
+            "#text": "Specify Details Here",
+            "TYPE": "String"
+          }
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "3/4 CPVC Pipe",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "3/4 CPVC Pipe",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "GI Nipple",
+      "parent": "Primary",
+      "baseUnit": "Inch",
+      "gstApplicable": "Applicable",
+      "typeOfSupply": "Goods",
+      "taxability": "Taxable",
+      "stateName": "Any",
+      "applicableFrom": "2017-07-01",
+      "hsnCode": "39123",
+      "cgst": "7.5",
+      "sgst": "7.5",
+      "igst": "15",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "GSTAPPLICABLE": {
+          "#text": " Applicable",
+          "TYPE": "String"
+        },
+        "GSTTYPEOFSUPPLY": {
+          "#text": "Goods",
+          "TYPE": "String"
+        },
+        "BASEUNITS": {
+          "#text": "Inch",
+          "TYPE": "String"
+        },
+        "GSTDETAILS.LIST": {
+          "APPLICABLEFROM": {
+            "#text": 20170701,
+            "TYPE": "Date"
+          },
+          "TAXABILITY": {
+            "#text": "Taxable",
+            "TYPE": "String"
+          },
+          "SRCOFGSTDETAILS": {
+            "#text": "Specify Details Here",
+            "TYPE": "String"
+          },
+          "STATEWISEDETAILS.LIST": {
+            "STATENAME": {
+              "#text": " Any",
+              "TYPE": "String"
+            },
+            "RATEDETAILS.LIST": [
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "CGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 7.5,
+                  "TYPE": "Number"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "SGST/UTGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 7.5,
+                  "TYPE": "Number"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "IGST",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                },
+                "GSTRATE": {
+                  "#text": 15,
+                  "TYPE": "Number"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "Cess",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": " Not Applicable",
+                  "TYPE": "String"
+                }
+              },
+              {
+                "GSTRATEDUTYHEAD": {
+                  "#text": "State Cess",
+                  "TYPE": "String"
+                },
+                "GSTRATEVALUATIONTYPE": {
+                  "#text": "Based on Value",
+                  "TYPE": "String"
+                }
+              }
+            ],
+            "GSTSLABRATES.LIST": ""
+          }
+        },
+        "HSNDETAILS.LIST": {
+          "APPLICABLEFROM": {
+            "#text": 20170701,
+            "TYPE": "Date"
+          },
+          "HSNCODE": {
+            "#text": 39123,
+            "TYPE": "String"
+          },
+          "SRCOFHSNDETAILS": {
+            "#text": "Specify Details Here",
+            "TYPE": "String"
+          }
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "GI Nipple",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "GI Nipple",
+        "RESERVEDNAME": ""
+      }
+    }
+  ],
+  "godowns": [
+    {
+      "name": "Delhi Godown",
+      "parent": "Primary",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Delhi Godown",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Delhi Godown",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Main Location",
+      "parent": "Primary",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Main Location",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Main Location",
+        "RESERVEDNAME": ""
+      }
+    }
+  ],
+  "costCentres": [
+    {
+      "name": "Accounts",
+      "parent": "Primary",
+      "category": "Primary Cost Category",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "CATEGORY": {
+          "#text": "Primary Cost Category",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Accounts",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Accounts",
+        "RESERVEDNAME": ""
+      }
+    },
+    {
+      "name": "Sales",
+      "parent": "Primary",
+      "category": "Primary Cost Category",
+      "reservedName": "",
+      "raw": {
+        "PARENT": {
+          "#text": " Primary",
+          "TYPE": "String"
+        },
+        "CATEGORY": {
+          "#text": "Primary Cost Category",
+          "TYPE": "String"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sales",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sales",
+        "RESERVEDNAME": ""
+      }
+    }
+  ],
+  "voucherTypes": [
+    {
+      "name": "Attendance",
+      "parent": "Attendance",
+      "reservedName": "Attendance",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Attendance",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Attendance",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Attendance",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Attendance"
+      }
+    },
+    {
+      "name": "Contra",
+      "parent": "Contra",
+      "reservedName": "Contra",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Contra",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Contra",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Contra",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Contra"
+      }
+    },
+    {
+      "name": "Credit Note",
+      "parent": "Credit Note",
+      "reservedName": "Credit Note",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Credit Note",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Credit Note",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Credit Note",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Credit Note"
+      }
+    },
+    {
+      "name": "Debit Note",
+      "parent": "Debit Note",
+      "reservedName": "Debit Note",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Debit Note",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Debit Note",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Debit Note",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Debit Note"
+      }
+    },
+    {
+      "name": "Delivery Note",
+      "parent": "Delivery Note",
+      "reservedName": "Delivery Note",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Delivery Note",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Delivery Note",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Delivery Note",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Delivery Note"
+      }
+    },
+    {
+      "name": "Job Work In Order",
+      "parent": "Job Work In Order",
+      "reservedName": "Job Work In Order",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Job Work In Order",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Job Work In Order",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Job Work In Order",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Job Work In Order"
+      }
+    },
+    {
+      "name": "Job Work Out Order",
+      "parent": "Job Work Out Order",
+      "reservedName": "Job Work Out Order",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Job Work Out Order",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Job Work Out Order",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Job Work Out Order",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Job Work Out Order"
+      }
+    },
+    {
+      "name": "Journal",
+      "parent": "Journal",
+      "reservedName": "Journal",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Journal",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Journal",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Journal",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Journal"
+      }
+    },
+    {
+      "name": "Material In",
+      "parent": "Material In",
+      "reservedName": "Material In",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Material In",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Material In",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Material In",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Material In"
+      }
+    },
+    {
+      "name": "Material Out",
+      "parent": "Material Out",
+      "reservedName": "Material Out",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Material Out",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Material Out",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Material Out",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Material Out"
+      }
+    },
+    {
+      "name": "Memorandum",
+      "parent": "Memorandum",
+      "reservedName": "Memorandum",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Memorandum",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Memorandum",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Memorandum",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Memorandum"
+      }
+    },
+    {
+      "name": "Payment",
+      "parent": "Payment",
+      "reservedName": "Payment",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Payment",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Payment",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Payment",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Payment"
+      }
+    },
+    {
+      "name": "Payroll",
+      "parent": "Payroll",
+      "reservedName": "Payroll",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Payroll",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Payroll",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Payroll",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Payroll"
+      }
+    },
+    {
+      "name": "Physical Stock",
+      "parent": "Physical Stock",
+      "reservedName": "Physical Stock",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Physical Stock",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Physical Stock",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Physical Stock",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Physical Stock"
+      }
+    },
+    {
+      "name": "Purchase",
+      "parent": "Purchase",
+      "reservedName": "Purchase",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Purchase",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Purchase",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Purchase",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Purchase"
+      }
+    },
+    {
+      "name": "Purchase Order",
+      "parent": "Purchase Order",
+      "reservedName": "Purchase Order",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Purchase Order",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Purchase Order",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Purchase Order",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Purchase Order"
+      }
+    },
+    {
+      "name": "Receipt",
+      "parent": "Receipt",
+      "reservedName": "Receipt",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Receipt",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Receipt",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Receipt",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Receipt"
+      }
+    },
+    {
+      "name": "Receipt Note",
+      "parent": "Receipt Note",
+      "reservedName": "Receipt Note",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Receipt Note",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Receipt Note",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Receipt Note",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Receipt Note"
+      }
+    },
+    {
+      "name": "Rejections In",
+      "parent": "Rejections In",
+      "reservedName": "Rejections In",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Rejections In",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Rejections In",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Rejections In",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Rejections In"
+      }
+    },
+    {
+      "name": "Rejections Out",
+      "parent": "Rejections Out",
+      "reservedName": "Rejections Out",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Rejections Out",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Rejections Out",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Rejections Out",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Rejections Out"
+      }
+    },
+    {
+      "name": "Reversing Journal",
+      "parent": "Reversing Journal",
+      "reservedName": "Reversing Journal",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Reversing Journal",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Reversing Journal",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Reversing Journal",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Reversing Journal"
+      }
+    },
+    {
+      "name": "Sales",
+      "parent": "Sales",
+      "reservedName": "Sales",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Sales",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Sales",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sales",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sales"
+      }
+    },
+    {
+      "name": "Sales Order",
+      "parent": "Sales Order",
+      "reservedName": "Sales Order",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": false,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Sales Order",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Sales Order",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Sales Order",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Sales Order"
+      }
+    },
+    {
+      "name": "Stock Journal",
+      "parent": "Stock Journal",
+      "reservedName": "Stock Journal",
+      "numberingMethod": "Default",
+      "useZeroEntries": false,
+      "isActive": true,
+      "printAfterSave": false,
+      "isOptional": false,
+      "commonNarration": true,
+      "isDefaultAllocationEnabled": false,
+      "raw": {
+        "PARENT": {
+          "#text": "Stock Journal",
+          "TYPE": "String"
+        },
+        "RESERVEDNAME": "Stock Journal",
+        "NUMBERINGMETHOD": {
+          "#text": "Default",
+          "TYPE": "String"
+        },
+        "USEZEROENTRIES": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISACTIVE": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "PRINTAFTERSAVE": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "ISOPTIONAL": {
+          "#text": "No",
+          "TYPE": "Logical"
+        },
+        "COMMONNARRATION": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        },
+        "ISDEFAULTALLOCENABLED": {
+          "TYPE": "Logical"
+        },
+        "LANGUAGENAME.LIST": {
+          "NAME.LIST": {
+            "NAME": "Stock Journal",
+            "TYPE": "String"
+          },
+          "LANGUAGEID": {
+            "#text": 1033,
+            "TYPE": "Number"
+          }
+        },
+        "NAME": "Stock Journal"
+      }
+    }
+  ]
+}

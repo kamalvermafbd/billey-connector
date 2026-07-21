@@ -1,26 +1,16 @@
 const { XMLParser } = require("fast-xml-parser");
 
 function getValue(node) {
-
     if (node == null) return "";
-
-    if (typeof node === "string")
-        return node.trim();
-
-    if (typeof node === "number")
-        return node;
-
-    if (typeof node === "boolean")
-        return node;
-
+    if (typeof node === "string") return node.trim();
+    if (typeof node === "number") return node;
+    if (typeof node === "boolean") return node;
     if (typeof node === "object" && "#text" in node)
         return String(node["#text"]).trim();
-
     return "";
-
 }
 
-function parseUnitResponse(xml) {
+function parseUnitObjectResponse(xml) {
 
     const parser = new XMLParser({
         ignoreAttributes: false,
@@ -31,34 +21,25 @@ function parseUnitResponse(xml) {
 
     const json = parser.parse(xml);
 
-    const units =
-        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.UNIT || [];
+    const unit = json?.ENVELOPE?.BODY?.DATA?.TALLYMESSAGE?.UNIT;
 
-    const unitList = Array.isArray(units)
-        ? units
-        : [units];
+    if (!unit) return null;
 
-    return unitList.map(unit => ({
+   return {
+    guid: getValue(unit.GUID),
 
- //   guid: getValue(unit.GUID),
-
- //  masterid: getValue(unit.MASTERID),
-
-//  alterid: getValue(unit.ALTERID),
+    masterid: getValue(unit.MASTERID),
+    alterid: getValue(unit.ALTERID),
 
     name: getValue(unit.NAME),
-
     formalName: getValue(unit.FORMALNAME),
-
     decimalPlaces: getValue(unit.DECIMALPLACES),
-
     reservedName: getValue(unit.RESERVEDNAME),
 
     raw: unit
-
-}));
+};
 }
 
 module.exports = {
-    parseUnitResponse
+    parseUnitObjectResponse
 };

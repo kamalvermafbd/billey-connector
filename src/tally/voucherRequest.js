@@ -29,6 +29,10 @@ function buildVoucherRequest({
 
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
+                <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+
+                <SVTODATE TYPE="Date">${toDate}</SVTODATE>
+
             </STATICVARIABLES>
 
             <TDL>
@@ -41,19 +45,49 @@ function buildVoucherRequest({
 
                         <FETCH>
 
-                            Date,
-                            VoucherTypeName,
-                            VoucherNumber,
-                            PartyLedgerName,
-                            Narration,
-                            AllInventoryEntries,
-                            LedgerEntries,
-                            PartyGSTIN,
-                            PlaceOfSupply,
-                            BasicBuyerName,
-                            BasicBuyerAddress,
-                            GSTRegistrationType,
-                            PersistedView
+                            GUID,
+
+                            MASTERID,
+
+                            ALTERID,
+
+                            DATE,
+
+                            EFFECTIVEDATE,
+
+                            VOUCHERTYPENAME,
+
+                            VOUCHERNUMBER,
+
+                            REFERENCE,
+
+                            REFERENCEDATE,
+
+                            PARTYLEDGERNAME,
+
+                            NARRATION,
+
+                            PARTYGSTIN,
+
+                            PLACEOFSUPPLY,
+
+                            BASICBUYERNAME,
+
+                            BASICBUYERADDRESS,
+
+                            GSTREGISTRATIONTYPE,
+
+                            PERSISTEDVIEW,
+
+                            ISINVOICE,
+
+                            ISOPTIONAL,
+
+                            ISCANCELLED,
+
+                            ALLLEDGERENTRIES,
+
+                            ALLINVENTORYENTRIES
 
                         </FETCH>
 

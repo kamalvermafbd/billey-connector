@@ -1,12 +1,60 @@
 [
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000001f",
+    "masterId": "31",
+    "alterId": "32",
     "name": "Cash",
     "parent": "Cash-in-Hand",
     "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "",
+    "openingBalance": 501,
+    "openingBalanceAmount": 501,
+    "openingBalanceType": "CR",
+    "isBillWise": false,
+    "isRevenue": false,
+    "isDeemedPositive": true,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-0000001f",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Cash-in-Hand",
         "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 32,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 31,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 501,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
@@ -18,18 +66,69 @@
           "TYPE": "Number"
         }
       },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": "",
       "NAME": "Cash",
       "RESERVEDNAME": ""
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d3",
+    "masterId": "211",
+    "alterId": "221",
     "name": "IGST 18%",
     "parent": "Duties & Taxes",
     "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": -756,
+    "openingBalanceAmount": 756,
+    "openingBalanceType": "DR",
+    "isBillWise": false,
+    "isRevenue": false,
+    "isDeemedPositive": false,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d3",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Duties & Taxes",
         "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 221,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 211,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": -756,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
@@ -41,18 +140,78 @@
           "TYPE": "Number"
         }
       },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
       "NAME": "IGST 18%",
       "RESERVEDNAME": ""
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d2",
+    "masterId": "210",
+    "alterId": "213",
     "name": "IGST Sale 18%",
     "parent": "Sales Accounts",
     "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": true,
+    "isDeemedPositive": false,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d2",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Sales Accounts",
         "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 213,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 210,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
@@ -60,20 +219,71 @@
           "TYPE": "String"
         }
       },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": "",
       "NAME": "IGST Sale 18%",
       "RESERVEDNAME": ""
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000001e",
+    "masterId": "30",
+    "alterId": "31",
     "name": "Profit & Loss A/c",
     "parent": "Primary",
     "reservedName": "Profit & Loss A/c",
+    "gstApplicable": "",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": false,
+    "isDeemedPositive": false,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-0000001e",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": " Primary",
         "TYPE": "String"
       },
       "RESERVEDNAME": "Profit & Loss A/c",
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 31,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 30,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
+      },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
           "NAME": "Profit & Loss A/c",
@@ -84,17 +294,72 @@
           "TYPE": "Number"
         }
       },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": "",
       "NAME": "Profit & Loss A/c"
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d9",
+    "masterId": "217",
+    "alterId": "220",
     "name": "Purchae Local",
     "parent": "Purchase Accounts",
     "reservedName": "",
+    "gstApplicable": "Not Applicable",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": true,
+    "isDeemedPositive": true,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d9",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Purchase Accounts",
         "TYPE": "String"
+      },
+      "GSTAPPLICABLE": {
+        "#text": " Not Applicable",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 220,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 217,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
@@ -106,23 +371,192 @@
           "TYPE": "Number"
         }
       },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "COUNTRYISDCODE": {
+          "#text": 91,
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
       "NAME": "Purchae Local",
       "RESERVEDNAME": ""
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d4",
+    "masterId": "212",
+    "alterId": "235",
     "name": "Rahul Trading",
     "parent": "Sundry Debtors",
     "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "Regular",
+    "gstin": "06BAPPV8233E2SZ",
+    "mailingName": "Rahul Trading",
+    "address": "himpachal baddi 123291",
+    "stateName": "Himachal Pradesh",
+    "country": "India",
+    "pinCode": "132101",
+    "phone": "9823298329",
+    "email": "rajan@gmail.com",
+    "contactPerson": "Rajan",
+    "openingBalance": -1399,
+    "openingBalanceAmount": 1399,
+    "openingBalanceType": "DR",
+    "isBillWise": true,
+    "isRevenue": false,
+    "isDeemedPositive": true,
     "raw": {
+      "ADDRESS.LIST": {
+        "ADDRESS": {
+          "#text": "himpachal baddi 123291",
+          "TYPE": "String"
+        },
+        "TYPE": "String"
+      },
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d4",
+        "TYPE": "String"
+      },
+      "EMAIL": {
+        "#text": "rajan@gmail.com",
+        "TYPE": "String"
+      },
+      "PINCODE": {
+        "#text": 132101,
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Sundry Debtors",
         "TYPE": "String"
+      },
+      "MAILINGNAME": {
+        "#text": "Rahul Trading",
+        "TYPE": "String"
+      },
+      "LEDGERMOBILE": {
+        "#text": 9823298329,
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 235,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 212,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": -1399,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
           "NAME": "Rahul Trading",
           "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "LEDGSTREGDETAILS.LIST": [
+        {
+          "APPLICABLEFROM": {
+            "#text": 20260401,
+            "TYPE": "Date"
+          },
+          "GSTREGISTRATIONTYPE": {
+            "#text": "Unregistered",
+            "TYPE": "String"
+          },
+          "PLACEOFSUPPLY": {
+            "#text": "Himachal Pradesh",
+            "TYPE": "String"
+          }
+        },
+        {
+          "APPLICABLEFROM": {
+            "#text": 20260701,
+            "TYPE": "Date"
+          },
+          "GSTREGISTRATIONTYPE": {
+            "#text": "Regular",
+            "TYPE": "String"
+          },
+          "PLACEOFSUPPLY": {
+            "#text": "Himachal Pradesh",
+            "TYPE": "String"
+          },
+          "GSTIN": {
+            "#text": "06BAPPV8233E2SZ",
+            "TYPE": "String"
+          }
+        }
+      ],
+      "LEDMAILINGDETAILS.LIST": {
+        "ADDRESS.LIST": {
+          "ADDRESS": "himpachal baddi 123291",
+          "TYPE": "String"
+        },
+        "APPLICABLEFROM": {
+          "#text": 20260401,
+          "TYPE": "Date"
+        },
+        "PINCODE": {
+          "#text": 132101,
+          "TYPE": "String"
+        },
+        "MAILINGNAME": {
+          "#text": "Rahul Trading",
+          "TYPE": "String"
+        },
+        "STATE": {
+          "#text": "Himachal Pradesh",
+          "TYPE": "String"
+        },
+        "COUNTRY": {
+          "#text": "India",
+          "TYPE": "String"
+        }
+      },
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Rajan",
+          "TYPE": "String"
+        },
+        "PHONENUMBER": {
+          "#text": 9823298329,
+          "TYPE": "String"
+        },
+        "COUNTRYISDCODE": {
+          "#text": 91,
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
         }
       },
       "NAME": "Rahul Trading",
@@ -130,13 +564,69 @@
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d5",
+    "masterId": "213",
+    "alterId": "216",
     "name": "Round Off",
     "parent": "Indirect Expenses",
     "reservedName": "",
+    "gstApplicable": "Applicable",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "Round Off",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": true,
+    "isDeemedPositive": true,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d5",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Indirect Expenses",
         "TYPE": "String"
+      },
+      "MAILINGNAME": {
+        "#text": "Round Off",
+        "TYPE": "String"
+      },
+      "GSTAPPLICABLE": {
+        "#text": " Applicable",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 216,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 213,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
@@ -148,18 +638,98 @@
           "TYPE": "Number"
         }
       },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20160401,
+          "TYPE": "Date"
+        },
+        "PINCODE": {
+          "TYPE": "String"
+        },
+        "MAILINGNAME": {
+          "#text": "Round Off",
+          "TYPE": "String"
+        }
+      },
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "COUNTRYISDCODE": {
+          "#text": 91,
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
       "NAME": "Round Off",
       "RESERVEDNAME": ""
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d8",
+    "masterId": "216",
+    "alterId": "223",
     "name": "Sudhir Traders",
     "parent": "Sundry Creditors",
     "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "Regular",
+    "gstin": "",
+    "mailingName": "Sudhir Traders",
+    "address": "",
+    "stateName": "Haryana",
+    "country": "India",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 4955,
+    "openingBalanceAmount": 4955,
+    "openingBalanceType": "CR",
+    "isBillWise": true,
+    "isRevenue": false,
+    "isDeemedPositive": false,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d8",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Sundry Creditors",
         "TYPE": "String"
+      },
+      "MAILINGNAME": {
+        "#text": "Sudhir Traders",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 223,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 216,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 4955,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
@@ -171,18 +741,116 @@
           "TYPE": "Number"
         }
       },
+      "LEDGSTREGDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20170701,
+          "TYPE": "Date"
+        },
+        "GSTREGISTRATIONTYPE": {
+          "#text": "Regular",
+          "TYPE": "String"
+        },
+        "PLACEOFSUPPLY": {
+          "#text": "Haryana",
+          "TYPE": "String"
+        }
+      },
+      "LEDMAILINGDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20160401,
+          "TYPE": "Date"
+        },
+        "MAILINGNAME": {
+          "#text": "Sudhir Traders",
+          "TYPE": "String"
+        },
+        "STATE": {
+          "#text": "Haryana",
+          "TYPE": "String"
+        },
+        "COUNTRY": {
+          "#text": "India",
+          "TYPE": "String"
+        }
+      },
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "COUNTRYISDCODE": {
+          "#text": 91,
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
       "NAME": "Sudhir Traders",
       "RESERVEDNAME": ""
     }
   },
   {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000db",
+    "masterId": "219",
+    "alterId": "224",
     "name": "Sunil Capital Account",
     "parent": "Capital Account",
     "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "Regular",
+    "gstin": "",
+    "mailingName": "Sunil Capital Account",
+    "address": "",
+    "stateName": "Haryana",
+    "country": "India",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": false,
+    "isDeemedPositive": false,
     "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000db",
+        "TYPE": "String"
+      },
       "PARENT": {
         "#text": "Capital Account",
         "TYPE": "String"
+      },
+      "MAILINGNAME": {
+        "#text": "Sunil Capital Account",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 224,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 219,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
@@ -194,7 +862,160 @@
           "TYPE": "Number"
         }
       },
+      "LEDGSTREGDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20170701,
+          "TYPE": "Date"
+        },
+        "GSTREGISTRATIONTYPE": {
+          "#text": "Regular",
+          "TYPE": "String"
+        },
+        "PLACEOFSUPPLY": {
+          "#text": "Haryana",
+          "TYPE": "String"
+        }
+      },
+      "LEDMAILINGDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20160401,
+          "TYPE": "Date"
+        },
+        "PINCODE": {
+          "TYPE": "String"
+        },
+        "MAILINGNAME": {
+          "#text": "Sunil Capital Account",
+          "TYPE": "String"
+        },
+        "STATE": {
+          "#text": "Haryana",
+          "TYPE": "String"
+        },
+        "COUNTRY": {
+          "#text": "India",
+          "TYPE": "String"
+        }
+      },
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "COUNTRYISDCODE": {
+          "#text": 91,
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
       "NAME": "Sunil Capital Account",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000dd",
+    "masterId": "221",
+    "alterId": "227",
+    "name": "Telephone",
+    "parent": "Indirect Expenses",
+    "reservedName": "",
+    "gstApplicable": "Applicable",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "Telephone",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": true,
+    "isDeemedPositive": true,
+    "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000dd",
+        "TYPE": "String"
+      },
+      "PARENT": {
+        "#text": "Indirect Expenses",
+        "TYPE": "String"
+      },
+      "MAILINGNAME": {
+        "#text": "Telephone",
+        "TYPE": "String"
+      },
+      "GSTAPPLICABLE": {
+        "#text": " Applicable",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 227,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 221,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Telephone",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": {
+        "APPLICABLEFROM": {
+          "#text": 20160401,
+          "TYPE": "Date"
+        },
+        "MAILINGNAME": {
+          "#text": "Telephone",
+          "TYPE": "String"
+        }
+      },
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "COUNTRYISDCODE": {
+          "#text": 91,
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
+      "NAME": "Telephone",
       "RESERVEDNAME": ""
     }
   }

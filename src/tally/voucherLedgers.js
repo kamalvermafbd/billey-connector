@@ -36,6 +36,42 @@ function getNumber(v) {
 
 }
 
+function parseBillAllocations(row) {
+
+    return toArray(row["BILLALLOCATIONS.LIST"]).map(bill => ({
+
+        billName: getValue(bill.NAME),
+
+        billType: getValue(bill.BILLTYPE),
+
+        amount: getNumber(bill.AMOUNT),
+
+        dueDate: getValue(bill.DUEDATE),
+
+        creditDays: getNumber(bill.CREDITPERIOD)
+
+    }));
+
+}
+
+function parseCostCentreAllocations(row) {
+
+    return toArray(row["CATEGORYALLOCATIONS.LIST"]).flatMap(category =>
+
+        toArray(category["COSTCENTREALLOCATIONS.LIST"]).map(cc => ({
+
+            category: getValue(category.CATEGORY),
+
+            costCentre: getValue(cc.NAME),
+
+            amount: getNumber(cc.AMOUNT)
+
+        }))
+
+    );
+
+}
+
 function parseVoucherLedgers(voucher) {
 
     const rows = [
@@ -46,23 +82,45 @@ function parseVoucherLedgers(voucher) {
 
     ];
 
-    return rows.map(row => ({
+    return rows.map(row => {
 
-        ledgerName: getValue(row.LEDGERNAME),
+        const amount = getNumber(row.AMOUNT);
 
-        amount: getNumber(row.AMOUNT),
+        const isDeemedPositive = getValue(row.ISDEEMEDPOSITIVE);
 
-        isDeemedPositive: getValue(row.ISDEEMEDPOSITIVE),
+        return {
 
-        isPartyLedger: getValue(row.ISPARTYLEDGER),
+            ledgerName: getValue(row.LEDGERNAME),
 
-        isLastDeemedPositive: getValue(row.ISLASTDEEMEDPOSITIVE),
+            ledgerMasterId: getValue(row.LEDGERMASTERID),
 
-        removeZeroEntries: getValue(row.REMOVEZEROENTRIES),
+            amount,
 
-        raw: row
+            debit: isDeemedPositive === "Yes"
+                ? Math.abs(amount)
+                : 0,
 
-    }));
+            credit: isDeemedPositive === "No"
+                ? Math.abs(amount)
+                : 0,
+
+            isDeemedPositive,
+
+            isPartyLedger: getValue(row.ISPARTYLEDGER),
+
+            isLastDeemedPositive: getValue(row.ISLASTDEEMEDPOSITIVE),
+
+            removeZeroEntries: getValue(row.REMOVEZEROENTRIES),
+
+            billAllocations: parseBillAllocations(row),
+
+            costCentreAllocations: parseCostCentreAllocations(row),
+
+            raw: row
+
+        };
+
+    });
 
 }
 

@@ -1,4 +1,3 @@
-
 function getValue(v) {
 
     if (v == null) return "";
@@ -27,11 +26,19 @@ function parseVoucherHeader(v) {
 
         masterId: getValue(v.MASTERID),
 
+        alterId: getValue(v.ALTERID),
+
         voucherType: getValue(v.VOUCHERTYPENAME),
 
         voucherNumber: getValue(v.VOUCHERNUMBER),
 
         voucherDate: getValue(v.DATE),
+
+        effectiveDate: getValue(v.EFFECTIVEDATE),
+
+        reference: getValue(v.REFERENCE),
+
+        referenceDate: getValue(v.REFERENCEDATE),
 
         partyLedger: getValue(v.PARTYLEDGERNAME),
 
@@ -43,11 +50,17 @@ function parseVoucherHeader(v) {
 
         buyerName: getValue(v.BASICBUYERNAME),
 
+        buyerAddress: getValue(v.BASICBUYERADDRESS),
+
         gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
 
         persistedView: getValue(v.PERSISTEDVIEW),
 
-        isInvoice: getValue(v.ISINVOICE)
+        isInvoice: getValue(v.ISINVOICE),
+
+        isOptional: getValue(v.ISOPTIONAL),
+
+        isCancelled: getValue(v.ISCANCELLED)
 
     };
 

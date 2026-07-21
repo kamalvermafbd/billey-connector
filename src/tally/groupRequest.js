@@ -28,15 +28,18 @@ function buildGroupRequest() {
 
                         <TYPE>Group</TYPE>
 
-                        <FETCH>
+                      <FETCH>
 
-                            NAME,
-                            PARENT,
-                            RESERVEDNAME,
-                            ISREVENUE,
-                            ISDEEMEDPOSITIVE
+    NAME,
+    PARENT,
+    GUID,
+    MASTERID,
+    ALTERID,
+    RESERVEDNAME,
+    ISREVENUE,
+    ISDEEMEDPOSITIVE
 
-                        </FETCH>
+</FETCH>
 
                     </COLLECTION>
 

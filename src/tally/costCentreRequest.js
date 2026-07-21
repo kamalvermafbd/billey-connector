@@ -1,4 +1,4 @@
-function buildUnitRequest() {
+function buildCostCentreRequest() {
 
     return `
 <ENVELOPE>
@@ -7,7 +7,7 @@ function buildUnitRequest() {
         <VERSION>1</VERSION>
         <TALLYREQUEST>Export</TALLYREQUEST>
         <TYPE>Collection</TYPE>
-        <ID>Billey Unit Collection</ID>
+        <ID>Billey Cost Centre Collection</ID>
     </HEADER>
 
     <BODY>
@@ -24,28 +24,23 @@ function buildUnitRequest() {
 
                 <TDLMESSAGE>
 
-                    <COLLECTION NAME="Billey Unit Collection">
+                    <COLLECTION NAME="Billey Cost Centre Collection">
 
-    <TYPE>Unit</TYPE>
+                        <TYPE>CostCentre</TYPE>
+<FETCH>
 
-    <COMPUTE>UNITGUID : $GUID</COMPUTE>
-    <COMPUTE>UNITMASTERID : $MASTERID</COMPUTE>
-    <COMPUTE>UNITALTERID : $ALTERID</COMPUTE>
+    GUID,
+    MASTERID,
+    ALTERID,
 
-    <FETCH>
+    NAME,
+    PARENT,
+    CATEGORY,
+    RESERVEDNAME
 
-        UNITGUID,
-        UNITMASTERID,
-        UNITALTERID,
+</FETCH>
 
-        NAME,
-        FORMALNAME,
-        DECIMALPLACES,
-        RESERVEDNAME
-
-    </FETCH>
-
-</COLLECTION>
+                    </COLLECTION>
 
                 </TDLMESSAGE>
 
@@ -61,5 +56,5 @@ function buildUnitRequest() {
 }
 
 module.exports = {
-    buildUnitRequest
+    buildCostCentreRequest
 };
