@@ -15,10 +15,8 @@ function buildStockRequest() {
         <DESC>
 
             <STATICVARIABLES>
-
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-
-            </STATICVARIABLES>
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+</STATICVARIABLES>
 
             <TDL>
 
@@ -26,21 +24,29 @@ function buildStockRequest() {
 
                     <COLLECTION NAME="Billey Stock Collection">
 
-                        <TYPE>Stock Item</TYPE>
+    <TYPE>Stock Item</TYPE>
 
-                        <FETCH>
+    <COMPUTE>STOCKGUID : $GUID</COMPUTE>
+    <COMPUTE>STOCKMASTERID : $MASTERID</COMPUTE>
+    <COMPUTE>STOCKALTERID : $ALTERID</COMPUTE>
 
-                           NAME,
-                            PARENT,
-                            BASEUNITS,
-                            GSTAPPLICABLE,
-                            GSTTYPEOFSUPPLY,
-                            HSNDETAILS.LIST,
-                            GSTDETAILS.LIST
+    <FETCH>
 
-                        </FETCH>
+        STOCKGUID,
+        STOCKMASTERID,
+        STOCKALTERID,
 
-                    </COLLECTION>
+        NAME,
+        PARENT,
+        BASEUNITS,
+        GSTAPPLICABLE,
+        GSTTYPEOFSUPPLY,
+        HSNDETAILS.LIST,
+        GSTDETAILS.LIST
+
+    </FETCH>
+
+</COLLECTION>
 
                 </TDLMESSAGE>
 

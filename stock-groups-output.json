@@ -1,0 +1,78 @@
+[
+  {
+    "name": "CPVC Pipe Fitting",
+    "parent": "Primary",
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000e2",
+    "master_id": "226",
+    "alter_id": "241",
+    "reserved_name": "",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "GROUPGUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000e2",
+        "TYPE": "String"
+      },
+      "GROUPMASTERID": {
+        "#text": 226,
+        "TYPE": "Number"
+      },
+      "GROUPALTERID": {
+        "#text": 241,
+        "TYPE": "Number"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "CPVC Pipe Fitting",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "CPVC Pipe Fitting",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "name": "GI Pipe Fitting",
+    "parent": "Primary",
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000e3",
+    "master_id": "227",
+    "alter_id": "244",
+    "reserved_name": "",
+    "raw": {
+      "PARENT": {
+        "#text": " Primary",
+        "TYPE": "String"
+      },
+      "GROUPGUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000e3",
+        "TYPE": "String"
+      },
+      "GROUPMASTERID": {
+        "#text": 227,
+        "TYPE": "Number"
+      },
+      "GROUPALTERID": {
+        "#text": 244,
+        "TYPE": "Number"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "GI Pipe Fitting",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "NAME": "GI Pipe Fitting",
+      "RESERVEDNAME": ""
+    }
+  }
+]

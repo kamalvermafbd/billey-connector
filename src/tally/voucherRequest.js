@@ -87,7 +87,8 @@ function buildVoucherRequest({
 
                             ALLLEDGERENTRIES,
 
-                            ALLINVENTORYENTRIES
+                            ALLINVENTORYENTRIES,
+                            
 
                         </FETCH>
 

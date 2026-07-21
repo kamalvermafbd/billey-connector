@@ -3,6 +3,7 @@ const {
     selectCompany
 } = require("./tallyService");
 
+
 const {
     buildVoucherRequest
 } = require("./voucherRequest");
@@ -10,6 +11,8 @@ const {
 const {
     parseVoucherResponse
 } = require("./voucherParser");
+
+const fs = require("fs");
 
 async function importVouchers({
     company,
@@ -25,6 +28,14 @@ const requestXml = buildVoucherRequest({
 });
 
 const responseXml = await sendToTally(requestXml);
+
+fs.writeFileSync(
+    "./voucher-response.xml",
+    responseXml,
+    "utf8"
+);
+
+console.log("Voucher response saved to voucher-response.xml");
 
 if (!responseXml) {
 

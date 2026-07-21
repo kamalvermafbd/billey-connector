@@ -22,47 +22,47 @@ function parseVoucherHeader(v) {
 
     return {
 
-        guid: getValue(v.GUID),
+    guid: getValue(v.GUID),
 
-        masterId: getValue(v.MASTERID),
+    masterid: getValue(v.MASTERID),
 
-        alterId: getValue(v.ALTERID),
+    alterid: getValue(v.ALTERID),
 
-        voucherType: getValue(v.VOUCHERTYPENAME),
+    voucherType: getValue(v.VOUCHERTYPENAME),
 
-        voucherNumber: getValue(v.VOUCHERNUMBER),
+    voucherNumber: getValue(v.VOUCHERNUMBER),
 
-        voucherDate: getValue(v.DATE),
+    voucherDate: getValue(v.DATE),
 
-        effectiveDate: getValue(v.EFFECTIVEDATE),
+    effectiveDate: getValue(v.EFFECTIVEDATE),
 
-        reference: getValue(v.REFERENCE),
+    reference: getValue(v.REFERENCE),
 
-        referenceDate: getValue(v.REFERENCEDATE),
+    referenceDate: getValue(v.REFERENCEDATE),
 
-        partyLedger: getValue(v.PARTYLEDGERNAME),
+    partyLedger: getValue(v.PARTYLEDGERNAME),
 
-        narration: getValue(v.NARRATION),
+    narration: getValue(v.NARRATION),
 
-        gstin: getValue(v.PARTYGSTIN),
+    gstin: getValue(v.PARTYGSTIN),
 
-        placeOfSupply: getValue(v.PLACEOFSUPPLY),
+    placeOfSupply: getValue(v.PLACEOFSUPPLY),
 
-        buyerName: getValue(v.BASICBUYERNAME),
+    buyerName: getValue(v.BASICBUYERNAME),
 
-        buyerAddress: getValue(v.BASICBUYERADDRESS),
+    buyerAddress: getValue(v.BASICBUYERADDRESS),
 
-        gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
+    gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
 
-        persistedView: getValue(v.PERSISTEDVIEW),
+    persistedView: getValue(v.PERSISTEDVIEW),
 
-        isInvoice: getValue(v.ISINVOICE),
+    isInvoice: getValue(v.ISINVOICE),
 
-        isOptional: getValue(v.ISOPTIONAL),
+    isOptional: getValue(v.ISOPTIONAL),
 
-        isCancelled: getValue(v.ISCANCELLED)
+    isCancelled: getValue(v.ISCANCELLED)
 
-    };
+};
 
 }
 

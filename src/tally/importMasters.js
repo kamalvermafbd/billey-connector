@@ -15,6 +15,10 @@ const {
 } = require("./ledgerImportService");
 
 const {
+    importStockGroups
+} = require("./stockGroupImportService");
+
+const {
     importStocks
 } = require("./stockImportService");
 
@@ -26,11 +30,13 @@ const {
     importCostCentres
 } = require("./costCentreImportService");
 
+// const {
+ //   importVoucherTypes
+//} = require("./voucherTypeImportService");
+
 const {
-    importVoucherTypes
-} = require("./voucherTypeImportService");
-
-
+    importVouchers
+} = require("./voucherImportService");
 
 async function importMasters({
     company
@@ -82,6 +88,16 @@ async function importMasters({
 
     console.log(`✓ Ledgers Imported : ${ledgers.length}`);
 
+    console.log("Importing Stock Groups...");
+
+    const stockGroups = await importStockGroups({
+        company
+    });
+
+    console.log(`✓ Stock Groups Imported : ${stockGroups.length}`);
+
+
+
     console.log("Importing Stocks...");
     const stocks = await importStocks({
         company
@@ -105,12 +121,23 @@ const costCentres = await importCostCentres({
 
 console.log(`✓ Cost Centres Imported : ${costCentres.length}`);
 
-console.log("Importing Voucher Types...");
-const voucherTypes = await importVoucherTypes({
-    company
+console.log("Importing Vouchers...");
+
+const voucherResult = await importVouchers({
+    company,
+    fromDate: companyInfo.booksBeginningFrom
 });
 
-console.log(`✓ Voucher Types Imported : ${voucherTypes.length}`);
+const vouchers = voucherResult.vouchers || [];
+
+console.log(`✓ Vouchers Imported : ${vouchers.length}`);
+
+//console.log("Importing Voucher Types...");
+//const voucherTypes = await importVoucherTypes({
+ //   company
+//});
+
+//console.log(`✓ Voucher Types Imported : ${voucherTypes.length}`);
 
   console.log("======================================");
     console.log("Master Import Completed");
@@ -136,11 +163,24 @@ return {
 
     ledgers: ledgers.length,
 
+    stockGroups: stockGroups.length,
+
     stocks: stocks.length,
 
     godowns: godowns.length,
     costCentres: costCentres.length,
-    voucherTypes: voucherTypes.length
+    vouchers: vouchers.length,
+
+    totalMasters:
+    groups.length +
+    units.length +
+    ledgers.length +
+    stockGroups.length +
+    stocks.length +
+    godowns.length +
+    costCentres.length +
+    vouchers.length
+   
 
 },
 
@@ -150,11 +190,14 @@ return {
 
     ledgers,
 
+    stockGroups,
+
     stocks,
 
     godowns,
     costCentres,
-    voucherTypes
+    vouchers
+    
 
 };
 

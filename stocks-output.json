@@ -5,6 +5,9 @@
     "baseUnit": "Nos",
     "gstApplicable": "Applicable",
     "typeOfSupply": "Goods",
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d1",
+    "masterid": "209",
+    "alterid": "212",
     "taxability": "Taxable",
     "stateName": "Any",
     "applicableFrom": "2026-04-01",
@@ -28,6 +31,18 @@
       "BASEUNITS": {
         "#text": "Nos",
         "TYPE": "String"
+      },
+      "STOCKGUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d1",
+        "TYPE": "String"
+      },
+      "STOCKMASTERID": {
+        "#text": 209,
+        "TYPE": "Number"
+      },
+      "STOCKALTERID": {
+        "#text": 212,
+        "TYPE": "Number"
       },
       "GSTDETAILS.LIST": {
         "APPLICABLEFROM": {
@@ -128,6 +143,9 @@
     "baseUnit": "LTH",
     "gstApplicable": "Applicable",
     "typeOfSupply": "Goods",
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d0",
+    "masterid": "208",
+    "alterid": "211",
     "taxability": "Taxable",
     "stateName": "Any",
     "applicableFrom": "2026-04-01",
@@ -151,6 +169,18 @@
       "BASEUNITS": {
         "#text": "LTH",
         "TYPE": "String"
+      },
+      "STOCKGUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d0",
+        "TYPE": "String"
+      },
+      "STOCKMASTERID": {
+        "#text": 208,
+        "TYPE": "Number"
+      },
+      "STOCKALTERID": {
+        "#text": 211,
+        "TYPE": "Number"
       },
       "GSTDETAILS.LIST": {
         "APPLICABLEFROM": {
@@ -183,6 +213,10 @@
               "GSTRATE": {
                 "#text": 9,
                 "TYPE": "Number"
+              },
+              "GSTRATEPERUNIT": {
+                "#text": 0,
+                "TYPE": "Number"
               }
             },
             {
@@ -197,6 +231,10 @@
               "GSTRATE": {
                 "#text": 9,
                 "TYPE": "Number"
+              },
+              "GSTRATEPERUNIT": {
+                "#text": 0,
+                "TYPE": "Number"
               }
             },
             {
@@ -210,6 +248,10 @@
               },
               "GSTRATE": {
                 "#text": 18,
+                "TYPE": "Number"
+              },
+              "GSTRATEPERUNIT": {
+                "#text": 0,
                 "TYPE": "Number"
               }
             }
@@ -251,6 +293,9 @@
     "baseUnit": "Inch",
     "gstApplicable": "Applicable",
     "typeOfSupply": "Goods",
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d7",
+    "masterid": "215",
+    "alterid": "218",
     "taxability": "Taxable",
     "stateName": "Any",
     "applicableFrom": "2017-07-01",
@@ -274,6 +319,18 @@
       "BASEUNITS": {
         "#text": "Inch",
         "TYPE": "String"
+      },
+      "STOCKGUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d7",
+        "TYPE": "String"
+      },
+      "STOCKMASTERID": {
+        "#text": 215,
+        "TYPE": "Number"
+      },
+      "STOCKALTERID": {
+        "#text": 218,
+        "TYPE": "Number"
       },
       "GSTDETAILS.LIST": {
         "APPLICABLEFROM": {
