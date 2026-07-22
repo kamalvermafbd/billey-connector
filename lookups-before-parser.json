@@ -1,0 +1,6 @@
+{
+  "ledgerLookupSize": 16,
+  "partyLookupSize": 8,
+  "stockLookupSize": 3,
+  "groupLookupSize": 29
+}

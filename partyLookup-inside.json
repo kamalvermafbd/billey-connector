@@ -1,0 +1,16 @@
+{
+  "sameObject": true,
+  "size": 8,
+  "keys": [
+    "CASH",
+    "PROFIT & LOSS A/C",
+    "RAHUL TRADING",
+    "RAJA BABU",
+    "ROUND OFF",
+    "SUDHIR TRADERS",
+    "SUNIL CAPITAL ACCOUNT",
+    "TELEPHONE"
+  ],
+  "constructor": "Map",
+  "isMap": true
+}

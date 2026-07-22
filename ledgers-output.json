@@ -17,9 +17,9 @@
     "phone": "",
     "email": "",
     "contactPerson": "",
-    "openingBalance": 501,
-    "openingBalanceAmount": 501,
-    "openingBalanceType": "CR",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
     "isBillWise": false,
     "isRevenue": false,
     "isDeemedPositive": true,
@@ -30,6 +30,10 @@
       },
       "PARENT": {
         "#text": "Cash-in-Hand",
+        "TYPE": "String"
+      },
+      "TAXTYPE": {
+        "#text": "Others",
         "TYPE": "String"
       },
       "ISBILLWISEON": {
@@ -52,8 +56,12 @@
         "#text": 31,
         "TYPE": "Number"
       },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
+        "TYPE": "Number"
+      },
       "OPENINGBALANCE": {
-        "#text": 501,
+        "#text": 0,
         "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
@@ -70,6 +78,101 @@
       "LEDMAILINGDETAILS.LIST": "",
       "CONTACTDETAILS.LIST": "",
       "NAME": "Cash",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000e4",
+    "masterId": "228",
+    "alterId": "254",
+    "name": "IGST 15%",
+    "parent": "Duties & Taxes",
+    "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000e4",
+        "TYPE": "String"
+      },
+      "PARENT": {
+        "#text": "Duties & Taxes",
+        "TYPE": "String"
+      },
+      "TAXTYPE": {
+        "#text": "GST",
+        "TYPE": "String"
+      },
+      "GSTDUTYHEAD": {
+        "#text": "IGST",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 254,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 228,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 15,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "IGST 15%",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
+      "NAME": "IGST 15%",
       "RESERVEDNAME": ""
     }
   },
@@ -91,9 +194,9 @@
     "phone": "",
     "email": "",
     "contactPerson": "Primary Mobile No.",
-    "openingBalance": -756,
-    "openingBalanceAmount": 756,
-    "openingBalanceType": "DR",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
     "isBillWise": false,
     "isRevenue": false,
     "isDeemedPositive": false,
@@ -104,6 +207,14 @@
       },
       "PARENT": {
         "#text": "Duties & Taxes",
+        "TYPE": "String"
+      },
+      "TAXTYPE": {
+        "#text": "GST",
+        "TYPE": "String"
+      },
+      "GSTDUTYHEAD": {
+        "#text": "IGST",
         "TYPE": "String"
       },
       "ISBILLWISEON": {
@@ -126,8 +237,12 @@
         "#text": 211,
         "TYPE": "Number"
       },
+      "RATEOFTAXCALCULATION": {
+        "#text": 18,
+        "TYPE": "Number"
+      },
       "OPENINGBALANCE": {
-        "#text": -756,
+        "#text": 0,
         "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
@@ -189,6 +304,10 @@
         "#text": "Sales Accounts",
         "TYPE": "String"
       },
+      "TAXTYPE": {
+        "#text": "Others",
+        "TYPE": "String"
+      },
       "ISBILLWISEON": {
         "#text": "No",
         "TYPE": "Logical"
@@ -209,6 +328,10 @@
         "#text": 210,
         "TYPE": "Number"
       },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
+        "TYPE": "Number"
+      },
       "OPENINGBALANCE": {
         "#text": 0,
         "TYPE": "Amount"
@@ -217,12 +340,111 @@
         "NAME.LIST": {
           "NAME": "IGST Sale 18%",
           "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 0,
+          "TYPE": "Number"
         }
       },
       "LEDGSTREGDETAILS.LIST": "",
       "LEDMAILINGDETAILS.LIST": "",
       "CONTACTDETAILS.LIST": "",
       "NAME": "IGST Sale 18%",
+      "RESERVEDNAME": ""
+    }
+  },
+  {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000e5",
+    "masterId": "229",
+    "alterId": "252",
+    "name": "Input Tax 15%",
+    "parent": "Duties & Taxes",
+    "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000e5",
+        "TYPE": "String"
+      },
+      "PARENT": {
+        "#text": "Duties & Taxes",
+        "TYPE": "String"
+      },
+      "TAXTYPE": {
+        "#text": "GST",
+        "TYPE": "String"
+      },
+      "GSTDUTYHEAD": {
+        "#text": "IGST",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 252,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 229,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 15,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "Input Tax 15%",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
+      "NAME": "Input Tax 15%",
       "RESERVEDNAME": ""
     }
   },
@@ -260,6 +482,10 @@
         "TYPE": "String"
       },
       "RESERVEDNAME": "Profit & Loss A/c",
+      "TAXTYPE": {
+        "#text": "Others",
+        "TYPE": "String"
+      },
       "ISBILLWISEON": {
         "#text": "No",
         "TYPE": "Logical"
@@ -278,6 +504,10 @@
       },
       "MASTERID": {
         "#text": 30,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
         "TYPE": "Number"
       },
       "OPENINGBALANCE": {
@@ -303,11 +533,11 @@
   {
     "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d9",
     "masterId": "217",
-    "alterId": "220",
-    "name": "Purchae Local",
+    "alterId": "263",
+    "name": "Purchase Igst",
     "parent": "Purchase Accounts",
     "reservedName": "",
-    "gstApplicable": "Not Applicable",
+    "gstApplicable": "Applicable",
     "gstRegistrationType": "",
     "gstin": "",
     "mailingName": "",
@@ -334,7 +564,11 @@
         "TYPE": "String"
       },
       "GSTAPPLICABLE": {
-        "#text": " Not Applicable",
+        "#text": " Applicable",
+        "TYPE": "String"
+      },
+      "TAXTYPE": {
+        "#text": "Others",
         "TYPE": "String"
       },
       "ISBILLWISEON": {
@@ -350,11 +584,15 @@
         "TYPE": "Logical"
       },
       "ALTERID": {
-        "#text": 220,
+        "#text": 263,
         "TYPE": "Number"
       },
       "MASTERID": {
         "#text": 217,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
         "TYPE": "Number"
       },
       "OPENINGBALANCE": {
@@ -363,7 +601,7 @@
       },
       "LANGUAGENAME.LIST": {
         "NAME.LIST": {
-          "NAME": "Purchae Local",
+          "NAME": "Purchase Igst",
           "TYPE": "String"
         },
         "LANGUAGEID": {
@@ -378,16 +616,12 @@
           "#text": "Primary Mobile No.",
           "TYPE": "String"
         },
-        "COUNTRYISDCODE": {
-          "#text": 91,
-          "TYPE": "String"
-        },
         "ISDEFAULTWHATSAPPNUM": {
           "#text": "Yes",
           "TYPE": "Logical"
         }
       },
-      "NAME": "Purchae Local",
+      "NAME": "Purchase Igst",
       "RESERVEDNAME": ""
     }
   },
@@ -443,6 +677,10 @@
         "#text": "Rahul Trading",
         "TYPE": "String"
       },
+      "TAXTYPE": {
+        "#text": "Others",
+        "TYPE": "String"
+      },
       "LEDGERMOBILE": {
         "#text": 9823298329,
         "TYPE": "String"
@@ -465,6 +703,10 @@
       },
       "MASTERID": {
         "#text": 212,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
         "TYPE": "Number"
       },
       "OPENINGBALANCE": {
@@ -604,6 +846,10 @@
         "#text": " Applicable",
         "TYPE": "String"
       },
+      "TAXTYPE": {
+        "#text": "Others",
+        "TYPE": "String"
+      },
       "ISBILLWISEON": {
         "#text": "No",
         "TYPE": "Logical"
@@ -622,6 +868,10 @@
       },
       "MASTERID": {
         "#text": 213,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
         "TYPE": "Number"
       },
       "OPENINGBALANCE": {
@@ -673,7 +923,7 @@
   {
     "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d8",
     "masterId": "216",
-    "alterId": "223",
+    "alterId": "261",
     "name": "Sudhir Traders",
     "parent": "Sundry Creditors",
     "reservedName": "",
@@ -682,14 +932,14 @@
     "gstin": "",
     "mailingName": "Sudhir Traders",
     "address": "",
-    "stateName": "Haryana",
+    "stateName": "Gujarat",
     "country": "India",
     "pinCode": "",
     "phone": "",
     "email": "",
     "contactPerson": "Primary Mobile No.",
-    "openingBalance": 4955,
-    "openingBalanceAmount": 4955,
+    "openingBalance": 500,
+    "openingBalanceAmount": 500,
     "openingBalanceType": "CR",
     "isBillWise": true,
     "isRevenue": false,
@@ -707,6 +957,10 @@
         "#text": "Sudhir Traders",
         "TYPE": "String"
       },
+      "TAXTYPE": {
+        "#text": "Others",
+        "TYPE": "String"
+      },
       "ISBILLWISEON": {
         "#text": "Yes",
         "TYPE": "Logical"
@@ -720,15 +974,19 @@
         "TYPE": "Logical"
       },
       "ALTERID": {
-        "#text": 223,
+        "#text": 261,
         "TYPE": "Number"
       },
       "MASTERID": {
         "#text": 216,
         "TYPE": "Number"
       },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
+        "TYPE": "Number"
+      },
       "OPENINGBALANCE": {
-        "#text": 4955,
+        "#text": 500,
         "TYPE": "Amount"
       },
       "LANGUAGENAME.LIST": {
@@ -741,38 +999,83 @@
           "TYPE": "Number"
         }
       },
-      "LEDGSTREGDETAILS.LIST": {
-        "APPLICABLEFROM": {
-          "#text": 20170701,
-          "TYPE": "Date"
+      "LEDGSTREGDETAILS.LIST": [
+        {
+          "APPLICABLEFROM": {
+            "#text": 20170701,
+            "TYPE": "Date"
+          },
+          "GSTREGISTRATIONTYPE": {
+            "#text": "Regular",
+            "TYPE": "String"
+          },
+          "PLACEOFSUPPLY": {
+            "#text": "Haryana",
+            "TYPE": "String"
+          }
         },
-        "GSTREGISTRATIONTYPE": {
-          "#text": "Regular",
-          "TYPE": "String"
-        },
-        "PLACEOFSUPPLY": {
-          "#text": "Haryana",
-          "TYPE": "String"
+        {
+          "APPLICABLEFROM": {
+            "#text": 20260701,
+            "TYPE": "Date"
+          },
+          "GSTREGISTRATIONTYPE": {
+            "#text": "Regular",
+            "TYPE": "String"
+          },
+          "PLACEOFSUPPLY": {
+            "#text": "Gujarat",
+            "TYPE": "String"
+          },
+          "GSTIN": {
+            "TYPE": "String"
+          },
+          "ISCOMMONPARTY": {
+            "TYPE": "Logical"
+          }
         }
-      },
-      "LEDMAILINGDETAILS.LIST": {
-        "APPLICABLEFROM": {
-          "#text": 20160401,
-          "TYPE": "Date"
+      ],
+      "LEDMAILINGDETAILS.LIST": [
+        {
+          "APPLICABLEFROM": {
+            "#text": 20160401,
+            "TYPE": "Date"
+          },
+          "MAILINGNAME": {
+            "#text": "Sudhir Traders",
+            "TYPE": "String"
+          },
+          "STATE": {
+            "#text": "Haryana",
+            "TYPE": "String"
+          },
+          "COUNTRY": {
+            "#text": "India",
+            "TYPE": "String"
+          }
         },
-        "MAILINGNAME": {
-          "#text": "Sudhir Traders",
-          "TYPE": "String"
-        },
-        "STATE": {
-          "#text": "Haryana",
-          "TYPE": "String"
-        },
-        "COUNTRY": {
-          "#text": "India",
-          "TYPE": "String"
+        {
+          "APPLICABLEFROM": {
+            "#text": 20260701,
+            "TYPE": "Date"
+          },
+          "PINCODE": {
+            "TYPE": "String"
+          },
+          "MAILINGNAME": {
+            "#text": "Sudhir Traders",
+            "TYPE": "String"
+          },
+          "STATE": {
+            "#text": "Gujarat",
+            "TYPE": "String"
+          },
+          "COUNTRY": {
+            "#text": "India",
+            "TYPE": "String"
+          }
         }
-      },
+      ],
       "CONTACTDETAILS.LIST": {
         "NAME": {
           "#text": "Primary Mobile No.",
@@ -828,6 +1131,10 @@
         "#text": "Sunil Capital Account",
         "TYPE": "String"
       },
+      "TAXTYPE": {
+        "#text": "Others",
+        "TYPE": "String"
+      },
       "ISBILLWISEON": {
         "#text": "No",
         "TYPE": "Logical"
@@ -846,6 +1153,10 @@
       },
       "MASTERID": {
         "#text": 219,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
         "TYPE": "Number"
       },
       "OPENINGBALANCE": {
@@ -873,6 +1184,9 @@
         },
         "PLACEOFSUPPLY": {
           "#text": "Haryana",
+          "TYPE": "String"
+        },
+        "GSTIN": {
           "TYPE": "String"
         }
       },
@@ -956,6 +1270,10 @@
         "#text": " Applicable",
         "TYPE": "String"
       },
+      "TAXTYPE": {
+        "#text": "Others",
+        "TYPE": "String"
+      },
       "ISBILLWISEON": {
         "#text": "No",
         "TYPE": "Logical"
@@ -974,6 +1292,10 @@
       },
       "MASTERID": {
         "#text": 221,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 0,
         "TYPE": "Number"
       },
       "OPENINGBALANCE": {
@@ -998,6 +1320,9 @@
         },
         "MAILINGNAME": {
           "#text": "Telephone",
+          "TYPE": "String"
+        },
+        "STATE": {
           "TYPE": "String"
         }
       },

@@ -1,3 +1,5 @@
+const fs = require("fs");
+
 const {
     importCompany
 } = require("./companyImportService");
@@ -86,7 +88,133 @@ async function importMasters({
         companyInfo.booksBeginningFrom
     });
 
+    const ledgerLookup = new Map(
+    ledgers.map(l => [
+        (l.name || "").toUpperCase(),
+        l
+    ])
+    );
+
+    console.log("================================");
+
+
+
+console.log(
+    "Purchase Local Lookup :",
+    ledgerLookup.get("PURCHASE LOCAL")
+);
+
+console.log(
+    "Raja Babu Lookup :",
+    ledgerLookup.get("RAJA BABU")
+);
+
+console.log("================================");
+const partyLookup = new Map(
+    ledgers
+        .filter(l => l.isParty)
+        .map(l => [
+            (l.name || "").toUpperCase(),
+            l
+        ])
+);
+
+
+const groupLookup = new Map(
+    groups.map(g => [
+        (g.name || "").trim().toUpperCase(),
+        g
+    ])
+);
+
+    console.log(
+    "PURCHASE IGST LEDGER =>",
+    ledgers.find(
+        x =>
+            (x.name || "").toUpperCase() ===
+            "PURCHASE IGST"
+    )
+);
+
+
+
+fs.writeFileSync(
+    "./partyLookup-debug.json",
+    JSON.stringify(
+        {
+            size: partyLookup.size,
+
+            rajaBabu: partyLookup.get("RAJA BABU") || null,
+
+            sudhirTraders:
+                partyLookup.get("SUDHIR TRADERS") || null,
+
+            rahulTrading:
+                partyLookup.get("RAHUL TRADING") || null,
+
+            keys: [...partyLookup.keys()],
+
+            ledgerDebug: ledgers.map(l => {
+
+                const group = groupLookup.get(
+                    String(l.parent_group_guid || "")
+                );
+
+                return {
+                    name: l.name,
+                    isParty: l.isParty,
+                    parent: l.parent,
+                    parent_group_guid: l.parent_group_guid,
+                    reserved_name: group?.reserved_name || null,
+                    inLookup: partyLookup.has(
+                        (l.name || "").toUpperCase()
+                    )
+                };
+
+            })
+        },
+        null,
+        2
+    ),
+    "utf8"
+);
+
+fs.writeFileSync(
+    "./partyLookup.json",
+    JSON.stringify(
+        [...partyLookup.entries()],
+        null,
+        2
+    ),
+    "utf8"
+);
+
+
+console.log(
+    ledgers
+        .filter(x =>
+            (x.name || "")
+                .toUpperCase()
+                .includes("PURCHASE")
+        )
+        .map(x => ({
+            name: x.name,
+            parent: x.parent
+        }))
+);
+
+fs.writeFileSync(
+    "./parent-debug.json",
+    JSON.stringify(
+        global.parentDebug || [],
+        null,
+        2
+    ),
+    "utf8"
+);
+
     console.log(`✓ Ledgers Imported : ${ledgers.length}`);
+
 
     console.log("Importing Stock Groups...");
 
@@ -104,6 +232,25 @@ async function importMasters({
     });
 
     console.log(`✓ Stocks Imported : ${stocks.length}`);
+
+    const stockLookup = new Map(
+    stocks.map(s => [
+        String(s.masterId || ""),
+        s
+    ])
+);
+
+const lookups = {
+    ledgerLookup,
+    stockLookup,
+    partyLookup,
+    groupLookup
+};
+
+console.log("Ledger Lookup :", ledgerLookup.size);
+console.log("Stock Lookup :", stockLookup.size);
+console.log("Purchase Local :", ledgerLookup.get("PURCHASE LOCAL"));
+console.log("Purchase IGST :", ledgerLookup.get("PURCHASE IGST"));
 
     console.log("Importing Godowns...");
     const godowns = await importGodowns({
@@ -125,7 +272,8 @@ console.log("Importing Vouchers...");
 
 const voucherResult = await importVouchers({
     company,
-    fromDate: companyInfo.booksBeginningFrom
+    fromDate: companyInfo.booksBeginningFrom,
+    lookups
 });
 
 const vouchers = voucherResult.vouchers || [];

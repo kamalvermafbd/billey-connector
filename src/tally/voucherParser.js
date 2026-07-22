@@ -20,7 +20,10 @@ function toArray(value) {
 }
 
 
-function parseVoucherResponse(xml) {
+function parseVoucherResponse(
+    xml,
+    lookups
+) {
 
     const json = parser.parse(xml);
 
@@ -28,12 +31,40 @@ function parseVoucherResponse(xml) {
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
     );
 
-   return vouchers.map(v => ({
-    header: parseVoucherHeader(v),
-    ledgers: parseVoucherLedgers(v),
-    inventory: parseVoucherInventory(v),
-    raw: v
-}));
+  const fs = require("fs");
+
+fs.writeFileSync(
+    "./parser-lookups.json",
+    JSON.stringify(
+        {
+            ledgerLookupSize: lookups?.ledgerLookup?.size,
+            partyLookupSize: lookups?.partyLookup?.size,
+            stockLookupSize: lookups?.stockLookup?.size,
+            groupLookupSize: lookups?.groupLookup?.size
+        },
+        null,
+        2
+    ),
+    "utf8"
+);
+
+return vouchers.map(v => {
+
+    const header = parseVoucherHeader(v);
+
+    v.__header = header;
+
+    return {
+        header,
+        ledgers: parseVoucherLedgers(v),
+        inventory: parseVoucherInventory(
+            v,
+            lookups
+        ),
+        raw: v
+    };
+
+});
 
 }
 

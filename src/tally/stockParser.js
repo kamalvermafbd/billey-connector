@@ -74,6 +74,7 @@ return stockList.map(stock => {
     let cgst = "";
     let sgst = "";
     let igst = "";
+    let gstRate = "";
 
   const rateList = Array.isArray(rates)
     ? rates
@@ -94,6 +95,7 @@ return stockList.map(stock => {
 
     else if (head === "IGST")
         igst = rate;
+        gstRate = igst;
     }
 
     return {
@@ -110,9 +112,8 @@ return stockList.map(stock => {
 
     guid: getValue(stock.STOCKGUID),
 
-masterid: getValue(stock.STOCKMASTERID),
-
-alterid: getValue(stock.STOCKALTERID),
+ masterId: getValue(stock.STOCKMASTERID),
+alterId: getValue(stock.STOCKALTERID),
 
     taxability,
 
@@ -127,6 +128,8 @@ alterid: getValue(stock.STOCKALTERID),
     sgst,
 
     igst,
+
+    gstRate,
 
     raw: stock
 
