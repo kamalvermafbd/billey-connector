@@ -72,6 +72,42 @@ return ledgerList.map(ledger => {
     ? ledger["CONTACTDETAILS.LIST"][0]
     : ledger["CONTACTDETAILS.LIST"];
 
+    if (getValue(ledger.PARENT) === "Duties & Taxes") {
+
+    console.log("================================");
+
+    console.log(getValue(ledger.NAME));
+
+    console.log("TYPEOFDUTYTAX :", ledger.TYPEOFDUTYTAX);
+
+    console.log(JSON.stringify(ledger, null, 2));
+    
+    console.log("TAXTYPE :", ledger.TAXTYPE);
+
+console.log("GSTDUTYHEAD :", ledger.GSTDUTYHEAD);
+
+console.log(
+    "RATEOFTAXCALCULATION :",
+    ledger.RATEOFTAXCALCULATION
+);
+
+console.log("GSTRATE :", ledger.GSTRATE);
+
+
+    console.log("================================");
+
+}
+
+global.parentDebug ??= [];
+
+global.parentDebug.push({
+    ledger: getValue(ledger.NAME),
+    parent: getValue(ledger.PARENT),
+    parentGuid: getValue(ledger.PARENTGUID),
+    parentMasterId: getValue(ledger.PARENTMASTERID),
+    parentAlterId: getValue(ledger.PARENTALTERID)
+});
+
     const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
 
     return {
@@ -85,6 +121,13 @@ return ledgerList.map(ledger => {
     name: getValue(ledger.NAME),
 
     parent: getValue(ledger.PARENT),
+
+    parentGroupGuid: getValue(ledger.PARENTGUID),
+
+parentGroupMasterId: getValue(ledger.PARENTMASTERID),
+
+parentGroupAlterId: getValue(ledger.PARENTALTERID),
+
 
     reservedName: getValue(ledger.RESERVEDNAME),
 
@@ -147,6 +190,22 @@ openingBalanceType:
 
     isDeemedPositive:
         String(getValue(ledger.ISDEEMEDPOSITIVE)).toUpperCase() === "YES",
+
+    isParty:
+    !!(
+        getValue(ledger.PARENT) &&
+        getValue(ledger.PARENT) !== "Sales Accounts" &&
+        getValue(ledger.PARENT) !== "Purchase Accounts" &&
+        getValue(ledger.PARENT) !== "Duties & Taxes"
+    ),
+
+    gstDutyType: getValue(ledger.TAXTYPE),
+
+    gstTaxType: getValue(ledger.GSTDUTYHEAD),
+
+    gstRate: Number(
+        getValue(ledger.RATEOFTAXCALCULATION) || 0
+    ),
 
   raw: ledger
 

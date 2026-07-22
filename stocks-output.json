@@ -1,13 +1,13 @@
 [
   {
     "name": "3/4 CPVC Elbow",
-    "parent": "Primary",
+    "parent": "CPVC Pipe Fitting",
     "baseUnit": "Nos",
     "gstApplicable": "Applicable",
     "typeOfSupply": "Goods",
     "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d1",
     "masterid": "209",
-    "alterid": "212",
+    "alterid": "242",
     "taxability": "Taxable",
     "stateName": "Any",
     "applicableFrom": "2026-04-01",
@@ -15,9 +15,10 @@
     "cgst": "9",
     "sgst": "9",
     "igst": "18",
+    "gstRate": "18",
     "raw": {
       "PARENT": {
-        "#text": " Primary",
+        "#text": "CPVC Pipe Fitting",
         "TYPE": "String"
       },
       "GSTAPPLICABLE": {
@@ -41,7 +42,7 @@
         "TYPE": "Number"
       },
       "STOCKALTERID": {
-        "#text": 212,
+        "#text": 242,
         "TYPE": "Number"
       },
       "GSTDETAILS.LIST": {
@@ -103,6 +104,26 @@
               "GSTRATE": {
                 "#text": 18,
                 "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "Cess",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": " Not Applicable",
+                "TYPE": "String"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "State Cess",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
               }
             }
           ],
@@ -139,13 +160,13 @@
   },
   {
     "name": "3/4 CPVC Pipe",
-    "parent": "Primary",
+    "parent": "CPVC Pipe Fitting",
     "baseUnit": "LTH",
     "gstApplicable": "Applicable",
     "typeOfSupply": "Goods",
     "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d0",
     "masterid": "208",
-    "alterid": "211",
+    "alterid": "243",
     "taxability": "Taxable",
     "stateName": "Any",
     "applicableFrom": "2026-04-01",
@@ -153,9 +174,10 @@
     "cgst": "9",
     "sgst": "9",
     "igst": "18",
+    "gstRate": "18",
     "raw": {
       "PARENT": {
-        "#text": " Primary",
+        "#text": "CPVC Pipe Fitting",
         "TYPE": "String"
       },
       "GSTAPPLICABLE": {
@@ -179,7 +201,7 @@
         "TYPE": "Number"
       },
       "STOCKALTERID": {
-        "#text": 211,
+        "#text": 243,
         "TYPE": "Number"
       },
       "GSTDETAILS.LIST": {
@@ -248,6 +270,42 @@
               },
               "GSTRATE": {
                 "#text": 18,
+                "TYPE": "Number"
+              },
+              "GSTRATEPERUNIT": {
+                "#text": 0,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "Cess",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": " Not Applicable",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 0,
+                "TYPE": "Number"
+              },
+              "GSTRATEPERUNIT": {
+                "#text": 0,
+                "TYPE": "Number"
+              }
+            },
+            {
+              "GSTRATEDUTYHEAD": {
+                "#text": "State Cess",
+                "TYPE": "String"
+              },
+              "GSTRATEVALUATIONTYPE": {
+                "#text": "Based on Value",
+                "TYPE": "String"
+              },
+              "GSTRATE": {
+                "#text": 0,
                 "TYPE": "Number"
               },
               "GSTRATEPERUNIT": {
@@ -289,13 +347,13 @@
   },
   {
     "name": "GI Nipple",
-    "parent": "Primary",
+    "parent": "GI Pipe Fitting",
     "baseUnit": "Inch",
     "gstApplicable": "Applicable",
     "typeOfSupply": "Goods",
     "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d7",
     "masterid": "215",
-    "alterid": "218",
+    "alterid": "245",
     "taxability": "Taxable",
     "stateName": "Any",
     "applicableFrom": "2017-07-01",
@@ -303,9 +361,10 @@
     "cgst": "7.5",
     "sgst": "7.5",
     "igst": "15",
+    "gstRate": "15",
     "raw": {
       "PARENT": {
-        "#text": " Primary",
+        "#text": "GI Pipe Fitting",
         "TYPE": "String"
       },
       "GSTAPPLICABLE": {
@@ -329,7 +388,7 @@
         "TYPE": "Number"
       },
       "STOCKALTERID": {
-        "#text": 218,
+        "#text": 245,
         "TYPE": "Number"
       },
       "GSTDETAILS.LIST": {

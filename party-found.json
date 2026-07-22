@@ -1,0 +1,175 @@
+{
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d8",
+  "masterId": "216",
+  "alterId": "261",
+  "name": "Sudhir Traders",
+  "parent": "Sundry Creditors",
+  "parentGroupGuid": "",
+  "parentGroupMasterId": "",
+  "parentGroupAlterId": "",
+  "reservedName": "",
+  "gstApplicable": "",
+  "gstRegistrationType": "Regular",
+  "gstin": "",
+  "mailingName": "Sudhir Traders",
+  "address": "",
+  "stateName": "Gujarat",
+  "country": "India",
+  "pinCode": "",
+  "phone": "",
+  "email": "",
+  "contactPerson": "Primary Mobile No.",
+  "openingBalance": 500,
+  "openingBalanceAmount": 500,
+  "openingBalanceType": "CR",
+  "isBillWise": true,
+  "isRevenue": false,
+  "isDeemedPositive": false,
+  "isParty": true,
+  "gstDutyType": "Others",
+  "gstTaxType": "",
+  "gstRate": 0,
+  "raw": {
+    "GUID": {
+      "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d8",
+      "TYPE": "String"
+    },
+    "PARENT": {
+      "#text": "Sundry Creditors",
+      "TYPE": "String"
+    },
+    "MAILINGNAME": {
+      "#text": "Sudhir Traders",
+      "TYPE": "String"
+    },
+    "TAXTYPE": {
+      "#text": "Others",
+      "TYPE": "String"
+    },
+    "ISBILLWISEON": {
+      "#text": "Yes",
+      "TYPE": "Logical"
+    },
+    "ISREVENUE": {
+      "#text": "No",
+      "TYPE": "Logical"
+    },
+    "ISDEEMEDPOSITIVE": {
+      "#text": "No",
+      "TYPE": "Logical"
+    },
+    "ALTERID": {
+      "#text": 261,
+      "TYPE": "Number"
+    },
+    "MASTERID": {
+      "#text": 216,
+      "TYPE": "Number"
+    },
+    "RATEOFTAXCALCULATION": {
+      "#text": 0,
+      "TYPE": "Number"
+    },
+    "OPENINGBALANCE": {
+      "#text": 500,
+      "TYPE": "Amount"
+    },
+    "LANGUAGENAME.LIST": {
+      "NAME.LIST": {
+        "NAME": "Sudhir Traders",
+        "TYPE": "String"
+      },
+      "LANGUAGEID": {
+        "#text": 1033,
+        "TYPE": "Number"
+      }
+    },
+    "LEDGSTREGDETAILS.LIST": [
+      {
+        "APPLICABLEFROM": {
+          "#text": 20170701,
+          "TYPE": "Date"
+        },
+        "GSTREGISTRATIONTYPE": {
+          "#text": "Regular",
+          "TYPE": "String"
+        },
+        "PLACEOFSUPPLY": {
+          "#text": "Haryana",
+          "TYPE": "String"
+        }
+      },
+      {
+        "APPLICABLEFROM": {
+          "#text": 20260701,
+          "TYPE": "Date"
+        },
+        "GSTREGISTRATIONTYPE": {
+          "#text": "Regular",
+          "TYPE": "String"
+        },
+        "PLACEOFSUPPLY": {
+          "#text": "Gujarat",
+          "TYPE": "String"
+        },
+        "ISCOMMONPARTY": {
+          "TYPE": "Logical"
+        }
+      }
+    ],
+    "LEDMAILINGDETAILS.LIST": [
+      {
+        "APPLICABLEFROM": {
+          "#text": 20160401,
+          "TYPE": "Date"
+        },
+        "MAILINGNAME": {
+          "#text": "Sudhir Traders",
+          "TYPE": "String"
+        },
+        "STATE": {
+          "#text": "Haryana",
+          "TYPE": "String"
+        },
+        "COUNTRY": {
+          "#text": "India",
+          "TYPE": "String"
+        }
+      },
+      {
+        "APPLICABLEFROM": {
+          "#text": 20260701,
+          "TYPE": "Date"
+        },
+        "MAILINGNAME": {
+          "#text": "Sudhir Traders",
+          "TYPE": "String"
+        },
+        "STATE": {
+          "#text": "Gujarat",
+          "TYPE": "String"
+        },
+        "COUNTRY": {
+          "#text": "India",
+          "TYPE": "String"
+        }
+      }
+    ],
+    "CONTACTDETAILS.LIST": {
+      "NAME": {
+        "#text": "Primary Mobile No.",
+        "TYPE": "String"
+      },
+      "COUNTRYISDCODE": {
+        "#text": 91,
+        "TYPE": "String"
+      },
+      "ISDEFAULTWHATSAPPNUM": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      }
+    },
+    "NAME": "Sudhir Traders",
+    "RESERVEDNAME": ""
+  }
+}

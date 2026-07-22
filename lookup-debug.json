@@ -1,0 +1,11 @@
+{
+  "lookupKey": "SUDHIR TRADERS",
+  "stockKey": "",
+  "partyLookupSize": 8,
+  "stockLookupSize": 3,
+  "hasPartyKey": true,
+  "hasStockKey": false,
+  "rawStockName": "GI Nipple",
+  "matchingPartyKey": "SUDHIR TRADERS",
+  "matchingStockKey": null
+}

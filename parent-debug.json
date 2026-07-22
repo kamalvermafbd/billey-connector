@@ -1,0 +1,114 @@
+[
+  {
+    "ledger": "Cash",
+    "parent": "Cash-in-Hand",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "CGST 9%",
+    "parent": "Duties & Taxes",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "IGST 15%",
+    "parent": "Duties & Taxes",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "IGST 18%",
+    "parent": "Duties & Taxes",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "IGST Sale 18%",
+    "parent": "Sales Accounts",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Input Tax 15%",
+    "parent": "Duties & Taxes",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Profit & Loss A/c",
+    "parent": "Primary",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Purchase Igst",
+    "parent": "Purchase Accounts",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Purchase Local",
+    "parent": "Purchase Accounts",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Rahul Trading",
+    "parent": "Sundry Debtors",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Raja Babu",
+    "parent": "Sundry Creditors",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Round Off",
+    "parent": "Indirect Expenses",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "SGST 9%",
+    "parent": "Duties & Taxes",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Sudhir Traders",
+    "parent": "Sundry Creditors",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Sunil Capital Account",
+    "parent": "Capital Account",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  },
+  {
+    "ledger": "Telephone",
+    "parent": "Indirect Expenses",
+    "parentGuid": "",
+    "parentMasterId": "",
+    "parentAlterId": ""
+  }
+]

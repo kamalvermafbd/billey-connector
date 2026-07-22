@@ -1,3 +1,4 @@
+
 const {
     sendToTally,
     selectCompany
@@ -12,12 +13,14 @@ const {
     parseVoucherResponse
 } = require("./voucherParser");
 
+
 const fs = require("fs");
 
 async function importVouchers({
     company,
     fromDate,
-    toDate
+    toDate,
+    lookups
 }) {
 
     await selectCompany(company);
@@ -43,7 +46,27 @@ if (!responseXml) {
 
 }
 
-const vouchers = parseVoucherResponse(responseXml);
+
+
+
+fs.writeFileSync(
+    "./lookups-before-parser.json",
+    JSON.stringify(
+        {
+            ledgerLookupSize: lookups.ledgerLookup?.size,
+            partyLookupSize: lookups.partyLookup?.size,
+            stockLookupSize: lookups.stockLookup?.size,
+            groupLookupSize: lookups.groupLookup?.size
+        },
+        null,
+        2
+    )
+);
+
+const vouchers = parseVoucherResponse(
+    responseXml,
+    lookups
+);
 
 return {
 
