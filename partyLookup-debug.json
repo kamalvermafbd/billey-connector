@@ -1,5 +1,5 @@
 {
-  "size": 8,
+  "size": 9,
   "rajaBabu": {
     "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000e6",
     "masterId": "230",
@@ -98,9 +98,6 @@
         "PLACEOFSUPPLY": {
           "#text": "Haryana",
           "TYPE": "String"
-        },
-        "ISCOMMONPARTY": {
-          "TYPE": "Logical"
         }
       },
       "LEDMAILINGDETAILS.LIST": {
@@ -281,6 +278,9 @@
           "APPLICABLEFROM": {
             "#text": 20260701,
             "TYPE": "Date"
+          },
+          "PINCODE": {
+            "TYPE": "String"
           },
           "MAILINGNAME": {
             "#text": "Sudhir Traders",
@@ -503,6 +503,7 @@
   },
   "keys": [
     "CASH",
+    "MAMMOHAN",
     "PROFIT & LOSS A/C",
     "RAHUL TRADING",
     "RAJA BABU",
@@ -518,6 +519,13 @@
       "parent": "Cash-in-Hand",
       "reserved_name": null,
       "inLookup": true
+    },
+    {
+      "name": "CGST 10%",
+      "isParty": false,
+      "parent": "Duties & Taxes",
+      "reserved_name": null,
+      "inLookup": false
     },
     {
       "name": "CGST 9%",
@@ -541,6 +549,13 @@
       "inLookup": false
     },
     {
+      "name": "Igst 20%",
+      "isParty": false,
+      "parent": "Duties & Taxes",
+      "reserved_name": null,
+      "inLookup": false
+    },
+    {
       "name": "IGST Sale 18%",
       "isParty": false,
       "parent": "Sales Accounts",
@@ -553,6 +568,20 @@
       "parent": "Duties & Taxes",
       "reserved_name": null,
       "inLookup": false
+    },
+    {
+      "name": "Local Sale 20%",
+      "isParty": false,
+      "parent": "Sales Accounts",
+      "reserved_name": null,
+      "inLookup": false
+    },
+    {
+      "name": "Mammohan",
+      "isParty": true,
+      "parent": "Sundry Debtors",
+      "reserved_name": null,
+      "inLookup": true
     },
     {
       "name": "Profit & Loss A/c",
@@ -595,6 +624,13 @@
       "parent": "Indirect Expenses",
       "reserved_name": null,
       "inLookup": true
+    },
+    {
+      "name": "SGST 10%",
+      "isParty": false,
+      "parent": "Duties & Taxes",
+      "reserved_name": null,
+      "inLookup": false
     },
     {
       "name": "SGST 9%",

@@ -1,45 +1,49 @@
 {
-  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000d8",
-  "masterId": "216",
-  "alterId": "261",
-  "name": "Sudhir Traders",
-  "parent": "Sundry Creditors",
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000ef",
+  "masterId": "239",
+  "alterId": "283",
+  "name": "Mammohan",
+  "parent": "Sundry Debtors",
   "parentGroupGuid": "",
   "parentGroupMasterId": "",
   "parentGroupAlterId": "",
   "reservedName": "",
   "gstApplicable": "",
   "gstRegistrationType": "Regular",
-  "gstin": "",
-  "mailingName": "Sudhir Traders",
+  "gstin": "06BASDPSDPSDPSP",
+  "mailingName": "Mammohan",
   "address": "",
-  "stateName": "Gujarat",
+  "stateName": "Haryana",
   "country": "India",
-  "pinCode": "",
+  "pinCode": "121002",
   "phone": "",
   "email": "",
   "contactPerson": "Primary Mobile No.",
-  "openingBalance": 500,
-  "openingBalanceAmount": 500,
-  "openingBalanceType": "CR",
+  "openingBalance": 0,
+  "openingBalanceAmount": 0,
+  "openingBalanceType": "",
   "isBillWise": true,
   "isRevenue": false,
-  "isDeemedPositive": false,
+  "isDeemedPositive": true,
   "isParty": true,
   "gstDutyType": "Others",
   "gstTaxType": "",
   "gstRate": 0,
   "raw": {
     "GUID": {
-      "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000d8",
+      "#text": "755da616-c913-46c0-9ad0-de5499d071a0-000000ef",
+      "TYPE": "String"
+    },
+    "PINCODE": {
+      "#text": 121002,
       "TYPE": "String"
     },
     "PARENT": {
-      "#text": "Sundry Creditors",
+      "#text": "Sundry Debtors",
       "TYPE": "String"
     },
     "MAILINGNAME": {
-      "#text": "Sudhir Traders",
+      "#text": "Mammohan",
       "TYPE": "String"
     },
     "TAXTYPE": {
@@ -55,15 +59,15 @@
       "TYPE": "Logical"
     },
     "ISDEEMEDPOSITIVE": {
-      "#text": "No",
+      "#text": "Yes",
       "TYPE": "Logical"
     },
     "ALTERID": {
-      "#text": 261,
+      "#text": 283,
       "TYPE": "Number"
     },
     "MASTERID": {
-      "#text": 216,
+      "#text": 239,
       "TYPE": "Number"
     },
     "RATEOFTAXCALCULATION": {
@@ -71,12 +75,12 @@
       "TYPE": "Number"
     },
     "OPENINGBALANCE": {
-      "#text": 500,
+      "#text": 0,
       "TYPE": "Amount"
     },
     "LANGUAGENAME.LIST": {
       "NAME.LIST": {
-        "NAME": "Sudhir Traders",
+        "NAME": "Mammohan",
         "TYPE": "String"
       },
       "LANGUAGEID": {
@@ -84,74 +88,49 @@
         "TYPE": "Number"
       }
     },
-    "LEDGSTREGDETAILS.LIST": [
-      {
-        "APPLICABLEFROM": {
-          "#text": 20170701,
-          "TYPE": "Date"
-        },
-        "GSTREGISTRATIONTYPE": {
-          "#text": "Regular",
-          "TYPE": "String"
-        },
-        "PLACEOFSUPPLY": {
-          "#text": "Haryana",
-          "TYPE": "String"
-        }
+    "LEDGSTREGDETAILS.LIST": {
+      "APPLICABLEFROM": {
+        "#text": 20170701,
+        "TYPE": "Date"
       },
-      {
-        "APPLICABLEFROM": {
-          "#text": 20260701,
-          "TYPE": "Date"
-        },
-        "GSTREGISTRATIONTYPE": {
-          "#text": "Regular",
-          "TYPE": "String"
-        },
-        "PLACEOFSUPPLY": {
-          "#text": "Gujarat",
-          "TYPE": "String"
-        }
-      }
-    ],
-    "LEDMAILINGDETAILS.LIST": [
-      {
-        "APPLICABLEFROM": {
-          "#text": 20160401,
-          "TYPE": "Date"
-        },
-        "MAILINGNAME": {
-          "#text": "Sudhir Traders",
-          "TYPE": "String"
-        },
-        "STATE": {
-          "#text": "Haryana",
-          "TYPE": "String"
-        },
-        "COUNTRY": {
-          "#text": "India",
-          "TYPE": "String"
-        }
+      "GSTREGISTRATIONTYPE": {
+        "#text": "Regular",
+        "TYPE": "String"
       },
-      {
-        "APPLICABLEFROM": {
-          "#text": 20260701,
-          "TYPE": "Date"
-        },
-        "MAILINGNAME": {
-          "#text": "Sudhir Traders",
-          "TYPE": "String"
-        },
-        "STATE": {
-          "#text": "Gujarat",
-          "TYPE": "String"
-        },
-        "COUNTRY": {
-          "#text": "India",
-          "TYPE": "String"
-        }
+      "PLACEOFSUPPLY": {
+        "#text": "Haryana",
+        "TYPE": "String"
+      },
+      "GSTIN": {
+        "#text": "06BASDPSDPSDPSP",
+        "TYPE": "String"
+      },
+      "ISCOMMONPARTY": {
+        "TYPE": "Logical"
       }
-    ],
+    },
+    "LEDMAILINGDETAILS.LIST": {
+      "APPLICABLEFROM": {
+        "#text": 20160401,
+        "TYPE": "Date"
+      },
+      "PINCODE": {
+        "#text": 121002,
+        "TYPE": "String"
+      },
+      "MAILINGNAME": {
+        "#text": "Mammohan",
+        "TYPE": "String"
+      },
+      "STATE": {
+        "#text": "Haryana",
+        "TYPE": "String"
+      },
+      "COUNTRY": {
+        "#text": "India",
+        "TYPE": "String"
+      }
+    },
     "CONTACTDETAILS.LIST": {
       "NAME": {
         "#text": "Primary Mobile No.",
@@ -166,7 +145,7 @@
         "TYPE": "Logical"
       }
     },
-    "NAME": "Sudhir Traders",
+    "NAME": "Mammohan",
     "RESERVEDNAME": ""
   }
 }
