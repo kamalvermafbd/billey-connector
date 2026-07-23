@@ -72,7 +72,10 @@ function parseCostCentreAllocations(row) {
 
 }
 
-function parseVoucherLedgers(voucher) {
+function parseVoucherLedgers(
+    voucher,
+    lookups
+) {
     
 
     const fs = require("fs");
@@ -115,17 +118,73 @@ const rows =
         ? toArray(voucher["ALLLEDGERENTRIES.LIST"])
         : toArray(voucher["LEDGERENTRIES.LIST"]);
 
+const ledgerLookup = lookups?.ledgerLookup;
+const groupLookup = lookups?.groupLookup;
+
+
     return rows.map(row => {
 
+            const ledger =
+                ledgerLookup?.get(
+                    getValue(row.LEDGERNAME)
+                        .trim()
+                        .toUpperCase()
+                );
+
+            const ledgerParent =
+                ledger
+                    ? groupLookup?.get(
+                        (ledger.parent || "")
+                            .trim()
+                            .toUpperCase()
+                    )
+                    : null;
+
+                    fs.appendFileSync(
+    "./ledger-parent232-debug.txt",
+    JSON.stringify({
+        ledger: ledger?.name,
+        parent: ledgerParent?.name,
+        parentAlterId: ledgerParent?.alterId,
+        parentMasterId: ledgerParent?.masterId
+    }) + "\n"
+);
+                    
         const amount = getNumber(row.AMOUNT);
 
         const isDeemedPositive = getValue(row.ISDEEMEDPOSITIVE);
 
         return {
 
-            ledgerName: getValue(row.LEDGERNAME),
+          
+            ledgerName:
+                ledger?.name ||
+                getValue(row.LEDGERNAME),
 
-            ledgerMasterId: getValue(row.LEDGERMASTERID),
+            ledgerGuid:
+                ledger?.guid || null,
+
+            ledgerMasterId:
+                ledger?.masterId ||
+                getValue(row.LEDGERMASTERID),
+
+            ledgerAlterId:
+                ledger?.alterId || null,
+
+            ledgerParentName:
+                ledgerParent?.name ||
+                ledger?.parent ||
+                null,
+
+            ledgerParentGuid:
+                ledgerParent?.guid || null,
+
+            ledgerParentMasterId:
+                ledgerParent?.masterId || null,
+
+            ledgerParentAlterId:
+                ledgerParent?.alterId || null,
+
 
             amount,
 

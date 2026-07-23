@@ -54,7 +54,10 @@ return vouchers.map(v => {
 
     v.__header = header;
 
-  const ledgers = parseVoucherLedgers(v);
+  const ledgers = parseVoucherLedgers(
+    v,
+    lookups
+);
 
 const fs = require("fs");
 

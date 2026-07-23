@@ -1,44 +1,44 @@
 {
-  "voucherType": "Purchase",
-  "voucherNumber": 5,
+  "voucherType": "Sales",
+  "voucherNumber": 3,
   "ledgerEntriesCount": 3,
   "allLedgerEntriesCount": 4,
   "ledgerEntries": [
     {
-      "ledger": "Sudhir Traders",
-      "amount": 1788.05,
+      "ledger": "Mammohan",
+      "amount": -2040,
       "party": ""
     },
     {
-      "ledger": "IGST 18%",
-      "amount": -178.2,
+      "ledger": "CGST 10%",
+      "amount": 170,
       "party": ""
     },
     {
-      "ledger": "IGST 15%",
-      "amount": -80.85,
+      "ledger": "SGST 10%",
+      "amount": 170,
       "party": ""
     }
   ],
   "allLedgerEntries": [
     {
-      "ledger": "Sudhir Traders",
-      "amount": 1788.05,
+      "ledger": "Mammohan",
+      "amount": -2040,
       "party": "Yes"
     },
     {
-      "ledger": "Purchase Igst",
-      "amount": -1529,
+      "ledger": "Local Sale 20%",
+      "amount": 1700,
       "party": "No"
     },
     {
-      "ledger": "IGST 18%",
-      "amount": -178.2,
+      "ledger": "CGST 10%",
+      "amount": 170,
       "party": "No"
     },
     {
-      "ledger": "IGST 15%",
-      "amount": -80.85,
+      "ledger": "SGST 10%",
+      "amount": 170,
       "party": "No"
     }
   ]

@@ -1,11 +1,11 @@
 {
-  "lookupKey": "SUDHIR TRADERS",
+  "lookupKey": "MAMMOHAN",
   "stockKey": "",
-  "partyLookupSize": 8,
+  "partyLookupSize": 9,
   "stockLookupSize": 3,
   "hasPartyKey": true,
   "hasStockKey": false,
-  "rawStockName": "GI Nipple",
-  "matchingPartyKey": "SUDHIR TRADERS",
+  "rawStockName": "3/4 CPVC Elbow Heavy",
+  "matchingPartyKey": "MAMMOHAN",
   "matchingStockKey": null
 }

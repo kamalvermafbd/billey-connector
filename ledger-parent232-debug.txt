@@ -1,0 +1,168 @@
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Raja Babu","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Local","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"CGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sunil Capital Account","parent":"Capital Account","parentAlterId":"2","parentMasterId":"1"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Telephone","parent":"Indirect Expenses","parentAlterId":"29","parentMasterId":"28"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Igst","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"IGST 15%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Mammohan","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"Local Sale 20%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"CGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Raja Babu","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Local","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"CGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sunil Capital Account","parent":"Capital Account","parentAlterId":"2","parentMasterId":"1"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Telephone","parent":"Indirect Expenses","parentAlterId":"29","parentMasterId":"28"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Igst","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"IGST 15%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Mammohan","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"Local Sale 20%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"CGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Raja Babu","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Local","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"CGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sunil Capital Account","parent":"Capital Account","parentAlterId":"2","parentMasterId":"1"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Telephone","parent":"Indirect Expenses","parentAlterId":"29","parentMasterId":"28"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Igst","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"IGST 15%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Mammohan","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"Local Sale 20%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"CGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Raja Babu","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Local","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"CGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sunil Capital Account","parent":"Capital Account","parentAlterId":"2","parentMasterId":"1"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Telephone","parent":"Indirect Expenses","parentAlterId":"29","parentMasterId":"28"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Igst","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"IGST 15%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Mammohan","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"Local Sale 20%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"CGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Raja Babu","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Local","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"CGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sunil Capital Account","parent":"Capital Account","parentAlterId":"2","parentMasterId":"1"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Telephone","parent":"Indirect Expenses","parentAlterId":"29","parentMasterId":"28"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Igst","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"IGST 15%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Mammohan","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"Local Sale 20%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"CGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Raja Babu","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Local","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"CGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sunil Capital Account","parent":"Capital Account","parentAlterId":"2","parentMasterId":"1"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Telephone","parent":"Indirect Expenses","parentAlterId":"29","parentMasterId":"28"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Igst","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"IGST 15%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Mammohan","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"Local Sale 20%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"CGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Raja Babu","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Local","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"CGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 9%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Rahul Trading","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"IGST Sale 18%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Sunil Capital Account","parent":"Capital Account","parentAlterId":"2","parentMasterId":"1"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Telephone","parent":"Indirect Expenses","parentAlterId":"29","parentMasterId":"28"}
+{"ledger":"Cash","parent":"Cash-in-Hand","parentAlterId":"22","parentMasterId":"21"}
+{"ledger":"Sudhir Traders","parent":"Sundry Creditors","parentAlterId":"17","parentMasterId":"16"}
+{"ledger":"Purchase Igst","parent":"Purchase Accounts","parentAlterId":"256","parentMasterId":"24"}
+{"ledger":"IGST 18%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"IGST 15%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"Mammohan","parent":"Sundry Debtors","parentAlterId":"21","parentMasterId":"20"}
+{"ledger":"Local Sale 20%","parent":"Sales Accounts","parentAlterId":"24","parentMasterId":"23"}
+{"ledger":"CGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
+{"ledger":"SGST 10%","parent":"Duties & Taxes","parentAlterId":"15","parentMasterId":"14"}
