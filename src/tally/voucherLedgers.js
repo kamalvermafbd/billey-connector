@@ -73,14 +73,47 @@ function parseCostCentreAllocations(row) {
 }
 
 function parseVoucherLedgers(voucher) {
+    
 
-    const rows = [
+    const fs = require("fs");
 
-        ...toArray(voucher["LEDGERENTRIES.LIST"]),
+fs.writeFileSync(
+    "./ledger-parser-debug.json",
+    JSON.stringify(
+        {
+            voucherType: getValue(voucher.VOUCHERTYPENAME),
 
-        ...toArray(voucher["ALLLEDGERENTRIES.LIST"])
+            voucherNumber: getValue(voucher.VOUCHERNUMBER),
 
-    ];
+            ledgerEntriesCount:
+                toArray(voucher["LEDGERENTRIES.LIST"]).length,
+
+            allLedgerEntriesCount:
+                toArray(voucher["ALLLEDGERENTRIES.LIST"]).length,
+
+            ledgerEntries:
+                toArray(voucher["LEDGERENTRIES.LIST"]).map(x => ({
+                    ledger: getValue(x.LEDGERNAME),
+                    amount: getValue(x.AMOUNT),
+                    party: getValue(x.ISPARTYLEDGER)
+                })),
+
+            allLedgerEntries:
+                toArray(voucher["ALLLEDGERENTRIES.LIST"]).map(x => ({
+                    ledger: getValue(x.LEDGERNAME),
+                    amount: getValue(x.AMOUNT),
+                    party: getValue(x.ISPARTYLEDGER)
+                }))
+        },
+        null,
+        2
+    )
+);
+
+const rows =
+    toArray(voucher["ALLLEDGERENTRIES.LIST"]).length > 0
+        ? toArray(voucher["ALLLEDGERENTRIES.LIST"])
+        : toArray(voucher["LEDGERENTRIES.LIST"]);
 
     return rows.map(row => {
 
