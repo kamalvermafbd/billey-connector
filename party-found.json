@@ -111,9 +111,6 @@
         "PLACEOFSUPPLY": {
           "#text": "Gujarat",
           "TYPE": "String"
-        },
-        "ISCOMMONPARTY": {
-          "TYPE": "Logical"
         }
       }
     ],

@@ -54,15 +54,21 @@ return vouchers.map(v => {
 
     v.__header = header;
 
-    return {
-        header,
-        ledgers: parseVoucherLedgers(v),
-        inventory: parseVoucherInventory(
-            v,
-            lookups
-        ),
-        raw: v
-    };
+  const ledgers = parseVoucherLedgers(v);
+
+const fs = require("fs");
+
+fs.writeFileSync(
+    "./parsed-ledgers.json",
+    JSON.stringify(ledgers, null, 2)
+);
+
+return {
+    header,
+    ledgers,
+    inventory: parseVoucherInventory(v, lookups),
+    raw: v
+};
 
 });
 

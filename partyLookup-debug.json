@@ -255,9 +255,6 @@
           "PLACEOFSUPPLY": {
             "#text": "Gujarat",
             "TYPE": "String"
-          },
-          "ISCOMMONPARTY": {
-            "TYPE": "Logical"
           }
         }
       ],
@@ -435,9 +432,6 @@
           "PLACEOFSUPPLY": {
             "#text": "Himachal Pradesh",
             "TYPE": "String"
-          },
-          "ISCOMMONPARTY": {
-            "TYPE": "Logical"
           }
         },
         {
