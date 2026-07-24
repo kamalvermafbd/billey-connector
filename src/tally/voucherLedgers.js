@@ -78,40 +78,6 @@ function parseVoucherLedgers(
 ) {
     
 
-    const fs = require("fs");
-
-fs.writeFileSync(
-    "./ledger-parser-debug.json",
-    JSON.stringify(
-        {
-            voucherType: getValue(voucher.VOUCHERTYPENAME),
-
-            voucherNumber: getValue(voucher.VOUCHERNUMBER),
-
-            ledgerEntriesCount:
-                toArray(voucher["LEDGERENTRIES.LIST"]).length,
-
-            allLedgerEntriesCount:
-                toArray(voucher["ALLLEDGERENTRIES.LIST"]).length,
-
-            ledgerEntries:
-                toArray(voucher["LEDGERENTRIES.LIST"]).map(x => ({
-                    ledger: getValue(x.LEDGERNAME),
-                    amount: getValue(x.AMOUNT),
-                    party: getValue(x.ISPARTYLEDGER)
-                })),
-
-            allLedgerEntries:
-                toArray(voucher["ALLLEDGERENTRIES.LIST"]).map(x => ({
-                    ledger: getValue(x.LEDGERNAME),
-                    amount: getValue(x.AMOUNT),
-                    party: getValue(x.ISPARTYLEDGER)
-                }))
-        },
-        null,
-        2
-    )
-);
 
 const rows =
     toArray(voucher["ALLLEDGERENTRIES.LIST"]).length > 0
@@ -140,15 +106,7 @@ const groupLookup = lookups?.groupLookup;
                     )
                     : null;
 
-                    fs.appendFileSync(
-    "./ledger-parent232-debug.txt",
-    JSON.stringify({
-        ledger: ledger?.name,
-        parent: ledgerParent?.name,
-        parentAlterId: ledgerParent?.alterId,
-        parentMasterId: ledgerParent?.masterId
-    }) + "\n"
-);
+                
                     
         const amount = getNumber(row.AMOUNT);
 

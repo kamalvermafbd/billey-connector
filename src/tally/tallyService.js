@@ -387,11 +387,7 @@ async function getGroups(company) {
 
     const result = await sendToTally(xml);
 
-    fs.writeFileSync(
-    path.join(__dirname, "groups.xml"),
-    result,
-    "utf8"
-);
+    
 
 const json = parser.parse(result);
 
@@ -517,11 +513,7 @@ async function getAllLedgers(
 
   const result = await sendToTally(xml);
 
-  fs.writeFileSync(
-    path.join(__dirname, "ledgers.xml"),
-    result,
-    "utf8"
-);
+  
 
 const json = parser.parse(result);
 
@@ -769,7 +761,7 @@ const outputFile = path.join(
     "sales-vouchers.xml"
 );
 
-fs.writeFileSync(outputFile, result, "utf8");
+
 
 console.log(
     "✅ Sales vouchers saved to:",
@@ -1075,20 +1067,7 @@ async function createStockItem({
   // DEBUG XML
   // =========================
 
-  fs.writeFileSync(
 
-    path.join(
-      __dirname,
-      "stock-debug.log"
-    ),
-
-    "========== XML ==========\n\n" +
-
-    xml +
-
-    "\n\n"
-
-  );
 
   // =========================
   // RETURN XML
@@ -1117,20 +1096,7 @@ async function createSalesLedger({
   // DEBUG XML
   // =========================
 
-  fs.writeFileSync(
-
-    path.join(
-      __dirname,
-      "sales-ledger-debug.log"
-    ),
-
-    "========== XML ==========\n\n" +
-
-    xml +
-
-    "\n\n"
-
-  );
+  
 
   // =========================
   // RETURN XML

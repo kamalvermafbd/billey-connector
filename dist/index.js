@@ -24623,7 +24623,7 @@ var require_XMLHttpRequest = __commonJS({
         } else {
           var contentFile = ".node-xmlhttprequest-content-" + process.pid;
           var syncFile = ".node-xmlhttprequest-sync-" + process.pid;
-          fs.writeFileSync(syncFile, "", "utf8");
+          
           var execString = "var http = require('http'), https = require('https'), fs = require('fs');var doRequest = http" + (ssl ? "s" : "") + ".request;var options = " + JSON.stringify(options) + ";var responseText = '';var responseData = Buffer.alloc(0);var req = doRequest(options, function(response) {response.on('data', function(chunk) {  var data = Buffer.from(chunk);  responseText += data.toString('utf8');  responseData = Buffer.concat([responseData, data]);});response.on('end', function() {fs.writeFileSync('" + contentFile + "', JSON.stringify({err: null, data: {statusCode: response.statusCode, headers: response.headers, text: responseText, data: responseData.toString('base64')}}), 'utf8');fs.unlinkSync('" + syncFile + "');});response.on('error', function(error) {fs.writeFileSync('" + contentFile + "', 'NODE-XMLHTTPREQUEST-ERROR:' + JSON.stringify(error), 'utf8');fs.unlinkSync('" + syncFile + "');});}).on('error', function(error) {fs.writeFileSync('" + contentFile + "', 'NODE-XMLHTTPREQUEST-ERROR:' + JSON.stringify(error), 'utf8');fs.unlinkSync('" + syncFile + "');});" + (data ? "req.write('" + JSON.stringify(data).slice(1, -1).replace(/'/g, "\\'") + "');" : "") + "req.end();";
           var syncProc = spawn(process.argv[0], ["-e", execString]);
           var statusText;
@@ -50202,13 +50202,7 @@ var require_tallyService = __commonJS({
         hsn,
         gstRate
       });
-      fs.writeFileSync(
-        path.join(
-          __dirname,
-          "stock-debug.log"
-        ),
-        "========== XML ==========\n\n" + xml + "\n\n"
-      );
+    
       return xml;
     }
     async function createSalesLedger({
@@ -50219,13 +50213,7 @@ var require_tallyService = __commonJS({
         company,
         ledgerName
       });
-      fs.writeFileSync(
-        path.join(
-          __dirname,
-          "sales-ledger-debug.log"
-        ),
-        "========== XML ==========\n\n" + xml + "\n\n"
-      );
+    
       return xml;
     }
     function createUnit({

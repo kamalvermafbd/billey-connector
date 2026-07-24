@@ -1,4 +1,4 @@
-const fs = require("fs");
+
 
 const {
     sendToTally,
@@ -24,11 +24,7 @@ async function importCompany({
     const responseXml = await sendToTally(requestXml);
 
     // ===== DEBUG =====
-    fs.writeFileSync(
-        "./company-response.xml",
-        responseXml,
-        "utf8"
-    );
+
     // =================
 
     return parseCompanyResponse(responseXml);

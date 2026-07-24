@@ -12,11 +12,7 @@ const {
 
     });
 
-    fs.writeFileSync(
-        "./all-masters-output.xml",
-        response,
-        "utf8"
-    );
+    
 
     console.log("All Masters Exported.");
 

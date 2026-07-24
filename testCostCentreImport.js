@@ -12,11 +12,7 @@ const {
 
     });
 
-    fs.writeFileSync(
-        "./cost-centres-output.json",
-        JSON.stringify(costCentres, null, 2),
-        "utf8"
-    );
+    
 
     console.log("Cost Centres Imported.");
 

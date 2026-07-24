@@ -12,11 +12,7 @@ const {
 
     });
 
-    fs.writeFileSync(
-        "./groups-output.json",
-        JSON.stringify(groups, null, 2),
-        "utf8"
-    );
+    
 
     console.log("Groups Imported.");
 

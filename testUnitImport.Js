@@ -12,11 +12,7 @@ const {
 
     });
 
-    fs.writeFileSync(
-        "./units-output.json",
-        JSON.stringify(units, null, 2),
-        "utf8"
-    );
+    
 
     console.log("Units Imported.");
 

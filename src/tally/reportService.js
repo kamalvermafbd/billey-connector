@@ -68,19 +68,11 @@ async function getTrialBalance({
     // Send to Tally
     const result = await sendToTally(xml);
 
-    fs.writeFileSync(
-    "trial-balance.xml",
-    result
-);
+    
 
     // Parse XML
     const json = parser.parse(result);
    
-
-fs.writeFileSync(
-    "trial-balance.json",
-    JSON.stringify(json, null, 2)
-);
 
     const names = json.ENVELOPE?.DSPACCNAME || [];
 const infos = json.ENVELOPE?.DSPACCINFO || [];
