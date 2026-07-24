@@ -32,11 +32,7 @@ const requestXml = buildVoucherRequest({
 
 const responseXml = await sendToTally(requestXml);
 
-fs.writeFileSync(
-    "./voucher-response.xml",
-    responseXml,
-    "utf8"
-);
+
 
 console.log("Voucher response saved to voucher-response.xml");
 
@@ -47,21 +43,6 @@ if (!responseXml) {
 }
 
 
-
-
-fs.writeFileSync(
-    "./lookups-before-parser.json",
-    JSON.stringify(
-        {
-            ledgerLookupSize: lookups.ledgerLookup?.size,
-            partyLookupSize: lookups.partyLookup?.size,
-            stockLookupSize: lookups.stockLookup?.size,
-            groupLookupSize: lookups.groupLookup?.size
-        },
-        null,
-        2
-    )
-);
 
 const vouchers = parseVoucherResponse(
     responseXml,

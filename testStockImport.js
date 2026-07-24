@@ -12,11 +12,7 @@ const {
 
     });
 
-    fs.writeFileSync(
-        "./stocks-output.json",
-        JSON.stringify(stocks, null, 2),
-        "utf8"
-    );
+   
 
     console.log("Stocks Imported.");
 

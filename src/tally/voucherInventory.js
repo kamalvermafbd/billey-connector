@@ -255,21 +255,7 @@ function parseVoucherInventory(
 
     const fs = require("fs");
 
-fs.writeFileSync(
-    "./partyLookup-inside.json",
-    JSON.stringify(
-        {
-            sameObject: lookups.partyLookup === partyLookup,
-            size: partyLookup?.size,
-            keys: [...(partyLookup?.keys?.() || [])],
-            constructor: partyLookup?.constructor?.name,
-            isMap: partyLookup instanceof Map
-        },
-        null,
-        2
-    ),
-    "utf8"
-);
+
 
     const groupLookup = lookups?.groupLookup;
 
@@ -300,30 +286,6 @@ fs.writeFileSync(
 
 const stockKey = getValue(item.STOCKITEMMASTERID);
 
-fs.writeFileSync(
-    "./lookup-debug.json",
-    JSON.stringify(
-        {
-            lookupKey,
-            stockKey,
-            partyLookupSize: partyLookup?.size,
-            stockLookupSize: stockLookup?.size,
-            hasPartyKey: partyLookup?.has(lookupKey),
-            hasStockKey: stockLookup?.has(stockKey),
-            rawStockMasterId: item.STOCKITEMMASTERID,
-rawStockName: item.STOCKITEMNAME,
-            matchingPartyKey: [...(partyLookup?.keys() || [])].find(
-                k => k === lookupKey
-            ) || null,
-            matchingStockKey: [...(stockLookup?.keys() || [])].find(
-                k => k === stockKey
-            ) || null
-        },
-        null,
-        2
-    ),
-    "utf8"
-);
 
 //const stock = stockLookup?.get(stockKey);
 
@@ -339,11 +301,7 @@ if (!stock) {
 
 const party = partyLookup?.get(lookupKey);
 
-fs.writeFileSync(
-    "./party-found.json",
-    JSON.stringify(party, null, 2),
-    "utf8"
-);
+
 
     /* const stock =
         stockLookup?.get(

@@ -12,11 +12,7 @@ const {
 
     });
 
-    fs.writeFileSync(
-        "./godowns-output.json",
-        JSON.stringify(godowns, null, 2),
-        "utf8"
-    );
+    
 
     console.log("Godowns Imported.");
 

@@ -1,4 +1,5 @@
 const { XMLParser } = require("fast-xml-parser");
+ const fs = require("fs");
 
 function getValue(node) {
 
@@ -38,13 +39,21 @@ function parseGroupResponse(xml) {
         ? groups
         : [groups];
 
+    
+
     return groupList.map(group => ({
 
-        guid: getValue(group.GUID),
+     guid: getValue(group.GUID),
 
-        masterId: getValue(group.MASTERID),
+masterId: getValue(group.MASTERID) || null,
 
-        alterId: getValue(group.ALTERID),
+alterId: getValue(group.ALTERID) || null,
+
+parentGuid: getValue(group.PARENTGUID) || null,
+
+parentMasterId: getValue(group.PARENTMASTERID) || null,
+
+parentAlterId: getValue(group.PARENTALTERID) || null,
 
         name: getValue(group.NAME),
 
@@ -57,6 +66,18 @@ function parseGroupResponse(xml) {
 
         isDeemedPositive:
             String(getValue(group.ISDEEMEDPOSITIVE)).toUpperCase() === "YES",
+
+            isSubledger:
+    String(getValue(group.ISSUBLEDGER)).toUpperCase() === "YES",
+
+isBillwiseOn:
+    String(getValue(group.ISBILLWISEON)).toUpperCase() === "YES",
+
+trackNegativeBalances:
+    String(getValue(group.TRACKNEGATIVEBALANCES)).toUpperCase() === "YES",
+
+isCondensed:
+    String(getValue(group.ISCONDENSED)).toUpperCase() === "YES",
 
         raw: group
 

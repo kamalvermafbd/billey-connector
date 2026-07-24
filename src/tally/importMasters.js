@@ -138,58 +138,6 @@ const groupLookup = new Map(
 
 
 
-fs.writeFileSync(
-    "./partyLookup-debug.json",
-    JSON.stringify(
-        {
-            size: partyLookup.size,
-
-            rajaBabu: partyLookup.get("RAJA BABU") || null,
-
-            sudhirTraders:
-                partyLookup.get("SUDHIR TRADERS") || null,
-
-            rahulTrading:
-                partyLookup.get("RAHUL TRADING") || null,
-
-            keys: [...partyLookup.keys()],
-
-            ledgerDebug: ledgers.map(l => {
-
-                const group = groupLookup.get(
-                    String(l.parent_group_guid || "")
-                );
-
-                return {
-                    name: l.name,
-                    isParty: l.isParty,
-                    parent: l.parent,
-                    parent_group_guid: l.parent_group_guid,
-                    reserved_name: group?.reserved_name || null,
-                    inLookup: partyLookup.has(
-                        (l.name || "").toUpperCase()
-                    )
-                };
-
-            })
-        },
-        null,
-        2
-    ),
-    "utf8"
-);
-
-fs.writeFileSync(
-    "./partyLookup.json",
-    JSON.stringify(
-        [...partyLookup.entries()],
-        null,
-        2
-    ),
-    "utf8"
-);
-
-
 console.log(
     ledgers
         .filter(x =>
@@ -203,15 +151,7 @@ console.log(
         }))
 );
 
-fs.writeFileSync(
-    "./parent-debug.json",
-    JSON.stringify(
-        global.parentDebug || [],
-        null,
-        2
-    ),
-    "utf8"
-);
+
 
     console.log(`✓ Ledgers Imported : ${ledgers.length}`);
 

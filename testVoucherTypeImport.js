@@ -12,11 +12,7 @@ const {
 
     });
 
-    fs.writeFileSync(
-        "./voucher-types-output.json",
-        JSON.stringify(voucherTypes, null, 2),
-        "utf8"
-    );
+    
 
     console.log("Voucher Types Imported.");
 

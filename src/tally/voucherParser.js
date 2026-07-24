@@ -31,24 +31,8 @@ function parseVoucherResponse(
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
     );
 
-  const fs = require("fs");
 
-fs.writeFileSync(
-    "./parser-lookups.json",
-    JSON.stringify(
-        {
-            ledgerLookupSize: lookups?.ledgerLookup?.size,
-            partyLookupSize: lookups?.partyLookup?.size,
-            stockLookupSize: lookups?.stockLookup?.size,
-            groupLookupSize: lookups?.groupLookup?.size
-        },
-        null,
-        2
-    ),
-    "utf8"
-);
 
-fs.writeFileSync("./parsed-voucher-debug.json", "");
 
 return vouchers.map(v => {
 
@@ -69,10 +53,7 @@ const parsedVoucher = {
     raw: v
 };
 
-fs.appendFileSync(
-    "./parsed-voucher-debug.json",
-    JSON.stringify(parsedVoucher, null, 2) + "\n\n"
-);
+
 
 return parsedVoucher;
 
