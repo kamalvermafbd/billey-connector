@@ -1,44 +1,44 @@
 {
   "voucherType": "Sales",
-  "voucherNumber": 3,
+  "voucherNumber": 5,
   "ledgerEntriesCount": 3,
   "allLedgerEntriesCount": 4,
   "ledgerEntries": [
     {
       "ledger": "Mammohan",
-      "amount": -2040,
+      "amount": -1890,
       "party": ""
     },
     {
       "ledger": "CGST 10%",
-      "amount": 170,
+      "amount": 157.5,
       "party": ""
     },
     {
       "ledger": "SGST 10%",
-      "amount": 170,
+      "amount": 157.5,
       "party": ""
     }
   ],
   "allLedgerEntries": [
     {
       "ledger": "Mammohan",
-      "amount": -2040,
+      "amount": -1890,
       "party": "Yes"
     },
     {
       "ledger": "Local Sale 20%",
-      "amount": 1700,
+      "amount": 1575,
       "party": "No"
     },
     {
       "ledger": "CGST 10%",
-      "amount": 170,
+      "amount": 157.5,
       "party": "No"
     },
     {
       "ledger": "SGST 10%",
-      "amount": 170,
+      "amount": 157.5,
       "party": "No"
     }
   ]
