@@ -48,6 +48,8 @@ fs.writeFileSync(
     "utf8"
 );
 
+fs.writeFileSync("./parsed-voucher-debug.json", "");
+
 return vouchers.map(v => {
 
     const header = parseVoucherHeader(v);
@@ -59,19 +61,20 @@ return vouchers.map(v => {
     lookups
 );
 
-const fs = require("fs");
 
-fs.writeFileSync(
-    "./parsed-ledgers.json",
-    JSON.stringify(ledgers, null, 2)
-);
-
-return {
+const parsedVoucher = {
     header,
     ledgers,
     inventory: parseVoucherInventory(v, lookups),
     raw: v
 };
+
+fs.appendFileSync(
+    "./parsed-voucher-debug.json",
+    JSON.stringify(parsedVoucher, null, 2) + "\n\n"
+);
+
+return parsedVoucher;
 
 });
 

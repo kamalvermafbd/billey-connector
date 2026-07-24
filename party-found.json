@@ -104,9 +104,6 @@
       "GSTIN": {
         "#text": "06BASDPSDPSDPSP",
         "TYPE": "String"
-      },
-      "ISCOMMONPARTY": {
-        "TYPE": "Logical"
       }
     },
     "LEDMAILINGDETAILS.LIST": {
