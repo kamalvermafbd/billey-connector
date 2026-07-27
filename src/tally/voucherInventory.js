@@ -1,3 +1,7 @@
+const fs = require("fs");
+
+const INVENTORY_DEBUG_FILE = "./logs/inventory-debug.jsonl";
+
 function getValue(value) {
     if (
         value &&
@@ -62,19 +66,41 @@ function parseBatchAllocations(item) {
 
     return list.map(batch => ({
 
-        godown: getValue(batch.GODOWNNAME),
+    godown: getValue(batch.GODOWNNAME),
 
-        batchName: getValue(batch.BATCHNAME),
+    destinationGodown:
+        getValue(batch.DESTINATIONGODOWNNAME),
 
-        actualQty: getValue(batch.ACTUALQTY),
+    batchName:
+        getValue(batch.BATCHNAME),
 
-        billedQty: getValue(batch.BILLEDQTY),
+batchId:
+    batch.BATCHID
+        ? getNumber(batch.BATCHID)
+        : null,
+        
+        actualQty:
+        getValue(batch.ACTUALQTY),
 
-        rate: getValue(batch.BATCHRATE),
+    billedQty:
+        getValue(batch.BILLEDQTY),
 
-        amount: Number(getValue(batch.AMOUNT) || 0)
+    rate:
+        getValue(batch.BATCHRATE),
 
-    }));
+    rateValue:
+        getRateValue(batch.BATCHRATE),
+
+    amount:
+        Number(getValue(batch.AMOUNT) || 0),
+
+    additionalAmount:
+        getNumber(batch.ADDLAMOUNT),
+
+    discount:
+        getNumber(batch.BATCHDISCOUNT)
+
+}));
 
 }
 
@@ -166,11 +192,16 @@ if (ledgerName.includes("IGST")) {
    }
 
    return {
-        taxableAmount,
-        cgstAmount,
-        sgstAmount,
-        igstAmount
-    };
+    taxableAmount,
+
+    cgstRate,
+    sgstRate,
+    igstRate,
+
+    cgstAmount,
+    sgstAmount,
+    igstAmount
+};
 
 }
 
@@ -253,23 +284,83 @@ function parseVoucherInventory(
     const stockLookup = lookups?.stockLookup;
     const partyLookup = lookups?.partyLookup;
 
-    const fs = require("fs");
+const groupLookup = lookups?.groupLookup;
+
+const inventory = voucher["ALLINVENTORYENTRIES.LIST"];
+
+const inventoryIn = voucher["INVENTORYENTRIESIN.LIST"];
+
+const inventoryOut = voucher["INVENTORYENTRIESOUT.LIST"];
+
+const items = [];
+
+
+function addInventoryItems(source, movementType, inventoryNode) {
+
+    if (!source) return;
+
+    const list = Array.isArray(source)
+        ? source
+        : [source];
+
+    items.push(
+        ...list.map(row => ({
+            ...row,
+            __movementType: movementType,
+            __inventoryNode: inventoryNode
+        }))
+    );
+
+}
 
 
 
-    const groupLookup = lookups?.groupLookup;
+addInventoryItems(
+    inventory,
+    null,
+    "ALLINVENTORYENTRIES.LIST"
+);
 
-    const inventory = voucher["ALLINVENTORYENTRIES.LIST"];
+addInventoryItems(
+    inventoryIn,
+    "IN",
+    "INVENTORYENTRIESIN.LIST"
+);
 
-    if (!inventory) {
-        return [];
-    }
+addInventoryItems(
+    inventoryOut,
+    "OUT",
+    "INVENTORYENTRIESOUT.LIST"
+);
 
-    const items = Array.isArray(inventory)
-        ? inventory
-        : [inventory];
+fs.appendFileSync(
+    INVENTORY_DEBUG_FILE,
+    JSON.stringify({
+        voucher: header.voucherNumber,
+        guid: header.guid,
+        all: Array.isArray(inventory)
+            ? inventory.length
+            : inventory ? 1 : 0,
+        in: Array.isArray(inventoryIn)
+            ? inventoryIn.length
+            : inventoryIn ? 1 : 0,
+        out: Array.isArray(inventoryOut)
+            ? inventoryOut.length
+            : inventoryOut ? 1 : 0,
+        total: items.length
+    }) + "\n"
+);
+
+if (items.length === 0) {
+    return [];
+}    
+    
 
     return items.map(item => {
+
+        const movementType = item.__movementType;
+
+const inventoryNode = item.__inventoryNode;
 
     const batches = parseBatchAllocations(item);
 
@@ -381,29 +472,43 @@ const partyParent =
 
             console.log("PARTY PARENT", partyParent);
 
+const {
+    __movementType,
+    __inventoryNode,
+    ...rawItem
+} = item;
+
+
         return {
 
-            voucherGuid: header.guid,
+                     voucherGuid: header.guid,
 
-voucherMasterId: header.masterid,
+            voucherMasterId: header.masterid,
 
-voucherAlterId: header.alterid,
+            voucherAlterId: header.alterid,
 
-voucherDate: header.voucherDate,
+            voucherTypeName:
+                header.voucherTypeName,
 
-voucherType: header.voucherType,
+            voucherDate: header.voucherDate,
 
-transactionType: header.isInvoice,
+            voucherType: header.voucherType,
+
+            transactionType: header.isInvoice,
 
             stockItem: getValue(item.STOCKITEMNAME),
+
+            movementType,
+
+            inventoryNode,
 
             stockMasterId: getValue(item.STOCKITEMMASTERID),
 
             stockGuid: stock?.guid || null,
 
-stockMasterIdResolved: stock?.masterId || null,
+            stockMasterIdResolved: stock?.masterId || null,
 
-stockAlterId: stock?.alterId || null,
+            stockAlterId: stock?.alterId || null,
 
             actualQty: getValue(item.ACTUALQTY),
 
@@ -433,52 +538,76 @@ stockAlterId: stock?.alterId || null,
                 batches[0]?.godown ||
                 null,
 
-            batches,
+                     batchName:
+                batches[0]?.batchName || null,
 
+            batchId:
+                batches[0]?.batchId || null,
+
+            batchRate:
+                batches[0]?.rate || null,
+
+            batchRateValue:
+                batches[0]?.rateValue || null,
+
+            batchAmount:
+                batches[0]?.amount ?? null,
+
+            additionalAmount:
+                batches[0]?.additionalAmount ?? null,
+
+            destinationGodown:
+                batches[0]?.destinationGodown || null,
+
+            batches,
            accounting,
 
-ledgerName: ledger?.name || accounting[0]?.ledgerName || null,
+            ledgerName: ledger?.name || accounting[0]?.ledgerName || null,
 
-ledgerGuid: ledger?.guid || null,
+            ledgerGuid: ledger?.guid || null,
 
-ledgerMasterId: ledger?.masterId || null,
+            ledgerMasterId: ledger?.masterId || null,
 
-ledgerAlterId: ledger?.alterId || null,
+            ledgerAlterId: ledger?.alterId || null,
 
-ledgerParentName: ledger?.parent || null,
+            ledgerParentName: ledger?.parent || null,
 
-ledgerParentGuid:
-    ledgerParent?.guid || null,
+            ledgerParentGuid:
+                ledgerParent?.guid || null,
 
-ledgerParentMasterId:
-    ledgerParent?.masterId || null,
+            ledgerParentMasterId:
+                ledgerParent?.masterId || null,
 
-ledgerParentAlterId:
-    ledgerParent?.alterId || null,
+            ledgerParentAlterId:
+                ledgerParent?.alterId || null,
 
-partyName: party?.name || header.partyLedger || null,
+            partyName: party?.name || header.partyLedger || null,
 
-partyGuid: party?.guid || null,
+            partyGuid: party?.guid || null,
 
-partyMasterId: party?.masterId || null,
+            partyMasterId: party?.masterId || null,
 
-partyAlterId: party?.alterId || null,
+            partyAlterId: party?.alterId || null,
 
-partyParentName:
-    partyParent?.name || party?.parent || null,
+            partyParentName:
+                partyParent?.name || party?.parent || null,
 
-partyParentGuid:
-    partyParent?.guid || null,
+            partyParentGuid:
+                partyParent?.guid || null,
 
-partyParentMasterId:
-    partyParent?.masterId || null,
+            partyParentMasterId:
+                partyParent?.masterId || null,
 
-partyParentAlterId:
-    partyParent?.alterId || null,
+            partyParentAlterId:
+                partyParent?.alterId || null,
 
             gstRates: parseRateDetails(item),
 
             taxableAmount: tax.taxableAmount,
+
+            cgstRate: tax.cgstRate,
+            sgstRate: tax.sgstRate,
+            igstRate: tax.igstRate,
 
             cgstAmount: tax.cgstAmount,
 
@@ -488,7 +617,7 @@ partyParentAlterId:
 
             costCentreAllocations: parseCostCentreAllocations(item),
 
-            raw: item
+            raw: rawItem
 
         };
 

@@ -1,4 +1,7 @@
 const { XMLParser } = require("fast-xml-parser");
+
+const fs = require("fs");
+
 const { parseVoucherHeader } = require("./voucherHeader");
 const { parseVoucherLedgers } = require("./voucherLedgers");
 const { parseVoucherInventory } = require("./voucherInventory");
@@ -26,6 +29,11 @@ function parseVoucherResponse(
 ) {
 
     const json = parser.parse(xml);
+
+    fs.writeFileSync(
+    "./logs/parsed-response.json",
+    JSON.stringify(json, null, 2)
+);
 
     const vouchers = toArray(
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
