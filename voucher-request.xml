@@ -1,10 +1,4 @@
-function buildVoucherRequest({
-    company,
-    fromDate,
-    toDate
-}) {
 
-    return `
 <ENVELOPE>
 
     <HEADER>
@@ -25,13 +19,13 @@ function buildVoucherRequest({
 
             <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+                <SVCURRENTCOMPANY>Sunil Ent (Client</SVCURRENTCOMPANY>
 
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-                <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+                <SVFROMDATE TYPE="Date">20160401</SVFROMDATE>
 
-                <SVTODATE TYPE="Date">${toDate}</SVTODATE>
+                <SVTODATE TYPE="Date">undefined</SVTODATE>
 
             </STATICVARIABLES>
 
@@ -89,8 +83,6 @@ function buildVoucherRequest({
 
                             ALLINVENTORYENTRIES,
                             
-                            INVENTORYENTRIESIN,
-                            INVENTORYENTRIESOUT,
 
                         </FETCH>
 
@@ -105,9 +97,3 @@ function buildVoucherRequest({
     </BODY>
 
 </ENVELOPE>
-`;
-}
-
-module.exports = {
-    buildVoucherRequest
-};

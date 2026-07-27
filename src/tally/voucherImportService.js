@@ -30,8 +30,17 @@ const requestXml = buildVoucherRequest({
     toDate
 });
 
+fs.writeFileSync(
+    "./logs/request.xml",
+    requestXml,
+    "utf8"
+);
 const responseXml = await sendToTally(requestXml);
-
+fs.writeFileSync(
+    "./logs/response.xml",
+    responseXml,
+    "utf8"
+);
 
 
 console.log("Voucher response saved to voucher-response.xml");
