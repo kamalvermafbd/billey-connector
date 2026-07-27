@@ -58,6 +58,40 @@ app.get("/getTallyCompanies", async (req, res) => {
 
 });
 
+
+const {
+  buildVoucherRequestByGuid
+} = require("./tally/voucherRequest");
+
+const {
+  sendToTally
+} = require("./tally/tallyService");
+
+app.get("/testGuid", async (req, res) => {
+
+  try {
+
+    const xml = buildVoucherRequestByGuid({
+      company: req.query.company,
+      voucherGuid: req.query.guid
+    });
+
+    const response = await sendToTally(xml);
+
+    console.log(response.substring(0, 5000));
+
+    res.send("Check console");
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).send(err.message);
+
+  }
+
+});
+
 app.get("/getTallyMappingData", async (req, res) => {
    
 
