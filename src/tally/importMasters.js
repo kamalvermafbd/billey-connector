@@ -40,6 +40,10 @@ const {
     importVouchers
 } = require("./voucherImportService");
 
+const {
+    buildTallyLookups
+} = require("./tallyLookups");
+
 async function importMasters({
     company
 }) {
@@ -88,69 +92,7 @@ async function importMasters({
         companyInfo.booksBeginningFrom
     });
 
-    const ledgerLookup = new Map(
-    ledgers.map(l => [
-        (l.name || "").toUpperCase(),
-        l
-    ])
-    );
-
-    console.log("================================");
-
-
-
-console.log(
-    "Purchase Local Lookup :",
-    ledgerLookup.get("PURCHASE LOCAL")
-);
-
-console.log(
-    "Raja Babu Lookup :",
-    ledgerLookup.get("RAJA BABU")
-);
-
-console.log("================================");
-const partyLookup = new Map(
-    ledgers
-        .filter(l => l.isParty)
-        .map(l => [
-            (l.name || "").toUpperCase(),
-            l
-        ])
-);
-
-
-const groupLookup = new Map(
-    groups.map(g => [
-        (g.name || "").trim().toUpperCase(),
-        g
-    ])
-);
-
-    console.log(
-    "PURCHASE IGST LEDGER =>",
-    ledgers.find(
-        x =>
-            (x.name || "").toUpperCase() ===
-            "PURCHASE IGST"
-    )
-);
-
-
-
-console.log(
-    ledgers
-        .filter(x =>
-            (x.name || "")
-                .toUpperCase()
-                .includes("PURCHASE")
-        )
-        .map(x => ({
-            name: x.name,
-            parent: x.parent
-        }))
-);
-
+    
 
 
     console.log(`✓ Ledgers Imported : ${ledgers.length}`);
@@ -173,24 +115,24 @@ console.log(
 
     console.log(`✓ Stocks Imported : ${stocks.length}`);
 
-    const stockLookup = new Map(
-    stocks.map(s => [
-        String(s.masterId || ""),
-        s
-    ])
+   const lookups = buildTallyLookups({
+    groups,
+    ledgers,
+    stocks
+});
+
+console.log("Ledger Lookup :", lookups.ledgerLookup.size);
+console.log("Stock Lookup :", lookups.stockLookup.size);
+
+console.log(
+    "Purchase Local :",
+    lookups.ledgerLookup.get("PURCHASE LOCAL")
 );
 
-const lookups = {
-    ledgerLookup,
-    stockLookup,
-    partyLookup,
-    groupLookup
-};
-
-console.log("Ledger Lookup :", ledgerLookup.size);
-console.log("Stock Lookup :", stockLookup.size);
-console.log("Purchase Local :", ledgerLookup.get("PURCHASE LOCAL"));
-console.log("Purchase IGST :", ledgerLookup.get("PURCHASE IGST"));
+console.log(
+    "Purchase IGST :",
+    lookups.ledgerLookup.get("PURCHASE IGST")
+);
 
     console.log("Importing Godowns...");
     const godowns = await importGodowns({

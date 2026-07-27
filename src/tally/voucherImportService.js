@@ -4,10 +4,11 @@ const {
     selectCompany
 } = require("./tallyService");
 
-
 const {
-    buildVoucherRequest
+    buildVoucherRequest,
+    buildVoucherRequestByGuid
 } = require("./voucherRequest");
+
 
 const {
     parseVoucherResponse
@@ -15,6 +16,34 @@ const {
 
 
 const fs = require("fs");
+
+async function importVoucherByGuid({
+    company,
+    voucherGuid,
+    lookups
+}) {
+
+    await selectCompany(company);
+
+    const requestXml = buildVoucherRequestByGuid({
+        company,
+        voucherGuid
+    });
+
+    const responseXml = await sendToTally(requestXml);
+
+    if (!responseXml) {
+        throw new Error("Empty response received from Tally.");
+    }
+
+    const vouchers = parseVoucherResponse(
+        responseXml,
+        lookups
+    );
+
+    return vouchers[0] || null;
+
+}
 
 async function importVouchers({
     company,
@@ -78,6 +107,9 @@ return {
 
 }
 
+
+
 module.exports = {
-    importVouchers
+    importVouchers,
+    importVoucherByGuid
 };
