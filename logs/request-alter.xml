@@ -11,6 +11,8 @@
 
         <ID>BilleyVoucherCollection</ID>
 
+
+
     </HEADER>
 
     <BODY>
@@ -19,13 +21,13 @@
 
             <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>Sunil Ent (Client</SVCURRENTCOMPANY>
+                <SVCURRENTCOMPANY>Sunil Ent (Client)</SVCURRENTCOMPANY>
 
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-                <SVFROMDATE TYPE="Date">20160401</SVFROMDATE>
+                <SVFROMDATE TYPE="Date">20260401</SVFROMDATE>
 
-                <SVTODATE TYPE="Date">undefined</SVTODATE>
+                <SVTODATE TYPE="Date">20260430</SVTODATE>
 
             </STATICVARIABLES>
 
@@ -36,6 +38,7 @@
                     <COLLECTION NAME="BilleyVoucherCollection">
 
                         <TYPE>Voucher</TYPE>
+                         <FILTER>VoucherAlterIdFilter</FILTER>
 
                         <FETCH>
 
@@ -83,10 +86,16 @@
 
                             ALLINVENTORYENTRIES,
                             
+                            INVENTORYENTRIESIN,
+                            INVENTORYENTRIESOUT,
 
                         </FETCH>
 
                     </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="VoucherAlterIdFilter">
+    $ALTERID &gt; 211
+</SYSTEM>
 
                 </TDLMESSAGE>
 

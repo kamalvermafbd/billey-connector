@@ -1,0 +1,82 @@
+const DEFAULT_MAX_CHUNK_SIZE = 300 * 1024; // 300 KB
+
+/**
+ * Returns UTF-8 byte size
+ */
+function getObjectSize(obj) {
+    return Buffer.byteLength(JSON.stringify(obj), "utf8");
+}
+
+/**
+ * Split array into byte-size based chunks.
+ *
+ * @param {Array} items
+ * @param {number} maxChunkSize
+ * @returns {Array<Array>}
+ */
+function buildChunks(items, maxChunkSize = DEFAULT_MAX_CHUNK_SIZE) {
+
+    const chunks = [];
+
+    let currentChunk = [];
+    let currentSize = 0;
+
+    for (const item of items) {
+
+        const itemSize = getObjectSize(item);
+
+        // Safety (Phase 2 me handle karenge)
+        if (itemSize > maxChunkSize) {
+            throw new Error(
+                `Single item exceeds chunk size (${itemSize} bytes)`
+            );
+        }
+
+        if (
+            currentChunk.length > 0 &&
+            currentSize + itemSize > maxChunkSize
+        ) {
+
+           chunks.push({
+    payloadSize: currentSize,
+    data: currentChunk
+});
+
+            currentChunk = [];
+            currentSize = 0;
+        }
+
+        currentChunk.push(item);
+        currentSize += itemSize;
+    }
+
+    if (currentChunk.length) {
+        chunks.push({
+    payloadSize: currentSize,
+    data: currentChunk
+});
+    }
+
+    const totalChunks = chunks.length;
+
+return chunks.map((chunk, index) => ({
+    chunkIndex: index + 1,
+    totalChunks,
+    payloadSize: chunk.payloadSize,
+    data: chunk.data
+}));
+
+    
+}
+
+
+
+module.exports = {
+
+    buildChunks,
+
+    getObjectSize,
+
+    DEFAULT_MAX_CHUNK_SIZE
+
+};

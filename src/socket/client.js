@@ -10,6 +10,10 @@ const {
 } = require("../tally/tallyService");
 
 const {
+    sendChunkedResponse
+} = require("../../utils/sendChunkedResponse");
+
+const {
     importMasters
 } = require("../tally/importMasters");
 
@@ -67,13 +71,14 @@ socket.emit("register", {
 
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
 
-        console.log("=================================");
-        console.log("❌ Disconnected from Billey Server");
-        console.log("=================================");
+    console.log("=================================");
+    console.log("❌ Disconnected from Billey Server");
+    console.log("Reason :", reason);
+    console.log("=================================");
 
-    });
+});
 
     socket.on("export", async (data) => {
 
@@ -270,22 +275,185 @@ socket.on("getMasters", async (data) => {
 
     try {
 
-        const result =
-            await importMasters({
+        const result = await importMasters({
+    company: data.company,
+    lastAlterId: data.lastAlterId
+});
 
-                company:
-                    data.company
+        // ===========================
+        // Debug Analysis
+        // ===========================
 
-            });
+        const collections = {
+            groups: result.groups,
+            units: result.units,
+            ledgers: result.ledgers,
+            stockGroups: result.stockGroups,
+            stocks: result.stocks,
+            godowns: result.godowns,
+            costCentres: result.costCentres,
+            vouchers: result.vouchers
+        };
+
+        console.log("========== RECORD COUNT ==========");
+
+        for (const [name, value] of Object.entries(collections)) {
+
+            console.log(
+                `${name}:`,
+                Array.isArray(value) ? value.length : 0
+            );
+
+        }
+
+        console.log("========== PAYLOAD ANALYSIS ==========");
+
+        for (const [name, value] of Object.entries(collections)) {
+
+            const size = Buffer.byteLength(
+                JSON.stringify(value || [])
+            );
+
+            console.log(
+                `${name}: ${size} bytes (${(size / 1024).toFixed(2)} KB)`
+            );
+
+        }
+
+
+        // ===========================
+// Voucher Structure Analysis
+// ===========================
+
+if (result.vouchers && result.vouchers.length > 0) {
+
+    const voucher = result.vouchers[0];
+
+    console.log("========== FIRST VOUCHER KEYS ==========");
+    console.log(Object.keys(voucher));
+
+    console.log("========== FIRST VOUCHER FIELD SIZE ==========");
+
+    for (const [key, value] of Object.entries(voucher)) {
+
+        const size = Buffer.byteLength(
+            JSON.stringify(value ?? null)
+        );
+
+        console.log(
+            `${key}: ${(size / 1024).toFixed(2)} KB`
+        );
+
+    }
+
+}
+        // ===========================
+        // Voucher Chunk Test
+        // ===========================
+
+/*
+        const payload = {
+
+            success: true,
+
+            summary: result.summary,
+
+            groups: result.groups,
+
+            units: result.units,
+
+            ledgers: result.ledgers,
+
+            stockGroups: result.stockGroups,
+
+            stocks: result.stocks,
+
+            godowns: result.godowns,
+
+            costCentres: result.costCentres,
+
+            vouchers: voucherChunk
+
+        };
+
+        console.log(
+            "Final Payload Size :",
+            (
+                Buffer.byteLength(
+                    JSON.stringify(payload)
+                ) / 1024
+            ).toFixed(2),
+            "KB"
+        );
 
         socket.emit(
             "getMastersResult",
-            {
-                success: true,
-                ...result
-            }
+            payload
         );
 
+        console.log("✅ getMastersResult Sent");
+
+        */
+
+        const masterPayload = {
+
+    success: true,
+
+    summary: result.summary,
+
+     voucherCount: (result.vouchers || []).length,
+
+    groups: result.groups,
+
+    units: result.units,
+
+    ledgers: result.ledgers,
+
+    stockGroups: result.stockGroups,
+
+    stocks: result.stocks,
+
+    godowns: result.godowns,
+
+    costCentres: result.costCentres
+
+};
+
+console.log(
+    "Master Payload Size :",
+    (
+        Buffer.byteLength(
+            JSON.stringify(masterPayload)
+        ) / 1024
+    ).toFixed(2),
+    "KB"
+);
+
+// Send master data first
+socket.emit(
+    "getMastersResult",
+    masterPayload
+);
+
+console.log("✅ Master data sent");
+
+const vouchers = result.vouchers || [];
+
+if (vouchers.length > 0) {
+
+    await sendChunkedResponse(
+        socket,
+        "getMasters",
+        vouchers
+    );
+
+    console.log("✅ Voucher chunks sent");
+
+} else {
+
+    console.log("No vouchers found");
+
+}
     } catch (err) {
 
         console.error("GET MASTERS ERROR");
@@ -302,6 +470,7 @@ socket.on("getMasters", async (data) => {
     }
 
 });
+
 
 socket.on("getTrialBalance", async (data) => {
 

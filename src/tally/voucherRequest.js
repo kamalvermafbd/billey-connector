@@ -1,7 +1,8 @@
 function buildVoucherRequest({
     company,
     fromDate,
-    toDate
+    toDate,
+    lastAlterId = null
 }) {
 
     return `
@@ -16,6 +17,8 @@ function buildVoucherRequest({
         <TYPE>Collection</TYPE>
 
         <ID>BilleyVoucherCollection</ID>
+
+
 
     </HEADER>
 
@@ -42,6 +45,9 @@ function buildVoucherRequest({
                     <COLLECTION NAME="BilleyVoucherCollection">
 
                         <TYPE>Voucher</TYPE>
+                        ${lastAlterId !== null
+    ? `<FILTER>VoucherAlterIdFilter</FILTER>`
+    : ""}
 
                         <FETCH>
 
@@ -95,6 +101,14 @@ function buildVoucherRequest({
                         </FETCH>
 
                     </COLLECTION>
+
+                    ${lastAlterId !== null
+? `
+<SYSTEM TYPE="Formulae" NAME="VoucherAlterIdFilter">
+    $ALTERID &gt; ${lastAlterId}
+</SYSTEM>
+`
+: ""}
 
                 </TDLMESSAGE>
 
