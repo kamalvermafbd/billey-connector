@@ -32,9 +32,7 @@ const {
     importCostCentres
 } = require("./costCentreImportService");
 
-// const {
- //   importVoucherTypes
-//} = require("./voucherTypeImportService");
+
 
 const {
     importVouchers
@@ -45,7 +43,8 @@ const {
 } = require("./tallyLookups");
 
 async function importMasters({
-    company
+    company,
+    lastAlterId = null
 }) {
 
     console.log("======================================");
@@ -155,6 +154,7 @@ console.log("Importing Vouchers...");
 const voucherResult = await importVouchers({
     company,
     fromDate: companyInfo.booksBeginningFrom,
+    lastAlterId,
     lookups
 });
 

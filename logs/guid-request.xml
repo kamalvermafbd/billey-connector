@@ -9,9 +9,9 @@
 
         <TYPE>Collection</TYPE>
 
+        <FILTER>VoucherGuidFilter</FILTER>
+
         <ID>BilleyVoucherCollection</ID>
-
-
 
     </HEADER>
 
@@ -25,10 +25,6 @@
 
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-                <SVFROMDATE TYPE="Date">20160401</SVFROMDATE>
-
-                <SVTODATE TYPE="Date">undefined</SVTODATE>
-
             </STATICVARIABLES>
 
             <TDL>
@@ -38,7 +34,6 @@
                     <COLLECTION NAME="BilleyVoucherCollection">
 
                         <TYPE>Voucher</TYPE>
-                        <FILTER>VoucherAlterIdFilter</FILTER>
 
                         <FETCH>
 
@@ -93,11 +88,9 @@
 
                     </COLLECTION>
 
-                    
-<SYSTEM TYPE="Formulae" NAME="VoucherAlterIdFilter">
-    $ALTERID &gt; 210
+                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
+    $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000028"
 </SYSTEM>
-
 
                 </TDLMESSAGE>
 

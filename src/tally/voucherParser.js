@@ -61,6 +61,102 @@ const parsedVoucher = {
     raw: v
 };
 
+// ======================================
+// RAW vs PARSED AUDIT
+// ======================================
+
+const audit = [];
+
+function mark(rawTag, parsedLocation) {
+
+    audit.push({
+        rawTag,
+        parsed:
+            parsedLocation || "❌ NOT PARSED"
+    });
+
+}
+
+const rawKeys = Object.keys(v || {}).sort();
+
+// --------------------
+// Header Mapping
+// --------------------
+
+const headerMap = {
+
+    GUID: "header.guid",
+    MASTERID: "header.masterid",
+    ALTERID: "header.alterid",
+    DATE: "header.voucherDate",
+    EFFECTIVEDATE: "header.effectiveDate",
+    VOUCHERTYPENAME: "header.voucherTypeName",
+    VOUCHERNUMBER: "header.voucherNumber",
+    REFERENCE: "header.reference",
+    REFERENCEDATE: "header.referenceDate",
+    PARTYLEDGERNAME: "header.partyLedger",
+    NARRATION: "header.narration",
+    PARTYGSTIN: "header.gstin",
+    PLACEOFSUPPLY: "header.placeOfSupply",
+    BASICBUYERNAME: "header.buyerName",
+    BASICBUYERADDRESS: "header.buyerAddress",
+    GSTREGISTRATIONTYPE: "header.gstRegistrationType",
+    PERSISTEDVIEW: "header.persistedView",
+    ISINVOICE: "header.isInvoice",
+    ISOPTIONAL: "header.isOptional",
+    ISCANCELLED: "header.isCancelled",
+
+    "ALLLEDGERENTRIES.LIST":
+        "ledgers[]",
+
+    "ALLINVENTORYENTRIES.LIST":
+        "inventory[]",
+
+    "INVENTORYENTRIESIN.LIST":
+        "inventory[]",
+
+    "INVENTORYENTRIESOUT.LIST":
+        "inventory[]"
+};
+
+for (const key of rawKeys) {
+
+    mark(
+        key,
+        headerMap[key]
+    );
+
+}
+
+fs.appendFileSync(
+
+    "./logs/raw-vs-parsed-audit.jsonl",
+
+    JSON.stringify({
+
+        voucher:
+            header.voucherNumber,
+
+        guid:
+            header.guid,
+
+        totalRawTags:
+            rawKeys.length,
+
+        totalParsed:
+
+            Object
+                .values(headerMap)
+                .filter(Boolean)
+                .length,
+
+        audit
+
+    }, null, 2)
+
+    + "\n\n"
+
+);
 
 
 return parsedVoucher;

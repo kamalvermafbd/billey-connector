@@ -17,6 +17,7 @@ const {
 
 const fs = require("fs");
 
+
 async function importVoucherByGuid({
     company,
     voucherGuid,
@@ -45,10 +46,18 @@ async function importVoucherByGuid({
 
 }
 
+/*
+
+async function importVoucherByGuid() {
+    console.log("Single GUID import skipped");
+    return null;
+}
+*/
 async function importVouchers({
     company,
     fromDate,
     toDate,
+    lastAlterId = null,
     lookups
 }) {
 
@@ -56,7 +65,8 @@ async function importVouchers({
 const requestXml = buildVoucherRequest({
     company,
     fromDate,
-    toDate
+    toDate,
+    lastAlterId
 });
 
 fs.writeFileSync(
