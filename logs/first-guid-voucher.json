@@ -1,0 +1,55 @@
+{
+  "DATE": {
+    "#text": 20260401,
+    "TYPE": "Date"
+  },
+  "GUID": "755da616-c913-46c0-9ad0-de5499d071a0-00000014",
+  "REQUESTORRULE": "",
+  "VOUCHERTYPENAME": "Local Purchase",
+  "VOUCHERNUMBER": 2,
+  "SERIALMASTER": {
+    "TYPE": "String"
+  },
+  "ARESERIALMASTER": {
+    "TYPE": "String"
+  },
+  "NUMBERINGSTYLE": "Auto Retain",
+  "PERSISTEDVIEW": "Invoice Voucher View",
+  "ISDELETED": "No",
+  "ASORIGINAL": "No",
+  "ISINVOICE": "Yes",
+  "ASPAYSLIP": "No",
+  "ISDELETEDVCHRETAINED": "No",
+  "ISNEGISPOSSET": {
+    "#text": "Yes",
+    "TYPE": "Logical"
+  },
+  "ALTERID": {
+    "#text": 220,
+    "TYPE": "Number"
+  },
+  "MASTERID": {
+    "#text": 20,
+    "TYPE": "Number"
+  },
+  "VOUCHERKEY": {
+    "#text": 198049531953160,
+    "TYPE": "Number"
+  },
+  "VOUCHERRETAINKEY": {
+    "#text": 5,
+    "TYPE": "Number"
+  },
+  "REUSEHOLEID": {
+    "#text": 0,
+    "TYPE": "Number"
+  },
+  "VOUCHERNUMBERSERIES": {
+    "#text": "Default",
+    "TYPE": "String"
+  },
+  "REMOTEID": "755da616-c913-46c0-9ad0-de5499d071a0-00000014",
+  "VCHKEY": "755da616-c913-46c0-9ad0-de5499d071a0-0000b420:00000008",
+  "VCHTYPE": "Local Purchase",
+  "OBJVIEW": "Invoice Voucher View"
+}

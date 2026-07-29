@@ -22,6 +22,32 @@ function toArray(value) {
     return Array.isArray(value) ? value : [value];
 }
 
+function parseVoucherGuidResponse(xml) {
+
+    const json = parser.parse(xml);
+
+    const vouchers = toArray(
+        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
+    );
+
+    fs.writeFileSync(
+    "./logs/first-guid-voucher.json",
+    JSON.stringify(vouchers[0], null, 2)
+);
+
+    return vouchers.map(v => ({
+
+        guid: v.GUID || null,
+
+        alterid: Number(
+    v.ALTERID?.["#text"] ??
+    v.ALTERID ??
+    0
+)
+
+    }));
+
+}
 
 function parseVoucherResponse(
     xml,
@@ -166,5 +192,6 @@ return parsedVoucher;
 }
 
 module.exports = {
-    parseVoucherResponse
+    parseVoucherResponse,
+    parseVoucherGuidResponse
 };

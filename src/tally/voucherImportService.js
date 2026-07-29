@@ -9,13 +9,65 @@ const {
     buildVoucherRequestByGuid
 } = require("./voucherRequest");
 
+const {
+    buildVoucherGuidRequest
+} = require("./voucherGuidRequest");
 
 const {
-    parseVoucherResponse
+    parseVoucherResponse,
+    parseVoucherGuidResponse
 } = require("./voucherParser");
 
 
 const fs = require("fs");
+
+async function importVoucherGuids({
+    company
+}) {
+
+     await selectCompany(company);
+
+    const requestXml =
+        buildVoucherGuidRequest({
+            company
+        });
+
+    const xml =
+        await sendToTally(requestXml);
+
+    fs.appendFileSync(
+    "./logs/send-to-tally-debug.jsonl",
+    JSON.stringify({
+        stage: "VOUCHER_GUID_REQUEST",
+        request: requestXml.substring(0, 1000),
+        response: xml.substring(0, 1000)
+    }) + "\n"
+);    
+
+    const parsed =
+        parseVoucherGuidResponse(xml);
+
+        fs.writeFileSync(
+    "./logs/voucher-guid-request.xml",
+    requestXml,
+    "utf8"
+);
+
+fs.writeFileSync(
+    "./logs/voucher-guid-response.xml",
+    xml,
+    "utf8"
+);
+
+fs.writeFileSync(
+    "./logs/voucher-guid-parsed.json",
+    JSON.stringify(parsed, null, 2),
+    "utf8"
+);
+
+    return parsed;
+
+}
 
 
 async function importVoucherByGuid({
@@ -121,5 +173,6 @@ return {
 
 module.exports = {
     importVouchers,
-    importVoucherByGuid
+    importVoucherByGuid,
+     importVoucherGuids
 };
