@@ -33,9 +33,9 @@ const {
 } = require("./costCentreImportService");
 
 
-
 const {
-    importVouchers
+    importVouchers,
+    importVoucherGuids
 } = require("./voucherImportService");
 
 const {
@@ -158,6 +158,15 @@ const voucherResult = await importVouchers({
     lookups
 });
 
+const voucherGuids = await importVoucherGuids({
+    company
+});
+
+console.log(
+    "Voucher GUID Count :",
+    voucherGuids.length
+);
+
 const vouchers = voucherResult.vouchers || [];
 
 console.log(`✓ Vouchers Imported : ${vouchers.length}`);
@@ -200,6 +209,7 @@ return {
     godowns: godowns.length,
     costCentres: costCentres.length,
     vouchers: vouchers.length,
+    voucherGuids: voucherGuids.length,
 
     totalMasters:
     groups.length +
@@ -226,7 +236,8 @@ return {
 
     godowns,
     costCentres,
-    vouchers
+    vouchers,
+    voucherGuids
     
 
 };

@@ -18,8 +18,13 @@ const {
 } = require("../tally/importMasters");
 
 const {
+    importVoucherGuids
+} = require("../tally/voucherImportService");
+
+const {
     getTrialBalance
 } = require("../tally/reportService");
+
 
 
 let socket = null;
@@ -402,6 +407,7 @@ if (result.vouchers && result.vouchers.length > 0) {
     summary: result.summary,
 
      voucherCount: (result.vouchers || []).length,
+     voucherGuidCount: (result.voucherGuids || []).length,
 
     groups: result.groups,
 
@@ -454,6 +460,8 @@ if (vouchers.length > 0) {
     console.log("No vouchers found");
 
 }
+
+
     } catch (err) {
 
         console.error("GET MASTERS ERROR");
@@ -461,6 +469,68 @@ if (vouchers.length > 0) {
 
         socket.emit(
             "getMastersResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("getMastersVoucherGuids", async (data) => {
+
+    try {
+
+        const voucherGuids =
+            await importVoucherGuids({
+                company: data.company
+            });
+
+        socket.emit(
+            "getMastersVoucherGuidsResult",
+            {
+                success: true,
+                collectionName: "voucherGuids",
+                voucherGuidCount: voucherGuids.length
+            }
+        );
+
+        if (voucherGuids.length > 0) {
+
+            await sendChunkedResponse(
+                socket,
+                "getMastersVoucherGuids",
+                voucherGuids
+            );
+
+            console.log(
+                "✅ Voucher GUID chunks sent"
+            );
+
+        } else {
+
+            console.log(
+                "No voucher GUIDs found"
+            );
+
+            socket.emit(
+        "getMastersVoucherGuidsComplete",
+        {
+            totalChunks: 0,
+            totalItems: 0
+        }
+    );
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        socket.emit(
+            "getMastersVoucherGuidsResult",
             {
                 success: false,
                 error: err.message
