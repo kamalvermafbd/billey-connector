@@ -7,14 +7,51 @@ function getObjectSize(obj) {
     return Buffer.byteLength(JSON.stringify(obj), "utf8");
 }
 
+
+
 /**
  * Split array into byte-size based chunks.
  *
  * @param {Array} items
- * @param {number} maxChunkSize
- * @returns {Array<Array>}
+ * @param {number|Object} options
+ * Number = max chunk size (backward compatible)
+ * Object = {
+ *      maxChunkSize,
+ *      getItemSize
+ * }
+ * @returns {Array}
  */
-function buildChunks(items, maxChunkSize = DEFAULT_MAX_CHUNK_SIZE) {
+
+
+
+// ============================================================
+// 30072026
+// Enhanced to support custom item size calculation.
+// Backward compatible with existing export flow.
+// ============================================================
+
+ function buildChunks(
+    items,
+    options = DEFAULT_MAX_CHUNK_SIZE
+) {
+ 
+    const config =
+    typeof options === "number"
+        ? {
+              maxChunkSize: options,
+              getItemSize: getObjectSize
+          }
+        : {
+              maxChunkSize: DEFAULT_MAX_CHUNK_SIZE,
+              getItemSize: getObjectSize,
+              ...options
+          };
+
+    const {
+        maxChunkSize,
+        getItemSize
+    } = config;
+
 
     const chunks = [];
 
@@ -23,7 +60,8 @@ function buildChunks(items, maxChunkSize = DEFAULT_MAX_CHUNK_SIZE) {
 
     for (const item of items) {
 
-        const itemSize = getObjectSize(item);
+       // const itemSize = getObjectSize(item);
+const itemSize = getItemSize(item);
 
         // Safety (Phase 2 me handle karenge)
         if (itemSize > maxChunkSize) {

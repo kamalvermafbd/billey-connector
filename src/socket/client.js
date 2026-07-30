@@ -17,8 +17,15 @@ const {
     importMasters
 } = require("../tally/importMasters");
 
+/*
 const {
     importVoucherGuids
+} = require("../tally/voucherImportService");
+*/
+
+const {
+    importVoucherGuids,
+    importVoucherByGuid
 } = require("../tally/voucherImportService");
 
 const {
@@ -443,6 +450,7 @@ socket.emit(
 
 console.log("✅ Master data sent");
 
+/*
 const vouchers = result.vouchers || [];
 
 if (vouchers.length > 0) {
@@ -459,6 +467,32 @@ if (vouchers.length > 0) {
 
     console.log("No vouchers found");
 
+}
+    */
+
+const vouchers = result.vouchers || [];
+
+if (vouchers.length > 0) {
+
+    await sendChunkedResponse(
+        socket,
+        "getMasters",
+        vouchers
+    );
+
+    console.log("✅ Voucher chunks sent");
+
+} else {
+
+    console.log("No Incremental Vouchers Found");
+
+    socket.emit(
+        "getMastersComplete",
+        {
+            totalChunks: 0,
+            totalItems: 0
+        }
+    );
 }
 
 
@@ -531,6 +565,63 @@ socket.on("getMastersVoucherGuids", async (data) => {
 
         socket.emit(
             "getMastersVoucherGuidsResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("voucherByGuid", async (data) => {
+
+    try {
+
+        const vouchers =
+            await importVoucherByGuid({
+
+                company: data.company,
+
+                voucherGuids: data.voucherGuids
+
+            });
+
+        if (vouchers.length > 0) {
+
+            await sendChunkedResponse(
+
+                socket,
+
+                "voucherByGuid",
+
+                vouchers
+
+            );
+
+            console.log(
+                "✅ Missing Voucher chunks sent"
+            );
+
+        } else {
+
+            socket.emit(
+                "voucherByGuidComplete",
+                {
+                    totalChunks: 0,
+                    totalItems: 0
+                }
+            );
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        socket.emit(
+            "voucherByGuidResult",
             {
                 success: false,
                 error: err.message

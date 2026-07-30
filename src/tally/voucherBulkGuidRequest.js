@@ -1,4 +1,13 @@
+function buildVoucherBulkGuidRequest({
+    company,
+    voucherGuids
+}) {
 
+    const filter = voucherGuids
+        .map(guid => `$$IsEqual:$GUID:"${guid}"`)
+        .join(" OR ");
+
+    return `
 <ENVELOPE>
 
     <HEADER>
@@ -11,8 +20,6 @@
 
         <ID>BilleyVoucherCollection</ID>
 
-
-
     </HEADER>
 
     <BODY>
@@ -21,13 +28,9 @@
 
             <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>Sunil Ent (Client</SVCURRENTCOMPANY>
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-
-                <SVFROMDATE TYPE="Date">20160401</SVFROMDATE>
-
-                <SVTODATE TYPE="Date">undefined</SVTODATE>
 
             </STATICVARIABLES>
 
@@ -38,7 +41,8 @@
                     <COLLECTION NAME="BilleyVoucherCollection">
 
                         <TYPE>Voucher</TYPE>
-                        
+
+                        <FILTER>VoucherGuidFilter</FILTER>
 
                         <FETCH>
 
@@ -85,15 +89,18 @@
                             ALLLEDGERENTRIES,
 
                             ALLINVENTORYENTRIES,
-                            
+
                             INVENTORYENTRIESIN,
-                            INVENTORYENTRIESOUT,
+
+                            INVENTORYENTRIESOUT
 
                         </FETCH>
 
                     </COLLECTION>
 
-                    
+                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
+                        ${filter}
+                    </SYSTEM>
 
                 </TDLMESSAGE>
 
@@ -104,3 +111,10 @@
     </BODY>
 
 </ENVELOPE>
+`;
+
+}
+
+module.exports = {
+    buildVoucherBulkGuidRequest
+};
