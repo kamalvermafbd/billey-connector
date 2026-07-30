@@ -17,11 +17,11 @@ const {
 
 const {
     buildChunks
-} = require("./utils/ChunkBuilder");
+} = require("../../utils/ChunkBuilder");
 
 const {
     executeChunks
-} = require("./utils/chunkExecutor");
+} = require("../../utils/chunkExecutor");
 
 const fs = require("fs");
 

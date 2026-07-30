@@ -21,12 +21,20 @@ const {
 const {
     importVoucherGuids
 } = require("../tally/voucherImportService");
-*/
 
 const {
     importVoucherGuids,
     importVoucherByGuid
 } = require("../tally/voucherImportService");
+
+*/
+const {
+    importVoucherGuids
+} = require("../tally/voucherImportService");
+
+const {
+    importVoucherBulkByGuid
+} = require("../tally/voucherImportServiceBulkGuid");
 
 const {
     getTrialBalance
@@ -580,13 +588,22 @@ socket.on("voucherByGuid", async (data) => {
     try {
 
         const vouchers =
-            await importVoucherByGuid({
+    await importVoucherBulkByGuid({
 
                 company: data.company,
 
                 voucherGuids: data.voucherGuids
 
             });
+
+            socket.emit(
+    "voucherByGuidResult",
+    {
+        success: true,
+        collectionName: "vouchers",
+        voucherCount: vouchers.length
+    }
+);
 
         if (vouchers.length > 0) {
 
