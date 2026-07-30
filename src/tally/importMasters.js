@@ -42,6 +42,18 @@ const {
     buildTallyLookups
 } = require("./tallyLookups");
 
+// ============================================================
+// 30072026
+// Bulk Voucher GUID Import
+// Lookup cache support for reconciliation flow.
+// Existing incremental import remains unchanged.
+// ============================================================
+const {
+    setLookups
+} = require("./lookupCache");
+
+///----
+
 async function importMasters({
     company,
     lastAlterId = null
@@ -119,6 +131,18 @@ async function importMasters({
     ledgers,
     stocks
 });
+
+
+// ============================================================
+// 30072026
+// Bulk Voucher GUID Import
+// Cache lookups so Bulk GUID reconciliation can reuse the
+// existing parser without rebuilding master lookups.
+// ============================================================
+setLookups(company, lookups);
+
+///----
+
 
 console.log("Ledger Lookup :", lookups.ledgerLookup.size);
 console.log("Stock Lookup :", lookups.stockLookup.size);
