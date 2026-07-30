@@ -42627,3 +42627,1238 @@
   ]
 }
 
+{
+  "voucher": 2,
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-00000008",
+  "totalRawTags": 40,
+  "totalParsed": 24,
+  "audit": [
+    {
+      "rawTag": "ALLINVENTORYENTRIES.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ALLLEDGERENTRIES.LIST",
+      "parsed": "ledgers[]"
+    },
+    {
+      "rawTag": "ALTERID",
+      "parsed": "header.alterid"
+    },
+    {
+      "rawTag": "ARESERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASORIGINAL",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASPAYSLIP",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "BASICBUYERNAME",
+      "parsed": "header.buyerName"
+    },
+    {
+      "rawTag": "DATE",
+      "parsed": "header.voucherDate"
+    },
+    {
+      "rawTag": "EFFECTIVEDATE",
+      "parsed": "header.effectiveDate"
+    },
+    {
+      "rawTag": "GSTREGISTRATIONTYPE",
+      "parsed": "header.gstRegistrationType"
+    },
+    {
+      "rawTag": "GUID",
+      "parsed": "header.guid"
+    },
+    {
+      "rawTag": "ISCANCELLED",
+      "parsed": "header.isCancelled"
+    },
+    {
+      "rawTag": "ISDEEMEDPOSITIVE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETEDVCHRETAINED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISINVOICE",
+      "parsed": "header.isInvoice"
+    },
+    {
+      "rawTag": "ISNEGISPOSSET",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISOPTIONAL",
+      "parsed": "header.isOptional"
+    },
+    {
+      "rawTag": "MASTERID",
+      "parsed": "header.masterid"
+    },
+    {
+      "rawTag": "NARRATION",
+      "parsed": "header.narration"
+    },
+    {
+      "rawTag": "NUMBERINGSTYLE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "OBJVIEW",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "PARTYGSTIN",
+      "parsed": "header.gstin"
+    },
+    {
+      "rawTag": "PARTYLEDGERNAME",
+      "parsed": "header.partyLedger"
+    },
+    {
+      "rawTag": "PERSISTEDVIEW",
+      "parsed": "header.persistedView"
+    },
+    {
+      "rawTag": "PLACEOFSUPPLY",
+      "parsed": "header.placeOfSupply"
+    },
+    {
+      "rawTag": "REFERENCE",
+      "parsed": "header.reference"
+    },
+    {
+      "rawTag": "REFERENCEDATE",
+      "parsed": "header.referenceDate"
+    },
+    {
+      "rawTag": "REMOTEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REQUESTORRULE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REUSEHOLEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "SERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHTYPE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERNUMBER",
+      "parsed": "header.voucherNumber"
+    },
+    {
+      "rawTag": "VOUCHERNUMBERSERIES",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERRETAINKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERTYPENAME",
+      "parsed": "header.voucherTypeName"
+    },
+    {
+      "rawTag": "__header",
+      "parsed": "❌ NOT PARSED"
+    }
+  ]
+}
+
+{
+  "voucher": 1,
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000001e",
+  "totalRawTags": 43,
+  "totalParsed": 24,
+  "audit": [
+    {
+      "rawTag": "ALLINVENTORYENTRIES.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ALLLEDGERENTRIES.LIST",
+      "parsed": "ledgers[]"
+    },
+    {
+      "rawTag": "ALTERID",
+      "parsed": "header.alterid"
+    },
+    {
+      "rawTag": "ARESERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASORIGINAL",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASPAYSLIP",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "BASICBUYERNAME",
+      "parsed": "header.buyerName"
+    },
+    {
+      "rawTag": "DATE",
+      "parsed": "header.voucherDate"
+    },
+    {
+      "rawTag": "EFFECTIVEDATE",
+      "parsed": "header.effectiveDate"
+    },
+    {
+      "rawTag": "GSTREGISTRATIONTYPE",
+      "parsed": "header.gstRegistrationType"
+    },
+    {
+      "rawTag": "GUID",
+      "parsed": "header.guid"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESIN.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESOUT.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ISCANCELLED",
+      "parsed": "header.isCancelled"
+    },
+    {
+      "rawTag": "ISDEEMEDPOSITIVE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETEDVCHRETAINED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISINVOICE",
+      "parsed": "header.isInvoice"
+    },
+    {
+      "rawTag": "ISNEGISPOSSET",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISOPTIONAL",
+      "parsed": "header.isOptional"
+    },
+    {
+      "rawTag": "LEDGERENTRIES.LIST",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "MASTERID",
+      "parsed": "header.masterid"
+    },
+    {
+      "rawTag": "NARRATION",
+      "parsed": "header.narration"
+    },
+    {
+      "rawTag": "NUMBERINGSTYLE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "OBJVIEW",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "PARTYGSTIN",
+      "parsed": "header.gstin"
+    },
+    {
+      "rawTag": "PARTYLEDGERNAME",
+      "parsed": "header.partyLedger"
+    },
+    {
+      "rawTag": "PERSISTEDVIEW",
+      "parsed": "header.persistedView"
+    },
+    {
+      "rawTag": "PLACEOFSUPPLY",
+      "parsed": "header.placeOfSupply"
+    },
+    {
+      "rawTag": "REFERENCE",
+      "parsed": "header.reference"
+    },
+    {
+      "rawTag": "REFERENCEDATE",
+      "parsed": "header.referenceDate"
+    },
+    {
+      "rawTag": "REMOTEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REQUESTORRULE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REUSEHOLEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "SERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHTYPE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERNUMBER",
+      "parsed": "header.voucherNumber"
+    },
+    {
+      "rawTag": "VOUCHERNUMBERSERIES",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERRETAINKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERTYPENAME",
+      "parsed": "header.voucherTypeName"
+    },
+    {
+      "rawTag": "__header",
+      "parsed": "❌ NOT PARSED"
+    }
+  ]
+}
+
+{
+  "voucher": 1,
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000001c",
+  "totalRawTags": 42,
+  "totalParsed": 24,
+  "audit": [
+    {
+      "rawTag": "ALLINVENTORYENTRIES.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ALLLEDGERENTRIES.LIST",
+      "parsed": "ledgers[]"
+    },
+    {
+      "rawTag": "ALTERID",
+      "parsed": "header.alterid"
+    },
+    {
+      "rawTag": "ARESERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASORIGINAL",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASPAYSLIP",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "BASICBUYERNAME",
+      "parsed": "header.buyerName"
+    },
+    {
+      "rawTag": "DATE",
+      "parsed": "header.voucherDate"
+    },
+    {
+      "rawTag": "EFFECTIVEDATE",
+      "parsed": "header.effectiveDate"
+    },
+    {
+      "rawTag": "GSTREGISTRATIONTYPE",
+      "parsed": "header.gstRegistrationType"
+    },
+    {
+      "rawTag": "GUID",
+      "parsed": "header.guid"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESIN.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESOUT.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ISCANCELLED",
+      "parsed": "header.isCancelled"
+    },
+    {
+      "rawTag": "ISDEEMEDPOSITIVE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETEDVCHRETAINED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISINVOICE",
+      "parsed": "header.isInvoice"
+    },
+    {
+      "rawTag": "ISNEGISPOSSET",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISOPTIONAL",
+      "parsed": "header.isOptional"
+    },
+    {
+      "rawTag": "MASTERID",
+      "parsed": "header.masterid"
+    },
+    {
+      "rawTag": "NARRATION",
+      "parsed": "header.narration"
+    },
+    {
+      "rawTag": "NUMBERINGSTYLE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "OBJVIEW",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "PARTYGSTIN",
+      "parsed": "header.gstin"
+    },
+    {
+      "rawTag": "PARTYLEDGERNAME",
+      "parsed": "header.partyLedger"
+    },
+    {
+      "rawTag": "PERSISTEDVIEW",
+      "parsed": "header.persistedView"
+    },
+    {
+      "rawTag": "PLACEOFSUPPLY",
+      "parsed": "header.placeOfSupply"
+    },
+    {
+      "rawTag": "REFERENCE",
+      "parsed": "header.reference"
+    },
+    {
+      "rawTag": "REFERENCEDATE",
+      "parsed": "header.referenceDate"
+    },
+    {
+      "rawTag": "REMOTEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REQUESTORRULE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REUSEHOLEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "SERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHTYPE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERNUMBER",
+      "parsed": "header.voucherNumber"
+    },
+    {
+      "rawTag": "VOUCHERNUMBERSERIES",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERRETAINKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERTYPENAME",
+      "parsed": "header.voucherTypeName"
+    },
+    {
+      "rawTag": "__header",
+      "parsed": "❌ NOT PARSED"
+    }
+  ]
+}
+
+{
+  "voucher": 2,
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000001d",
+  "totalRawTags": 42,
+  "totalParsed": 24,
+  "audit": [
+    {
+      "rawTag": "ALLINVENTORYENTRIES.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ALLLEDGERENTRIES.LIST",
+      "parsed": "ledgers[]"
+    },
+    {
+      "rawTag": "ALTERID",
+      "parsed": "header.alterid"
+    },
+    {
+      "rawTag": "ARESERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASORIGINAL",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASPAYSLIP",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "BASICBUYERNAME",
+      "parsed": "header.buyerName"
+    },
+    {
+      "rawTag": "DATE",
+      "parsed": "header.voucherDate"
+    },
+    {
+      "rawTag": "EFFECTIVEDATE",
+      "parsed": "header.effectiveDate"
+    },
+    {
+      "rawTag": "GSTREGISTRATIONTYPE",
+      "parsed": "header.gstRegistrationType"
+    },
+    {
+      "rawTag": "GUID",
+      "parsed": "header.guid"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESIN.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESOUT.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ISCANCELLED",
+      "parsed": "header.isCancelled"
+    },
+    {
+      "rawTag": "ISDEEMEDPOSITIVE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETEDVCHRETAINED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISINVOICE",
+      "parsed": "header.isInvoice"
+    },
+    {
+      "rawTag": "ISNEGISPOSSET",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISOPTIONAL",
+      "parsed": "header.isOptional"
+    },
+    {
+      "rawTag": "MASTERID",
+      "parsed": "header.masterid"
+    },
+    {
+      "rawTag": "NARRATION",
+      "parsed": "header.narration"
+    },
+    {
+      "rawTag": "NUMBERINGSTYLE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "OBJVIEW",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "PARTYGSTIN",
+      "parsed": "header.gstin"
+    },
+    {
+      "rawTag": "PARTYLEDGERNAME",
+      "parsed": "header.partyLedger"
+    },
+    {
+      "rawTag": "PERSISTEDVIEW",
+      "parsed": "header.persistedView"
+    },
+    {
+      "rawTag": "PLACEOFSUPPLY",
+      "parsed": "header.placeOfSupply"
+    },
+    {
+      "rawTag": "REFERENCE",
+      "parsed": "header.reference"
+    },
+    {
+      "rawTag": "REFERENCEDATE",
+      "parsed": "header.referenceDate"
+    },
+    {
+      "rawTag": "REMOTEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REQUESTORRULE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REUSEHOLEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "SERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHTYPE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERNUMBER",
+      "parsed": "header.voucherNumber"
+    },
+    {
+      "rawTag": "VOUCHERNUMBERSERIES",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERRETAINKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERTYPENAME",
+      "parsed": "header.voucherTypeName"
+    },
+    {
+      "rawTag": "__header",
+      "parsed": "❌ NOT PARSED"
+    }
+  ]
+}
+
+{
+  "voucher": 4,
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-00000022",
+  "totalRawTags": 42,
+  "totalParsed": 24,
+  "audit": [
+    {
+      "rawTag": "ALLINVENTORYENTRIES.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ALLLEDGERENTRIES.LIST",
+      "parsed": "ledgers[]"
+    },
+    {
+      "rawTag": "ALTERID",
+      "parsed": "header.alterid"
+    },
+    {
+      "rawTag": "ARESERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASORIGINAL",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASPAYSLIP",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "BASICBUYERNAME",
+      "parsed": "header.buyerName"
+    },
+    {
+      "rawTag": "DATE",
+      "parsed": "header.voucherDate"
+    },
+    {
+      "rawTag": "EFFECTIVEDATE",
+      "parsed": "header.effectiveDate"
+    },
+    {
+      "rawTag": "GSTREGISTRATIONTYPE",
+      "parsed": "header.gstRegistrationType"
+    },
+    {
+      "rawTag": "GUID",
+      "parsed": "header.guid"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESIN.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESOUT.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ISCANCELLED",
+      "parsed": "header.isCancelled"
+    },
+    {
+      "rawTag": "ISDEEMEDPOSITIVE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETEDVCHRETAINED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISINVOICE",
+      "parsed": "header.isInvoice"
+    },
+    {
+      "rawTag": "ISNEGISPOSSET",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISOPTIONAL",
+      "parsed": "header.isOptional"
+    },
+    {
+      "rawTag": "MASTERID",
+      "parsed": "header.masterid"
+    },
+    {
+      "rawTag": "NARRATION",
+      "parsed": "header.narration"
+    },
+    {
+      "rawTag": "NUMBERINGSTYLE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "OBJVIEW",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "PARTYGSTIN",
+      "parsed": "header.gstin"
+    },
+    {
+      "rawTag": "PARTYLEDGERNAME",
+      "parsed": "header.partyLedger"
+    },
+    {
+      "rawTag": "PERSISTEDVIEW",
+      "parsed": "header.persistedView"
+    },
+    {
+      "rawTag": "PLACEOFSUPPLY",
+      "parsed": "header.placeOfSupply"
+    },
+    {
+      "rawTag": "REFERENCE",
+      "parsed": "header.reference"
+    },
+    {
+      "rawTag": "REFERENCEDATE",
+      "parsed": "header.referenceDate"
+    },
+    {
+      "rawTag": "REMOTEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REQUESTORRULE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REUSEHOLEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "SERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHTYPE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERNUMBER",
+      "parsed": "header.voucherNumber"
+    },
+    {
+      "rawTag": "VOUCHERNUMBERSERIES",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERRETAINKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERTYPENAME",
+      "parsed": "header.voucherTypeName"
+    },
+    {
+      "rawTag": "__header",
+      "parsed": "❌ NOT PARSED"
+    }
+  ]
+}
+
+{
+  "voucher": 7,
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-00000029",
+  "totalRawTags": 42,
+  "totalParsed": 24,
+  "audit": [
+    {
+      "rawTag": "ALLINVENTORYENTRIES.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ALLLEDGERENTRIES.LIST",
+      "parsed": "ledgers[]"
+    },
+    {
+      "rawTag": "ALTERID",
+      "parsed": "header.alterid"
+    },
+    {
+      "rawTag": "ARESERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASORIGINAL",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASPAYSLIP",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "BASICBUYERNAME",
+      "parsed": "header.buyerName"
+    },
+    {
+      "rawTag": "DATE",
+      "parsed": "header.voucherDate"
+    },
+    {
+      "rawTag": "EFFECTIVEDATE",
+      "parsed": "header.effectiveDate"
+    },
+    {
+      "rawTag": "GSTREGISTRATIONTYPE",
+      "parsed": "header.gstRegistrationType"
+    },
+    {
+      "rawTag": "GUID",
+      "parsed": "header.guid"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESIN.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESOUT.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ISCANCELLED",
+      "parsed": "header.isCancelled"
+    },
+    {
+      "rawTag": "ISDEEMEDPOSITIVE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETEDVCHRETAINED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISINVOICE",
+      "parsed": "header.isInvoice"
+    },
+    {
+      "rawTag": "ISNEGISPOSSET",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISOPTIONAL",
+      "parsed": "header.isOptional"
+    },
+    {
+      "rawTag": "MASTERID",
+      "parsed": "header.masterid"
+    },
+    {
+      "rawTag": "NARRATION",
+      "parsed": "header.narration"
+    },
+    {
+      "rawTag": "NUMBERINGSTYLE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "OBJVIEW",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "PARTYGSTIN",
+      "parsed": "header.gstin"
+    },
+    {
+      "rawTag": "PARTYLEDGERNAME",
+      "parsed": "header.partyLedger"
+    },
+    {
+      "rawTag": "PERSISTEDVIEW",
+      "parsed": "header.persistedView"
+    },
+    {
+      "rawTag": "PLACEOFSUPPLY",
+      "parsed": "header.placeOfSupply"
+    },
+    {
+      "rawTag": "REFERENCE",
+      "parsed": "header.reference"
+    },
+    {
+      "rawTag": "REFERENCEDATE",
+      "parsed": "header.referenceDate"
+    },
+    {
+      "rawTag": "REMOTEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REQUESTORRULE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REUSEHOLEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "SERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHTYPE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERNUMBER",
+      "parsed": "header.voucherNumber"
+    },
+    {
+      "rawTag": "VOUCHERNUMBERSERIES",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERRETAINKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERTYPENAME",
+      "parsed": "header.voucherTypeName"
+    },
+    {
+      "rawTag": "__header",
+      "parsed": "❌ NOT PARSED"
+    }
+  ]
+}
+
+{
+  "voucher": 8,
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000002b",
+  "totalRawTags": 42,
+  "totalParsed": 24,
+  "audit": [
+    {
+      "rawTag": "ALLINVENTORYENTRIES.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ALLLEDGERENTRIES.LIST",
+      "parsed": "ledgers[]"
+    },
+    {
+      "rawTag": "ALTERID",
+      "parsed": "header.alterid"
+    },
+    {
+      "rawTag": "ARESERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASORIGINAL",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ASPAYSLIP",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "BASICBUYERNAME",
+      "parsed": "header.buyerName"
+    },
+    {
+      "rawTag": "DATE",
+      "parsed": "header.voucherDate"
+    },
+    {
+      "rawTag": "EFFECTIVEDATE",
+      "parsed": "header.effectiveDate"
+    },
+    {
+      "rawTag": "GSTREGISTRATIONTYPE",
+      "parsed": "header.gstRegistrationType"
+    },
+    {
+      "rawTag": "GUID",
+      "parsed": "header.guid"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESIN.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "INVENTORYENTRIESOUT.LIST",
+      "parsed": "inventory[]"
+    },
+    {
+      "rawTag": "ISCANCELLED",
+      "parsed": "header.isCancelled"
+    },
+    {
+      "rawTag": "ISDEEMEDPOSITIVE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISDELETEDVCHRETAINED",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISINVOICE",
+      "parsed": "header.isInvoice"
+    },
+    {
+      "rawTag": "ISNEGISPOSSET",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "ISOPTIONAL",
+      "parsed": "header.isOptional"
+    },
+    {
+      "rawTag": "MASTERID",
+      "parsed": "header.masterid"
+    },
+    {
+      "rawTag": "NARRATION",
+      "parsed": "header.narration"
+    },
+    {
+      "rawTag": "NUMBERINGSTYLE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "OBJVIEW",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "PARTYGSTIN",
+      "parsed": "header.gstin"
+    },
+    {
+      "rawTag": "PARTYLEDGERNAME",
+      "parsed": "header.partyLedger"
+    },
+    {
+      "rawTag": "PERSISTEDVIEW",
+      "parsed": "header.persistedView"
+    },
+    {
+      "rawTag": "PLACEOFSUPPLY",
+      "parsed": "header.placeOfSupply"
+    },
+    {
+      "rawTag": "REFERENCE",
+      "parsed": "header.reference"
+    },
+    {
+      "rawTag": "REFERENCEDATE",
+      "parsed": "header.referenceDate"
+    },
+    {
+      "rawTag": "REMOTEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REQUESTORRULE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "REUSEHOLEID",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "SERIALMASTER",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VCHTYPE",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERNUMBER",
+      "parsed": "header.voucherNumber"
+    },
+    {
+      "rawTag": "VOUCHERNUMBERSERIES",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERRETAINKEY",
+      "parsed": "❌ NOT PARSED"
+    },
+    {
+      "rawTag": "VOUCHERTYPENAME",
+      "parsed": "header.voucherTypeName"
+    },
+    {
+      "rawTag": "__header",
+      "parsed": "❌ NOT PARSED"
+    }
+  ]
+}
+
