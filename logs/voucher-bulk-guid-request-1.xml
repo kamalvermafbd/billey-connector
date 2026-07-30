@@ -11,8 +11,6 @@
 
         <ID>BilleyVoucherCollection</ID>
 
-
-
     </HEADER>
 
     <BODY>
@@ -25,10 +23,6 @@
 
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-                <SVFROMDATE TYPE="Date">20160401</SVFROMDATE>
-
-                <SVTODATE TYPE="Date">undefined</SVTODATE>
-
             </STATICVARIABLES>
 
             <TDL>
@@ -38,7 +32,8 @@
                     <COLLECTION NAME="BilleyVoucherCollection">
 
                         <TYPE>Voucher</TYPE>
-                        <FILTER>VoucherAlterIdFilter</FILTER>
+
+                        <FILTER>VoucherGuidFilter</FILTER>
 
                         <FETCH>
 
@@ -85,19 +80,18 @@
                             ALLLEDGERENTRIES,
 
                             ALLINVENTORYENTRIES,
-                            
+
                             INVENTORYENTRIESIN,
-                            INVENTORYENTRIESOUT,
+
+                            INVENTORYENTRIESOUT
 
                         </FETCH>
 
                     </COLLECTION>
 
-                    
-<SYSTEM TYPE="Formulae" NAME="VoucherAlterIdFilter">
-    $ALTERID &gt; 233
-</SYSTEM>
-
+                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
+                        $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000002" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000010" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-0000001a" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-0000001d" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000021" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000022" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000028" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000029" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-0000002b" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-0000005c" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-0000005d" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-0000005e" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-0000005f" OR $$IsEqual:$GUID:"755da616-c913-46c0-9ad0-de5499d071a0-00000060"
+                    </SYSTEM>
 
                 </TDLMESSAGE>
 
