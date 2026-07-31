@@ -44,11 +44,16 @@ function parseBillAllocations(row) {
 
         billType: getValue(bill.BILLTYPE),
 
-        amount: getNumber(bill.AMOUNT),
+       amount: getNumber(bill.AMOUNT),
 
-        dueDate: getValue(bill.DUEDATE),
+dueDate: getValue(bill.DUEDATE),
 
-        creditDays: getNumber(bill.CREDITPERIOD)
+creditPeriod:
+    bill.BILLCREDITPERIOD?.P ||
+    getValue(bill.BILLCREDITPERIOD) ||
+    null,
+
+creditDays:0
 
     }));
 
