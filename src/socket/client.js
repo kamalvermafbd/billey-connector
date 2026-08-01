@@ -38,6 +38,10 @@ const {
 } = require("../tally/stockGroupGuidImportService");
 
 const {
+    importLedgerBulkByGuid
+} = require("../tally/ledgerImportServiceBulkGuid");
+
+const {
     importStockGuids
 } = require("../tally/stockGuidImportService");
 
@@ -323,7 +327,8 @@ socket.on("getMasters", async (data) => {
         const result = await importMasters({
             company: data.company,
             lastAlterId: data.lastAlterId,
-            lastStockAlterId: data.lastStockAlterId
+            lastStockAlterId: data.lastStockAlterId,
+            lastLedgerAlterId: data.lastLedgerAlterId
         });
 
         // ===========================
@@ -1089,6 +1094,64 @@ socket.on("stockByGuid", async (data) => {
 
 });
 
+
+socket.on("ledgerByGuid", async (data) => {
+
+    try {
+
+        const ledgers =
+            await importLedgerBulkByGuid({
+
+                company: data.company,
+
+                ledgerGuids: data.ledgerGuids
+
+            });
+
+        socket.emit(
+            "ledgerByGuidResult",
+            {
+                success: true,
+                collectionName: "ledgers",
+                ledgerCount: ledgers.length
+            }
+        );
+
+        if (ledgers.length > 0) {
+
+            await sendChunkedResponse(
+                socket,
+                "ledgerByGuid",
+                ledgers
+            );
+
+        } else {
+
+            socket.emit(
+                "ledgerByGuidComplete",
+                {
+                    totalChunks: 0,
+                    totalItems: 0
+                }
+            );
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        socket.emit(
+            "ledgerByGuidResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
 
 socket.on("getTrialBalance", async (data) => {
 

@@ -1,0 +1,116 @@
+[
+  {
+    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-00000106",
+    "masterId": "262",
+    "alterId": "578",
+    "name": "SGST 7.5%",
+    "parent": "Duties & Taxes",
+    "parentGroupGuid": "",
+    "parentGroupMasterId": "",
+    "parentGroupAlterId": "",
+    "reservedName": "",
+    "gstApplicable": "",
+    "gstRegistrationType": "",
+    "gstin": "",
+    "mailingName": "",
+    "address": "",
+    "stateName": "",
+    "country": "",
+    "pinCode": "",
+    "phone": "",
+    "email": "",
+    "contactPerson": "Primary Mobile No.",
+    "openingBalance": 0,
+    "openingBalanceAmount": 0,
+    "openingBalanceType": "",
+    "isBillWise": false,
+    "isRevenue": false,
+    "isDeemedPositive": false,
+    "isParty": false,
+    "gstDutyType": "GST",
+    "gstTaxType": "SGST/UTGST",
+    "gstRate": 7.5,
+    "raw": {
+      "GUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-00000106",
+        "TYPE": "String"
+      },
+      "PARENT": {
+        "#text": "Duties & Taxes",
+        "TYPE": "String"
+      },
+      "TAXTYPE": {
+        "#text": "GST",
+        "TYPE": "String"
+      },
+      "GSTDUTYHEAD": {
+        "#text": "SGST/UTGST",
+        "TYPE": "String"
+      },
+      "ISBILLWISEON": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISREVENUE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ISDEEMEDPOSITIVE": {
+        "#text": "No",
+        "TYPE": "Logical"
+      },
+      "ALTERID": {
+        "#text": 578,
+        "TYPE": "Number"
+      },
+      "MASTERID": {
+        "#text": 262,
+        "TYPE": "Number"
+      },
+      "RATEOFTAXCALCULATION": {
+        "#text": 7.5,
+        "TYPE": "Number"
+      },
+      "OPENINGBALANCE": {
+        "#text": 0,
+        "TYPE": "Amount"
+      },
+      "LEDGERGUID": {
+        "#text": "755da616-c913-46c0-9ad0-de5499d071a0-00000106",
+        "TYPE": "String"
+      },
+      "LEDGERMASTERID": {
+        "#text": 262,
+        "TYPE": "Number"
+      },
+      "LEDGERALTERID": {
+        "#text": 578,
+        "TYPE": "Number"
+      },
+      "LANGUAGENAME.LIST": {
+        "NAME.LIST": {
+          "NAME": "SGST 7.5%",
+          "TYPE": "String"
+        },
+        "LANGUAGEID": {
+          "#text": 1033,
+          "TYPE": "Number"
+        }
+      },
+      "LEDGSTREGDETAILS.LIST": "",
+      "LEDMAILINGDETAILS.LIST": "",
+      "CONTACTDETAILS.LIST": {
+        "NAME": {
+          "#text": "Primary Mobile No.",
+          "TYPE": "String"
+        },
+        "ISDEFAULTWHATSAPPNUM": {
+          "#text": "Yes",
+          "TYPE": "Logical"
+        }
+      },
+      "NAME": "SGST 7.5%",
+      "RESERVEDNAME": ""
+    }
+  }
+]

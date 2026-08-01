@@ -57,7 +57,8 @@ const {
 async function importMasters({
     company,
     lastAlterId = null,
-    lastStockAlterId = null
+    lastStockAlterId = null,
+    lastLedgerAlterId = null
 }) {
 
     console.log("======================================");
@@ -97,18 +98,29 @@ async function importMasters({
 
     console.log(`✓ Units Imported : ${units.length}`);
 
+
     console.log("Importing Ledgers...");
+
+    // incremental ledgers save ke liye
     const ledgers = await importLedgers({
-    company,
-    booksBeginningFrom:
-        companyInfo.booksBeginningFrom
+        company,
+        booksBeginningFrom:
+            companyInfo.booksBeginningFrom,
+        lastLedgerAlterId
     });
 
-    
+    console.log(`✓ Changed Ledgers Imported : ${ledgers.length}`);
 
 
-    console.log(`✓ Ledgers Imported : ${ledgers.length}`);
+    // full ledger list sirf lookup ke liye
+    const allLedgers = await importLedgers({
+        company,
+        booksBeginningFrom:
+            companyInfo.booksBeginningFrom,
+        lastLedgerAlterId: null
+    });
 
+    console.log(`✓ Full Ledger Lookup Imported : ${allLedgers.length}`);
 
     console.log("Importing Stock Groups...");
 
@@ -118,21 +130,20 @@ async function importMasters({
 
     console.log(`✓ Stock Groups Imported : ${stockGroups.length}`);
 
-
-
     console.log("Importing Stocks...");
     const stocks = await importStocks({
-    company,
-    lastStockAlterId
-});
+        company,
+        lastStockAlterId,
+
+    });
 
     console.log(`✓ Stocks Imported : ${stocks.length}`);
 
-   const lookups = buildTallyLookups({
-    groups,
-    ledgers,
-    stocks
-});
+    const lookups = buildTallyLookups({
+        groups,
+        ledgers: allLedgers,
+        stocks
+    });
 
 
 // ============================================================
@@ -255,6 +266,8 @@ return {
     units,
 
     ledgers,
+
+    allLedgers,
 
     stockGroups,
 

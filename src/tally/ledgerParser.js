@@ -42,21 +42,24 @@ const sudhir = ledgerList.find(
     x => getValue(x.NAME) === "Sudhir Traders"
 );
 
+if (sudhir) {
+
 console.log("================================");
 console.log("SUDHIR TRADERS RAW XML");
 console.log("NAME :", getValue(sudhir.NAME));
 console.log("OPENINGBALANCE RAW :", JSON.stringify(sudhir.OPENINGBALANCE, null, 2));
 console.log("OPENINGBALANCEON RAW :", JSON.stringify(sudhir.OPENINGBALANCEON, null, 2));
 console.log("LEDGER KEYS :", Object.keys(sudhir));
+
 console.log(
     "ORIGINALOPENINGBALANCE RAW :",
     JSON.stringify(sudhir.ORIGINALOPENINGBALANCE, null, 2)
 );
 
-
-
 console.log("ALTERID :", getValue(sudhir.ALTERID));
 console.log("================================");
+
+}
 
 return ledgerList.map(ledger => {
 

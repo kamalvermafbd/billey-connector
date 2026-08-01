@@ -1,5 +1,6 @@
 function buildLedgerRequest({
-    booksBeginningFrom
+    booksBeginningFrom,
+    lastLedgerAlterId = null
 }) {
 const xml = `
 <ENVELOPE>
@@ -32,56 +33,65 @@ const xml = `
 
                         <TYPE>Ledger</TYPE>
 
+                        ${lastLedgerAlterId !== null
+                        ? `<FILTER>LedgerAlterIdFilter</FILTER>`
+                        : ""}
+
                        <FETCH>
 
-    NAME,
-    GUID,
-    MASTERID,
-    ALTERID,
+                            NAME,
+                            GUID,
+                            MASTERID,
+                            ALTERID,
 
-    PARENT,
-    RESERVEDNAME,
+                            PARENT,
+                            RESERVEDNAME,
 
-    GSTAPPLICABLE,
-    GSTREGISTRATIONTYPE,
-    GSTIN,
+                            GSTAPPLICABLE,
+                            GSTREGISTRATIONTYPE,
+                            GSTIN,
 
-    MAILINGNAME,
-    ADDRESS,
-    STATENAME,
-    COUNTRY,
-    PINCODE,
+                            MAILINGNAME,
+                            ADDRESS,
+                            STATENAME,
+                            COUNTRY,
+                            PINCODE,
 
-   LEDGERMOBILE,
-    EMAIL,
-    CONTACTPERSON,
+                            LEDGERMOBILE,
+                            EMAIL,
+                            CONTACTPERSON,
 
-    OPENINGBALANCE,
-    OPENINGBALANCEON,
+                            OPENINGBALANCE,
+                            OPENINGBALANCEON,
 
-    ISBILLWISEON,
-    ISREVENUE,
-    ISDEEMEDPOSITIVE,
-    LEDGSTREGDETAILS.LIST,
-    LEDMAILINGDETAILS.LIST,
-    CONTACTDETAILS.LIST,
-    TYPEOFDUTYTAX,
-    TAXTYPE,
-    RATEOFTAXCALCULATION,
-    GSTRATE,
-    TYPEOFDUTYTAX,
-    TAXTYPE,
-    GSTDUTYHEAD,
-    RATEOFTAXCALCULATION,
-    GSTRATE,
+                            ISBILLWISEON,
+                            ISREVENUE,
+                            ISDEEMEDPOSITIVE,
+                            LEDGSTREGDETAILS.LIST,
+                            LEDMAILINGDETAILS.LIST,
+                            CONTACTDETAILS.LIST,
+                            TYPEOFDUTYTAX,
+                            TAXTYPE,
+                            GSTDUTYHEAD,
+                            RATEOFTAXCALCULATION,
+                            GSTRATE,
+                           
 
-</FETCH>
+                        </FETCH>
 
-<COMPUTE>
-    ORIGINALOPENINGBALANCE : $_OpeningBalance
-</COMPUTE>
+                        <COMPUTE>
+                            ORIGINALOPENINGBALANCE : $_OpeningBalance
+                        </COMPUTE>
 
                     </COLLECTION>
+
+                    ${lastLedgerAlterId !== null
+                            ? `
+                            <SYSTEM TYPE="Formulae" NAME="LedgerAlterIdFilter">
+                                $ALTERID > ${lastLedgerAlterId}
+                            </SYSTEM>
+                            `
+                            : ""}
 
                 </TDLMESSAGE>
 
@@ -97,7 +107,7 @@ const xml = `
 console.log("================================");
 console.log("booksBeginningFrom:", booksBeginningFrom);
 console.log("================================");
-console.log(xml);
+//console.log(xml);
 
 return xml;
 
