@@ -46,8 +46,8 @@ function buildVoucherRequest({
 
                         <TYPE>Voucher</TYPE>
                         ${lastAlterId !== null
-    ? `<FILTER>VoucherAlterIdFilter</FILTER>`
-    : ""}
+                        ? `<FILTER>VoucherAlterIdFilter</FILTER>`
+                        : ""}
 
                         <FETCH>
 

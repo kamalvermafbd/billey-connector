@@ -1,5 +1,7 @@
-function buildStockRequest() {
-
+function buildStockRequest({
+    company,
+    lastStockAlterId = null
+}) {
     return `
 <ENVELOPE>
 
@@ -15,6 +17,7 @@ function buildStockRequest() {
         <DESC>
 
             <STATICVARIABLES>
+            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
     <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 </STATICVARIABLES>
 
@@ -25,6 +28,10 @@ function buildStockRequest() {
                     <COLLECTION NAME="Billey Stock Collection">
 
     <TYPE>Stock Item</TYPE>
+
+    ${lastStockAlterId !== null
+    ? `<FILTER>StockAlterIdFilter</FILTER>`
+    : ""}
 
     <COMPUTE>STOCKGUID : $GUID</COMPUTE>
     <COMPUTE>STOCKMASTERID : $MASTERID</COMPUTE>
@@ -47,6 +54,14 @@ function buildStockRequest() {
     </FETCH>
 
 </COLLECTION>
+
+${lastStockAlterId !== null
+? `
+<SYSTEM TYPE="Formulae" NAME="StockAlterIdFilter">
+    $ALTERID &gt; ${lastStockAlterId}
+</SYSTEM>
+`
+: ""}
 
                 </TDLMESSAGE>
 

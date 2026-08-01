@@ -22,6 +22,8 @@ const {
     importVoucherGuids
 } = require("../tally/voucherImportService");
 
+
+
 const {
     importGroupGuids
 } = require("../tally/groupGuidImportService");
@@ -54,6 +56,10 @@ const {
 const {
     importVoucherBulkByGuid
 } = require("../tally/voucherImportServiceBulkGuid");
+
+const {
+    importStockBulkByGuid
+} = require("../tally/stockImportServiceBulkGuid");
 
 const {
     getTrialBalance
@@ -315,9 +321,10 @@ socket.on("getMasters", async (data) => {
     try {
 
         const result = await importMasters({
-    company: data.company,
-    lastAlterId: data.lastAlterId
-});
+            company: data.company,
+            lastAlterId: data.lastAlterId,
+            lastStockAlterId: data.lastStockAlterId
+        });
 
         // ===========================
         // Debug Analysis
@@ -1006,6 +1013,72 @@ socket.on("voucherByGuid", async (data) => {
 
         socket.emit(
             "voucherByGuidResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("stockByGuid", async (data) => {
+
+    try {
+
+        const stocks =
+            await importStockBulkByGuid({
+
+                company: data.company,
+
+                stockGuids: data.stockGuids
+
+            });
+
+        socket.emit(
+            "stockByGuidResult",
+            {
+                success: true,
+                collectionName: "stocks",
+                stockCount: stocks.length
+            }
+        );
+
+        if (stocks.length > 0) {
+
+            await sendChunkedResponse(
+
+                socket,
+
+                "stockByGuid",
+
+                stocks
+
+            );
+
+            console.log(
+                "✅ Missing Stock chunks sent"
+            );
+
+        } else {
+
+            socket.emit(
+                "stockByGuidComplete",
+                {
+                    totalChunks: 0,
+                    totalItems: 0
+                }
+            );
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        socket.emit(
+            "stockByGuidResult",
             {
                 success: false,
                 error: err.message
