@@ -1,19 +1,81 @@
 const fs = require("fs");
+const path = require("path");
 
 const {
-    importUnits
-} = require("./src/tally/unitImportService");
+    importUnitGuids
+} = require("./src/tally/unitGuidImportService");
+
 
 (async () => {
 
-    const units = await importUnits({
+    try {
 
-        company: "Sunil Ent(Client"
+        const unitGuids =
+            await importUnitGuids({
 
-    });
+                company: "Sunil Ent(Client)"
 
-    
+            });
 
-    console.log("Units Imported.");
+
+        console.log(
+            "Total Unit GUIDs:",
+            unitGuids.length
+        );
+
+
+        const logDir =
+            path.join(
+                __dirname,
+                "src",
+                "logs"
+            );
+
+
+        if (!fs.existsSync(logDir)) {
+
+            fs.mkdirSync(
+                logDir,
+                {
+                    recursive:true
+                }
+            );
+
+        }
+
+
+        const filePath =
+            path.join(
+                logDir,
+                "unitGuids.json"
+            );
+
+
+        fs.writeFileSync(
+            filePath,
+            JSON.stringify(
+                unitGuids,
+                null,
+                2
+            )
+        );
+
+
+        console.log(
+            "Unit GUID JSON Generated:",
+            filePath
+        );
+
+
+    }
+    catch(error) {
+
+        console.error(
+            "Unit GUID Import Failed"
+        );
+
+        console.error(error);
+
+    }
 
 })();

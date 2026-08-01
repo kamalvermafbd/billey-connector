@@ -1,0 +1,1 @@
+const {XMLParser}=require("fast-xml-parser");function parseStockGuidResponse(xml){const j=new XMLParser({parseTagValue:true,trimValues:true}).parse(xml);const a=j?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKITEM||[];return (Array.isArray(a)?a:[a]).map(x=>({guid:x.STOCKGUID||"",masterId:x.STOCKMASTERID||"",alterId:x.STOCKALTERID||""}));}module.exports={parseStockGuidResponse};

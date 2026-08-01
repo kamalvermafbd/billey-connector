@@ -17,20 +17,39 @@ const {
     importMasters
 } = require("../tally/importMasters");
 
-/*
+
 const {
     importVoucherGuids
 } = require("../tally/voucherImportService");
 
 const {
-    importVoucherGuids,
-    importVoucherByGuid
-} = require("../tally/voucherImportService");
+    importGroupGuids
+} = require("../tally/groupGuidImportService");
 
-*/
 const {
-    importVoucherGuids
-} = require("../tally/voucherImportService");
+    importLedgerGuids
+} = require("../tally/ledgerGuidImportService");
+
+
+const {
+    importStockGroupGuids
+} = require("../tally/stockGroupGuidImportService");
+
+const {
+    importStockGuids
+} = require("../tally/stockGuidImportService");
+
+const {
+    importUnitGuids
+} = require("../tally/unitGuidImportService");
+
+const {
+    importGodownGuids
+} = require("../tally/godownGuidImportService");
+
+const {
+    importCostCentreGuids
+} = require("../tally/costCentreGuidImportService");
 
 const {
     importVoucherBulkByGuid
@@ -582,6 +601,354 @@ socket.on("getMastersVoucherGuids", async (data) => {
     }
 
 });
+
+
+
+socket.on("getMastersGroupGuids", async (data) => {
+
+    try {
+
+        const groupGuids =
+            await importGroupGuids({
+                company: data.company
+            });
+
+
+        socket.emit(
+            "getMastersGroupGuidsResult",
+            {
+                success: true,
+                collectionName: "groupGuids",
+                groupGuidCount: groupGuids.length
+            }
+        );
+
+
+        if (groupGuids.length > 0) {
+
+            await sendChunkedResponse(
+                socket,
+                "getMastersGroupGuids",
+                groupGuids
+            );
+
+            console.log(
+                "✅ Group GUID chunks sent"
+            );
+
+        } else {
+
+            console.log(
+                "No Group GUIDs found"
+            );
+
+            socket.emit(
+                "getMastersGroupGuidsComplete",
+                {
+                    totalChunks: 0,
+                    totalItems: 0
+                }
+            );
+
+        }
+
+
+    } catch (err) {
+
+        console.error(err);
+
+        socket.emit(
+            "getMastersGroupGuidsResult",
+            {
+                success:false,
+                error:err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("getMastersLedgerGuids", async (data) => {
+
+    try {
+
+        const ledgerGuids =
+            await importLedgerGuids({
+                company: data.company
+            });
+
+
+        socket.emit(
+            "getMastersLedgerGuidsResult",
+            {
+                success: true,
+                collectionName: "ledgerGuids",
+                ledgerGuidCount: ledgerGuids.length
+            }
+        );
+
+
+        if (ledgerGuids.length > 0) {
+
+            await sendChunkedResponse(
+                socket,
+                "getMastersLedgerGuids",
+                ledgerGuids
+            );
+
+            console.log(
+                "✅ Ledger GUID chunks sent"
+            );
+
+        } else {
+
+            console.log(
+                "No Ledger GUIDs found"
+            );
+
+            socket.emit(
+                "getMastersLedgerGuidsComplete",
+                {
+                    totalChunks: 0,
+                    totalItems: 0
+                }
+            );
+
+        }
+
+
+    } catch (err) {
+
+        console.error(err);
+
+        socket.emit(
+            "getMastersLedgerGuidsResult",
+            {
+                success:false,
+                error:err.message
+            }
+        );
+
+    }
+
+});
+
+
+
+socket.on("getMastersStockGroupGuids", async (data) => {
+
+    try {
+
+        const stockGroupGuids =
+            await importStockGroupGuids({
+                company:data.company
+            });
+
+
+        socket.emit(
+            "getMastersStockGroupGuidsResult",
+            {
+                success:true,
+                collectionName:"stockGroupGuids",
+                stockGroupGuidCount:stockGroupGuids.length
+            }
+        );
+
+
+        await sendChunkedResponse(
+            socket,
+            "getMastersStockGroupGuids",
+            stockGroupGuids
+        );
+
+
+    } catch(err){
+
+        socket.emit(
+            "getMastersStockGroupGuidsResult",
+            {
+                success:false,
+                error:err.message
+            }
+        );
+
+    }
+
+});
+
+
+
+socket.on("getMastersStockGuids", async (data) => {
+
+    try {
+
+        const stockGuids =
+            await importStockGuids({
+                company:data.company
+            });
+
+
+        socket.emit(
+            "getMastersStockGuidsResult",
+            {
+                success:true,
+                collectionName:"stockGuids",
+                stockGuidCount:stockGuids.length
+            }
+        );
+
+
+        await sendChunkedResponse(
+            socket,
+            "getMastersStockGuids",
+            stockGuids
+        );
+
+
+    } catch(err){
+
+        socket.emit(
+            "getMastersStockGuidsResult",
+            {
+                success:false,
+                error:err.message
+            }
+        );
+
+    }
+
+});
+
+
+
+socket.on("getMastersUnitGuids", async (data) => {
+
+    try {
+
+        const unitGuids =
+            await importUnitGuids({
+                company:data.company
+            });
+
+
+        socket.emit(
+            "getMastersUnitGuidsResult",
+            {
+                success:true,
+                collectionName:"unitGuids",
+                unitGuidCount:unitGuids.length
+            }
+        );
+
+
+        await sendChunkedResponse(
+            socket,
+            "getMastersUnitGuids",
+            unitGuids
+        );
+
+
+    } catch(err){
+
+        socket.emit(
+            "getMastersUnitGuidsResult",
+            {
+                success:false,
+                error:err.message
+            }
+        );
+
+    }
+
+});
+
+
+
+socket.on("getMastersGodownGuids", async (data) => {
+
+    try {
+
+        const godownGuids =
+            await importGodownGuids({
+                company:data.company
+            });
+
+
+        socket.emit(
+            "getMastersGodownGuidsResult",
+            {
+                success:true,
+                collectionName:"godownGuids",
+                godownGuidCount:godownGuids.length
+            }
+        );
+
+
+        await sendChunkedResponse(
+            socket,
+            "getMastersGodownGuids",
+            godownGuids
+        );
+
+
+    } catch(err){
+
+        socket.emit(
+            "getMastersGodownGuidsResult",
+            {
+                success:false,
+                error:err.message
+            }
+        );
+
+    }
+
+});
+
+
+
+socket.on("getMastersCostCentreGuids", async (data) => {
+
+    try {
+
+        const costCentreGuids =
+            await importCostCentreGuids({
+                company:data.company
+            });
+
+
+        socket.emit(
+            "getMastersCostCentreGuidsResult",
+            {
+                success:true,
+                collectionName:"costCentreGuids",
+                costCentreGuidCount:costCentreGuids.length
+            }
+        );
+
+
+        await sendChunkedResponse(
+            socket,
+            "getMastersCostCentreGuids",
+            costCentreGuids
+        );
+
+
+    } catch(err){
+
+        socket.emit(
+            "getMastersCostCentreGuidsResult",
+            {
+                success:false,
+                error:err.message
+            }
+        );
+
+    }
+
+});
+
 
 socket.on("voucherByGuid", async (data) => {
 
