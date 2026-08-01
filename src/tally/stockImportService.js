@@ -12,12 +12,21 @@ const {
 } = require("./stockParser");
 
 async function importStocks({
-    company
+    company,
+    lastStockAlterId = null
 }) {
 
     await selectCompany(company);
 
-    const requestXml = buildStockRequest();
+    const requestXml = buildStockRequest({
+        company,
+        lastStockAlterId
+    });
+
+    console.log("=================================");
+console.log("Stock Request XML");
+console.log(requestXml);
+console.log("=================================");
 
     const responseXml = await sendToTally(requestXml);
 

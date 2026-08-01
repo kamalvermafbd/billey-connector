@@ -56,7 +56,8 @@ const {
 
 async function importMasters({
     company,
-    lastAlterId = null
+    lastAlterId = null,
+    lastStockAlterId = null
 }) {
 
     console.log("======================================");
@@ -121,8 +122,9 @@ async function importMasters({
 
     console.log("Importing Stocks...");
     const stocks = await importStocks({
-        company
-    });
+    company,
+    lastStockAlterId
+});
 
     console.log(`✓ Stocks Imported : ${stocks.length}`);
 
