@@ -1,18 +1,81 @@
 const fs = require("fs");
+const path = require("path");
 
 const {
-    importLedgers
-} = require("./src/tally/ledgerImportService");
+    importLedgerGuids
+} = require("./src/tally/ledgerGuidImportService");
+
 
 (async () => {
 
-    const ledgers = await importLedgers({
+    try {
 
-        company: "Sunil Ent(Client"
+        const ledgers =
+            await importLedgerGuids({
 
-    });
+                company: "Sunil Ent(Client)"
+
+            });
 
 
-    console.log("Ledgers Imported.");
+        console.log(
+            "Total Ledger GUIDs:",
+            ledgers.length
+        );
+
+
+        const logDir =
+            path.join(
+                __dirname,
+                "src",
+                "logs"
+            );
+
+
+        if (!fs.existsSync(logDir)) {
+
+            fs.mkdirSync(
+                logDir,
+                {
+                    recursive:true
+                }
+            );
+
+        }
+
+
+        const filePath =
+            path.join(
+                logDir,
+                "ledgerGuids.json"
+            );
+
+
+        fs.writeFileSync(
+            filePath,
+            JSON.stringify(
+                ledgers,
+                null,
+                2
+            )
+        );
+
+
+        console.log(
+            "Ledger GUID JSON generated:",
+            filePath
+        );
+
+
+    }
+    catch(err) {
+
+        console.error(
+            "Ledger GUID Import Failed"
+        );
+
+        console.error(err);
+
+    }
 
 })();

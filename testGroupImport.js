@@ -1,19 +1,57 @@
 const fs = require("fs");
 
 const {
-    importGroups
-} = require("./src/tally/groupImportService");
+    importGroupGuids
+} = require("./src/tally/groupGuidImportService");
+
 
 (async () => {
 
-    const groups = await importGroups({
+    try {
 
-        company: "Sunil Ent(Client"
+        const groupGuids =
+            await importGroupGuids({
 
-    });
+                company: "Sunil Ent(Client)"
 
-    
+            });
 
-    console.log("Groups Imported.");
+
+        console.log(
+            "Total Group GUIDs:",
+            groupGuids.length
+        );
+
+
+        console.log(
+            "First Group:",
+            groupGuids[0]
+        );
+
+
+        fs.writeFileSync(
+            "./group-guid-test.json",
+            JSON.stringify(
+                groupGuids,
+                null,
+                2
+            )
+        );
+
+
+        console.log(
+            "Group GUID export completed"
+        );
+
+
+    } catch(err) {
+
+        console.error(
+            "GROUP GUID IMPORT ERROR"
+        );
+
+        console.error(err);
+
+    }
 
 })();

@@ -95,7 +95,7 @@
 
                     
 <SYSTEM TYPE="Formulae" NAME="VoucherAlterIdFilter">
-    $ALTERID &gt; 304
+    $ALTERID &gt; 309
 </SYSTEM>
 
 

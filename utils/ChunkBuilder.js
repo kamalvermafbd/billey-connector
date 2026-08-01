@@ -1,4 +1,4 @@
-const DEFAULT_MAX_CHUNK_SIZE = 300 * 1024; // 300 KB
+const DEFAULT_MAX_CHUNK_SIZE = 500 * 1024; // 300 KB
 
 /**
  * Returns UTF-8 byte size
