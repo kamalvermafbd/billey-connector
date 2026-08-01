@@ -1,3 +1,5 @@
+const fs = require("fs");
+
 function toArray(value) {
 
     if (!value) return [];
@@ -46,18 +48,18 @@ function parseBillAllocations(row) {
 
        amount: getNumber(bill.AMOUNT),
 
-dueDate: getValue(bill.DUEDATE),
+        dueDate: getValue(bill.DUEDATE),
 
-creditPeriod:
-    bill.BILLCREDITPERIOD?.P ||
-    getValue(bill.BILLCREDITPERIOD) ||
-    null,
+        creditPeriod:
+            bill.BILLCREDITPERIOD?.P ||
+            getValue(bill.BILLCREDITPERIOD) ||
+            null,
 
-creditDays:0
+        creditDays:0
 
-    }));
+            }));
 
-}
+        }
 
 function parseCostCentreAllocations(row) {
 
@@ -101,6 +103,32 @@ const groupLookup = lookups?.groupLookup;
                         .trim()
                         .toUpperCase()
                 );
+
+                fs.appendFileSync(
+    "./logs/voucher-ledger-debug.jsonl",
+    JSON.stringify({
+
+        stage: "LEDGER_LOOKUP_DEBUG",
+
+        ledgerName:
+            getValue(row.LEDGERNAME),
+
+        lookupKey:
+            getValue(row.LEDGERNAME)
+                .trim()
+                .toUpperCase(),
+
+                lookupSize:
+                    ledgerLookup?.size || 0,
+
+                found:
+                    !!ledger,
+
+                foundLedger:
+                    ledger || null
+
+            }) + "\n"
+        );
 
             const ledgerParent =
                 ledger
