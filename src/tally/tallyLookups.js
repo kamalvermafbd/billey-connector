@@ -15,6 +15,13 @@ function buildTallyLookups({
         ])
     );
 
+    const ledgerMasterLookup = new Map(
+    ledgers.map(l => [
+        String(l.masterId || ""),
+        l
+    ])
+);
+
     const partyLookup = new Map(
         ledgers
             .filter(l => l.isParty)
@@ -41,6 +48,8 @@ function buildTallyLookups({
     return {
 
         ledgerLookup,
+
+        ledgerMasterLookup,
 
         stockLookup,
 

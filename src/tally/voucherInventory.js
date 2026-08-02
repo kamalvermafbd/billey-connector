@@ -133,11 +133,62 @@ function parseRateDetails(item) {
 function parseTaxBreakup(
     voucher,
     item,
-    ledgerLookup
+    lookups,
+    voucherLedgers
 ) {
-    let taxableAmount = 0;
+    let taxableAmount =
+    Math.abs(getNumber(item.AMOUNT));
 
-    const accounting = parseAccountingAllocations(item);
+//const accounting = parseAccountingAllocations(item);
+
+const taxLedgers = (voucherLedgers || [])
+    .map(a =>
+        lookups?.ledgerMasterLookup?.get(
+            String(
+                a.ledgerMasterid ||
+                a.ledgerMasterId ||
+                ""
+            )
+        )
+    )
+    .filter(l =>
+        l &&
+        l.gstDutyType === "GST" &&
+        l.gstTaxType
+    );
+
+const voucherType =
+    (voucher.__header?.voucherType || "")
+        .toUpperCase();
+
+   /*     
+const taxLedgers = accounting
+    .map(a =>
+        [...ledgerLookup.values()]
+            .find(
+                l =>
+                    String(l.masterId) ===
+                    String(a.ledgerMasterId)
+            )
+    )
+
+
+  .filter(l =>
+    l &&
+    l.gstDutyType === "GST" &&
+    l.gstTaxType
+);
+*/
+
+const hasTaxLedger =
+    taxLedgers.length > 0;
+
+
+const taxTypes =
+    taxLedgers.map(
+        l => l.gstTaxType
+    );
+
 
 const gstRates = parseRateDetails(item);
 
@@ -154,44 +205,101 @@ let cgstAmount = 0;
 let sgstAmount = 0;
 let igstAmount = 0;
 
-   for (const a of accounting) {
+if (
+    voucherType.includes("CREDIT NOTE")
+    &&
+    !hasTaxLedger
+) {
 
-    const name = (a.ledgerName || "").toUpperCase();
+    return {
 
-    const voucherLedger =
-        ledgerLookup?.get(name);
+        taxableAmount: taxableAmount,
 
-  if (!voucherLedger) {
-    continue;
+        cgstRate,
+        sgstRate,
+        igstRate,
+
+        cgstAmount: 0,
+        sgstAmount: 0,
+        igstAmount: 0
+
+    };
+
 }
 
-taxableAmount += Math.abs(a.amount || 0);
+   const hasIGST =
+    taxTypes.includes("IGST");
 
-const ledgerName =
-    (voucherLedger.name || a.ledgerName || "")
-        .toUpperCase();
+const hasCGST =
+    taxTypes.includes("CGST");
 
-if (ledgerName.includes("IGST")) {
+const hasSGST =
+    taxTypes.includes("SGST/UTGST");
+
+const isCreditNote =
+    voucherType.includes("CREDIT NOTE");
+
+if (!hasTaxLedger && !isCreditNote) {
+
+    if (cgstRate > 0 && sgstRate > 0) {
+
+        cgstAmount =
+            +(taxableAmount * cgstRate / 100)
+                .toFixed(2);
+
+        sgstAmount =
+            +(taxableAmount * sgstRate / 100)
+                .toFixed(2);
+
+        igstAmount = 0;
+
+    }
+    else if (igstRate > 0) {
+
+        cgstAmount = 0;
+        sgstAmount = 0;
+
+        igstAmount =
+            +(taxableAmount * igstRate / 100)
+                .toFixed(2);
+
+    }
+
+}
+else if (hasIGST) {
 
     cgstAmount = 0;
     sgstAmount = 0;
-    igstAmount =
-        +(taxableAmount * igstRate / 100).toFixed(2);
 
-} else {
+    igstAmount =
+        +(taxableAmount * igstRate / 100)
+            .toFixed(2);
+
+}
+else if (hasCGST || hasSGST) {
 
     cgstAmount =
-        +(taxableAmount * cgstRate / 100).toFixed(2);
+        +(taxableAmount * cgstRate / 100)
+            .toFixed(2);
 
     sgstAmount =
-        +(taxableAmount * sgstRate / 100).toFixed(2);
+        +(taxableAmount * sgstRate / 100)
+            .toFixed(2);
 
     igstAmount = 0;
 
 }
-   }
+else {
 
-   return {
+    cgstAmount = 0;
+    sgstAmount = 0;
+    igstAmount = 0;
+
+}
+
+
+return {
+
     taxableAmount,
 
     cgstRate,
@@ -201,10 +309,10 @@ if (ledgerName.includes("IGST")) {
     cgstAmount,
     sgstAmount,
     igstAmount
+
 };
 
 }
-
 
 function parseAccountingAllocations(item) {
 
@@ -270,7 +378,8 @@ function parseCostCentreAllocations(item) {
 
 function parseVoucherInventory(
     voucher,
-    lookups
+    lookups,
+    voucherLedgers
 ) {
 
     
@@ -368,10 +477,11 @@ const inventoryNode = item.__inventoryNode;
         parseAccountingAllocations(item);
 
     const tax = parseTaxBreakup(
-        voucher,
-        item,
-        ledgerLookup
-    );
+    voucher,
+    item,
+    lookups,
+    voucherLedgers
+);
 
     const lookupKey = (header.partyLedger || "").trim().toUpperCase();
 
@@ -444,12 +554,6 @@ const party = partyLookup?.get(lookupKey);
     foundParty: party || null
 });
 
-        console.log(
-    "LOOKUP PARTY:",
-    header.partyLedger,
-    party
-);
-
     const ledger =
         ledgerLookup?.get(
             (
@@ -467,11 +571,7 @@ global.lookupDebug.push({
     foundLedger: ledger || null
 });
 
-        console.log(
-    "LOOKUP LEDGER:",
-    accounting[0]?.ledgerName,
-    ledger
-);
+        
 
 
    const ledgerParent =
@@ -481,7 +581,7 @@ global.lookupDebug.push({
         )
         : null;
 
-            console.log("LEDGER PARENT", ledgerParent);
+            
 
 const partyParent =
     party
@@ -490,7 +590,7 @@ const partyParent =
         )
         : null;
 
-            console.log("PARTY PARENT", partyParent);
+            
 
 const {
     __movementType,
