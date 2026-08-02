@@ -9,15 +9,15 @@
         "CMPINFO": {
           "COMPANY": 0,
           "GROUP": 3,
-          "LEDGER": 704,
+          "LEDGER": 783,
           "COSTCATEGORY": 27,
           "COSTCENTRE": 37,
-          "GODOWN": 342,
+          "GODOWN": 390,
           "STOCKGROUP": 25,
           "STOCKCATEGORY": 0,
-          "STOCKITEM": 402,
+          "STOCKITEM": 474,
           "VOUCHERTYPE": 0,
-          "CURRENCY": 99,
+          "CURRENCY": 111,
           "UNIT": 0,
           "BUDGET": 0,
           "CLIENTRULE": 0,
@@ -37,30 +37,34 @@
           "INCOMETAXSLAB": 0,
           "INCOMETAXCLASSIFICATION": 0,
           "LBTCLASSIFICATION": 0,
-          "TAXUNIT": 179,
+          "TAXUNIT": 203,
           "RETURNMASTER": 0,
           "GSTCLASSIFICATION": 0,
-          "VOUCHERNUMBERSERIES": 291,
-          "VOUCHER": 169
+          "VOUCHERNUMBERSERIES": 327,
+          "VOUCHER": 193
         }
       },
       "DATA": {
         "COLLECTION": {
           "VOUCHER": {
+            "BASICBUYERADDRESS.LIST": {
+              "BASICBUYERADDRESS": "himpachal baddi 123291",
+              "TYPE": "String"
+            },
             "DATE": {
-              "#text": 20260702,
+              "#text": 20260701,
               "TYPE": "Date"
             },
             "REFERENCEDATE": {
               "TYPE": "Date"
             },
-            "GUID": "755da616-c913-46c0-9ad0-de5499d071a0-00000061",
+            "GUID": "755da616-c913-46c0-9ad0-de5499d071a0-00000021",
             "GSTREGISTRATIONTYPE": {
               "#text": "Regular",
               "TYPE": "String"
             },
             "NARRATION": {
-              "#text": "s",
+              "#text": "ss",
               "TYPE": "String"
             },
             "REQUESTORRULE": "",
@@ -72,14 +76,14 @@
               "#text": "Himachal Pradesh",
               "TYPE": "String"
             },
-            "VOUCHERTYPENAME": "Purchase",
+            "VOUCHERTYPENAME": "Credit Note",
             "PARTYLEDGERNAME": {
               "#text": "Rahul Trading",
               "TYPE": "String"
             },
-            "VOUCHERNUMBER": 7,
+            "VOUCHERNUMBER": 1,
             "BASICBUYERNAME": {
-              "#text": "Sunil Ent (Client",
+              "#text": "Rahul Trading",
               "TYPE": "String"
             },
             "REFERENCE": {
@@ -104,7 +108,7 @@
               "TYPE": "Logical"
             },
             "EFFECTIVEDATE": {
-              "#text": 20260702,
+              "#text": 20260701,
               "TYPE": "Date"
             },
             "ISCANCELLED": {
@@ -119,19 +123,19 @@
               "TYPE": "Logical"
             },
             "ALTERID": {
-              "#text": 314,
+              "#text": 326,
               "TYPE": "Number"
             },
             "MASTERID": {
-              "#text": 97,
+              "#text": 33,
               "TYPE": "Number"
             },
             "VOUCHERKEY": {
-              "#text": 198444668944416,
+              "#text": 198440373977174,
               "TYPE": "Number"
             },
             "VOUCHERRETAINKEY": {
-              "#text": 29,
+              "#text": 1,
               "TYPE": "Number"
             },
             "REUSEHOLEID": {
@@ -156,11 +160,11 @@
               "STRDGSTDERIVEDSUPPLYTYPE": "",
               "GSTOVRDNCLASSIFICATION": "",
               "GSTOVRDNNATURE": "",
-              "GSTOVRDNINELIGIBLEITC": " Not Applicable",
+              "GSTOVRDNINELIGIBLEITC": "",
               "GSTOVRDNISREVCHARGEAPPL": " Not Applicable",
               "GSTOVRDNTAXABILITY": "Taxable",
-              "GSTSOURCETYPE": "",
-              "GSTITEMSOURCE": "",
+              "GSTSOURCETYPE": "Stock Item",
+              "GSTITEMSOURCE": "3/4 CPVC Elbow Heavy",
               "GSTLEDGERSOURCE": "",
               "GSTGROUPSOURCE": "",
               "GSTSTOCKGROUPSOURCE": "",
@@ -169,9 +173,9 @@
               "HSNLEDGERSOURCE": "",
               "HSNGROUPSOURCE": "",
               "HSNSTOCKGROUPSOURCE": "",
-              "GSTOVRDNSTOREDNATURE": "Interstate Purchase - Taxable",
+              "GSTOVRDNSTOREDNATURE": " System Inferred",
               "GSTOVRDNTYPEOFSUPPLY": "Goods",
-              "GSTRATEINFERAPPLICABILITY": "Specify Details Here",
+              "GSTRATEINFERAPPLICABILITY": "As per Masters/Company",
               "GSTOVRDNNATUREOFGOODS": "",
               "GSTHSNNAME": 3918,
               "GSTHSNDESCRIPTION": "",
@@ -214,7 +218,7 @@
               "ISTRACKPRODUCTION": "",
               "ISPRIMARYITEM": "",
               "ISSCRAP": "No",
-              "RATE": "10.00/Nos",
+              "RATE": "15.00/Nos",
               "DISCOUNT": 0,
               "VATTAXRATE": 0,
               "ORIGINVGOODSQTY": 0,
@@ -225,7 +229,7 @@
               "ORIGMRPABATEMENT": 0,
               "EXCISERETURNDUTYRATE": 0,
               "GVATEXCISERATE": 0,
-              "AMOUNT": -1000,
+              "AMOUNT": -1470,
               "EXCISEASSESSABLEVALUE": "",
               "CESSASSVALONCLASS": "",
               "EIDISCOUNTAMT": "",
@@ -251,8 +255,8 @@
               "VATINPUTTAXCREDIT": "",
               "VATELIGIBLECREDIT": "",
               "GVATEXCISEAMT": "",
-              "ACTUALQTY": "100 Nos",
-              "BILLEDQTY": "100 Nos",
+              "ACTUALQTY": "98 Nos",
+              "BILLEDQTY": "98 Nos",
               "ORIGACTUALQTY": "",
               "ORIGBILLEDQTY": "",
               "EXCISERETURNINVOICEQTY": "",
@@ -273,9 +277,9 @@
                 "TRACKINGYEAREND": "",
                 "ORDERPRECLOSUREDATE": "",
                 "NARRATION": "",
-                "GODOWNNAME": "Delhi Phase -1 Godown",
+                "GODOWNNAME": "Main Location",
                 "BATCHNAME": "Primary Batch",
-                "DESTINATIONGODOWNNAME": "Delhi Phase -1 Godown",
+                "DESTINATIONGODOWNNAME": "Main Location",
                 "INDENTNO": " Not Applicable",
                 "ORDERTYPE": "",
                 "PARENTITEM": "",
@@ -299,11 +303,11 @@
                   "#text": 0,
                   "TYPE": "Number"
                 },
-                "AMOUNT": -1000,
+                "AMOUNT": -1470,
                 "ADDLEXPENSEAMOUNT": "",
                 "BATCHDIFFVAL": "",
-                "ACTUALQTY": "100 Nos",
-                "BILLEDQTY": "100 Nos",
+                "ACTUALQTY": "98 Nos",
+                "BILLEDQTY": "98 Nos",
                 "ORDERPRECLOSUREQTY": "",
                 "ORIGACTUALQTY": "",
                 "ORIGBILLEDQTY": "",
@@ -313,7 +317,7 @@
                 "ESCALATIONRATE": "",
                 "INCLVATRATE": "",
                 "BATCHRATE": {
-                  "#text": "10.00/Nos",
+                  "#text": "15.00/Nos",
                   "TYPE": "Rate"
                 },
                 "EXPIRYPERIOD": "",
@@ -338,7 +342,7 @@
                 "EXCISEALLOCTYPE": "",
                 "SWIFTCODE": "",
                 "ROUNDTYPE": "",
-                "LEDGERNAME": "Purchase Igst",
+                "LEDGERNAME": "IGST Sale 18%",
                 "TAXUNITNAME": "",
                 "STATNATURENAME": "",
                 "GOODSTYPE": "",
@@ -428,7 +432,7 @@
                 "GSTTAXRATE": 0,
                 "ORIGINVGOODSQTY": 0,
                 "CAPVATTAXRATE": 0,
-                "AMOUNT": -1000,
+                "AMOUNT": -1470,
                 "CESSASSVALONCLASS": "",
                 "ADDNLVATCLASSAMT": "",
                 "EIDISCOUNTAMT": "",
@@ -558,12 +562,12 @@
                   "TYPE": "Logical"
                 },
                 "AMOUNT": {
-                  "#text": 1200,
+                  "#text": 1764,
                   "TYPE": "Amount"
                 },
                 "BILLALLOCATIONS.LIST": {
                   "AMOUNT": {
-                    "#text": 1200,
+                    "#text": 1764,
                     "TYPE": "Amount"
                   }
                 },
@@ -583,7 +587,7 @@
                   "TYPE": "Logical"
                 },
                 "AMOUNT": {
-                  "#text": -200,
+                  "#text": -294,
                   "TYPE": "Amount"
                 },
                 "BILLALLOCATIONS.LIST": "",
@@ -697,7 +701,7 @@
                 "GSTTAXRATE": 0,
                 "ORIGINVGOODSQTY": 0,
                 "CAPVATTAXRATE": 0,
-                "AMOUNT": 1200,
+                "AMOUNT": 1764,
                 "CESSASSVALONCLASS": "",
                 "ADDNLVATCLASSAMT": "",
                 "EIDISCOUNTAMT": "",
@@ -751,32 +755,32 @@
                 "BANKALLOCATIONS.LIST": "",
                 "BILLALLOCATIONS.LIST": {
                   "BILLDATE": {
-                    "#text": 20260702,
+                    "#text": 20260501,
                     "TYPE": "Date"
                   },
                   "YEAREND": "",
                   "BILLCREATIONDATE": {
-                    "#text": 20260702,
+                    "#text": 20260501,
                     "TYPE": "Date"
                   },
-                  "NAME": 7,
+                  "NAME": 1,
                   "BILLCREDITPERIOD": {
                     "#text": "15 Days",
-                    "JD": "46204",
+                    "JD": "46142",
                     "P": "15 Days"
                   },
                   "TDSDEDUCTEESECTIONNUMBER": "",
                   "TDSLEDGERNC": "",
                   "SERVICETAXLEDGER": "",
-                  "BILLTYPE": "New Ref",
+                  "BILLTYPE": "Agst Ref",
                   "SUMNAME": "",
                   "TDSDEDUCTEEISSPECIALRATE": "No",
                   "TDSDEDUCTEESPECIALRATE": 0,
                   "BILLID": {
-                    "#text": 19,
+                    "#text": 4,
                     "TYPE": "Number"
                   },
-                  "AMOUNT": 1200,
+                  "AMOUNT": 1764,
                   "INTERESTCOLLECTION.LIST": "",
                   "STBILLCATEGORIES.LIST": ""
                 },
@@ -819,7 +823,7 @@
                 "EXCISEALLOCTYPE": "",
                 "SWIFTCODE": "",
                 "ROUNDTYPE": "",
-                "LEDGERNAME": "Purchase Igst",
+                "LEDGERNAME": "IGST Sale 18%",
                 "TAXUNITNAME": "",
                 "STATNATURENAME": "",
                 "GOODSTYPE": "",
@@ -909,7 +913,7 @@
                 "GSTTAXRATE": 0,
                 "ORIGINVGOODSQTY": 0,
                 "CAPVATTAXRATE": 0,
-                "AMOUNT": -1000,
+                "AMOUNT": -1470,
                 "CESSASSVALONCLASS": "",
                 "ADDNLVATCLASSAMT": "",
                 "EIDISCOUNTAMT": "",
@@ -981,11 +985,11 @@
                   "STRDGSTDERIVEDSUPPLYTYPE": "",
                   "GSTOVRDNCLASSIFICATION": "",
                   "GSTOVRDNNATURE": "",
-                  "GSTOVRDNINELIGIBLEITC": " Not Applicable",
+                  "GSTOVRDNINELIGIBLEITC": "",
                   "GSTOVRDNISREVCHARGEAPPL": " Not Applicable",
                   "GSTOVRDNTAXABILITY": "Taxable",
-                  "GSTSOURCETYPE": "",
-                  "GSTITEMSOURCE": "",
+                  "GSTSOURCETYPE": "Stock Item",
+                  "GSTITEMSOURCE": "3/4 CPVC Elbow Heavy",
                   "GSTLEDGERSOURCE": "",
                   "GSTGROUPSOURCE": "",
                   "GSTSTOCKGROUPSOURCE": "",
@@ -994,9 +998,9 @@
                   "HSNLEDGERSOURCE": "",
                   "HSNGROUPSOURCE": "",
                   "HSNSTOCKGROUPSOURCE": "",
-                  "GSTOVRDNSTOREDNATURE": "Interstate Purchase - Taxable",
+                  "GSTOVRDNSTOREDNATURE": " System Inferred",
                   "GSTOVRDNTYPEOFSUPPLY": "Goods",
-                  "GSTRATEINFERAPPLICABILITY": "Specify Details Here",
+                  "GSTRATEINFERAPPLICABILITY": "As per Masters/Company",
                   "GSTOVRDNNATUREOFGOODS": "",
                   "GSTHSNNAME": 3918,
                   "GSTHSNDESCRIPTION": "",
@@ -1039,7 +1043,7 @@
                   "ISTRACKPRODUCTION": "",
                   "ISPRIMARYITEM": "",
                   "ISSCRAP": "No",
-                  "RATE": "10.00/Nos",
+                  "RATE": "15.00/Nos",
                   "DISCOUNT": 0,
                   "VATTAXRATE": 0,
                   "ORIGINVGOODSQTY": 0,
@@ -1050,7 +1054,7 @@
                   "ORIGMRPABATEMENT": 0,
                   "EXCISERETURNDUTYRATE": 0,
                   "GVATEXCISERATE": 0,
-                  "AMOUNT": -1000,
+                  "AMOUNT": -1470,
                   "EXCISEASSESSABLEVALUE": "",
                   "CESSASSVALONCLASS": "",
                   "EIDISCOUNTAMT": "",
@@ -1076,8 +1080,8 @@
                   "VATINPUTTAXCREDIT": "",
                   "VATELIGIBLECREDIT": "",
                   "GVATEXCISEAMT": "",
-                  "ACTUALQTY": "100 Nos",
-                  "BILLEDQTY": "100 Nos",
+                  "ACTUALQTY": "98 Nos",
+                  "BILLEDQTY": "98 Nos",
                   "ORIGACTUALQTY": "",
                   "ORIGBILLEDQTY": "",
                   "EXCISERETURNINVOICEQTY": "",
@@ -1098,9 +1102,9 @@
                     "TRACKINGYEAREND": "",
                     "ORDERPRECLOSUREDATE": "",
                     "NARRATION": "",
-                    "GODOWNNAME": "Delhi Phase -1 Godown",
+                    "GODOWNNAME": "Main Location",
                     "BATCHNAME": "Primary Batch",
-                    "DESTINATIONGODOWNNAME": "Delhi Phase -1 Godown",
+                    "DESTINATIONGODOWNNAME": "Main Location",
                     "INDENTNO": " Not Applicable",
                     "ORDERTYPE": "",
                     "PARENTITEM": "",
@@ -1124,11 +1128,11 @@
                       "#text": 0,
                       "TYPE": "Number"
                     },
-                    "AMOUNT": -1000,
+                    "AMOUNT": -1470,
                     "ADDLEXPENSEAMOUNT": "",
                     "BATCHDIFFVAL": "",
-                    "ACTUALQTY": "100 Nos",
-                    "BILLEDQTY": "100 Nos",
+                    "ACTUALQTY": "98 Nos",
+                    "BILLEDQTY": "98 Nos",
                     "ORDERPRECLOSUREQTY": "",
                     "ORIGACTUALQTY": "",
                     "ORIGBILLEDQTY": "",
@@ -1138,7 +1142,7 @@
                     "ESCALATIONRATE": "",
                     "INCLVATRATE": "",
                     "BATCHRATE": {
-                      "#text": "10.00/Nos",
+                      "#text": "15.00/Nos",
                       "TYPE": "Rate"
                     },
                     "EXPIRYPERIOD": "",
@@ -1314,7 +1318,7 @@
                 "GSTTAXRATE": 0,
                 "ORIGINVGOODSQTY": 0,
                 "CAPVATTAXRATE": 0,
-                "AMOUNT": -200,
+                "AMOUNT": -294,
                 "CESSASSVALONCLASS": "",
                 "ADDNLVATCLASSAMT": "",
                 "EIDISCOUNTAMT": "",
@@ -1352,7 +1356,7 @@
                 "VATWCPLANNINGDESIGNFEES": "",
                 "VATWCMACHINERYTOOLSCHARGES": "",
                 "VATWCCONSUMABLESCOST": "",
-                "VATEXPAMOUNT": -200,
+                "VATEXPAMOUNT": -294,
                 "VATASSBLVALUE": "",
                 "VATACCEPTEDTAXAMT": "",
                 "VATACCEPTEDADDLTAXAMT": "",
@@ -1391,9 +1395,9 @@
                 "TAXTYPEALLOCATIONS.LIST": ""
               }
             ],
-            "REMOTEID": "755da616-c913-46c0-9ad0-de5499d071a0-00000061",
-            "VCHKEY": "755da616-c913-46c0-9ad0-de5499d071a0-0000b47c:00000020",
-            "VCHTYPE": "Purchase",
+            "REMOTEID": "755da616-c913-46c0-9ad0-de5499d071a0-00000021",
+            "VCHKEY": "755da616-c913-46c0-9ad0-de5499d071a0-0000b47b:00000056",
+            "VCHTYPE": "Credit Note",
             "OBJVIEW": "Invoice Voucher View"
           },
           "ISCMPDEPTYPE": "Yes",

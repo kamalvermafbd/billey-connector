@@ -83,7 +83,12 @@ return vouchers.map(v => {
 const parsedVoucher = {
     header,
     ledgers,
-    inventory: parseVoucherInventory(v, lookups),
+    //inventory: parseVoucherInventory(v, lookups),
+    inventory: parseVoucherInventory(
+    v,
+    lookups,
+    ledgers
+),
     raw: v
 };
 
