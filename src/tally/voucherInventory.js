@@ -382,6 +382,26 @@ const stockKey = getValue(item.STOCKITEMMASTERID);
 
 let stock = stockLookup?.get(stockKey);
 
+fs.appendFileSync(
+    "./logs/stock-lookup-debug.jsonl",
+    JSON.stringify({
+
+        stockItem:
+            getValue(item.STOCKITEMNAME),
+
+        stockKey,
+
+        lookupSize:
+            stockLookup?.size || 0,
+
+        firstStock:
+            stockLookup
+                ? [...stockLookup.values()][0]
+                : null
+
+    }) + "\n"
+);
+
 if (!stock) {
     stock = [...stockLookup.values()].find(
         s =>
