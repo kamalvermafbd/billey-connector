@@ -139,12 +139,18 @@ async function importMasters({
 
     console.log(`✓ Stocks Imported : ${stocks.length}`);
 
-    const lookups = buildTallyLookups({
-        groups,
-        ledgers: allLedgers,
-        stocks
-    });
+    const allStocks = await importStocks({
+    company,
+    lastStockAlterId:null
+});
 
+    console.log(`✓ All Stocks Imported : ${allStocks.length}`);
+
+  const lookups = buildTallyLookups({
+    groups,
+    ledgers: allLedgers,
+    stocks: allStocks
+});
 
 // ============================================================
 // 30072026
@@ -242,6 +248,7 @@ return {
     stockGroups: stockGroups.length,
 
     stocks: stocks.length,
+    allStocks: allStocks.length,
 
     godowns: godowns.length,
     costCentres: costCentres.length,
@@ -272,6 +279,8 @@ return {
     stockGroups,
 
     stocks,
+
+    allStocks,
 
     godowns,
     costCentres,
