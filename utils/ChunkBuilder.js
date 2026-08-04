@@ -1,4 +1,4 @@
-const DEFAULT_MAX_CHUNK_SIZE = 500 * 1024; // 300 KB
+const DEFAULT_MAX_CHUNK_SIZE = 500 * 1024; // 500 KB
 
 /**
  * Returns UTF-8 byte size
@@ -52,19 +52,62 @@ function getObjectSize(obj) {
         getItemSize
     } = config;
 
+    if (
+    !Number.isInteger(maxChunkSize) ||
+    maxChunkSize <= 0
+    ) {
+        throw new Error(
+            "Invalid maxChunkSize"
+        );
+    }
+
+    if (
+    typeof getItemSize !== "function"
+    ) {
+        throw new Error(
+            "Invalid getItemSize"
+        );
+    }
+
+    if (!Array.isArray(items)) {
+    throw new Error(
+        "buildChunks expects an array"
+    );
+    }
+
+    if (items.length === 0) {
+        return [];
+    }
 
     const chunks = [];
 
     let currentChunk = [];
     let currentSize = 0;
 
-    for (const item of items) {
+    for (const [i, item] of items.entries()) {
+
+        if (item == null) {
+        throw new Error(
+            `Invalid item at index ${i}`
+        );
+    }
 
        // const itemSize = getObjectSize(item);
-const itemSize = getItemSize(item);
+         const itemSize = getItemSize(item);
+
+       
 
         // Safety (Phase 2 me handle karenge)
         if (itemSize > maxChunkSize) {
+
+            console.log(
+            "OVERSIZE ITEM",
+            {
+                index: i,
+                size: itemSize,
+                keys: Object.keys(item)
+                }
+            );
             throw new Error(
                 `Single item exceeds chunk size (${itemSize} bytes)`
             );

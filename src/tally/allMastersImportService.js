@@ -16,12 +16,12 @@ async function importAllMasters({
     const requestXml = buildAllMastersRequest();
 
     const responseXml = await sendToTally(requestXml);
-
+/*
     require("fs").writeFileSync(
         "all-masters-response.xml",
         responseXml
     );
-
+*/
     return responseXml;
 
 }

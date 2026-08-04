@@ -51,14 +51,7 @@ const {
             );
 
 
-        fs.writeFileSync(
-            filePath,
-            JSON.stringify(
-                costCentreGuids,
-                null,
-                2
-            )
-        );
+      
 
 
         console.log(

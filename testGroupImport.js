@@ -29,14 +29,7 @@ const {
         );
 
 
-        fs.writeFileSync(
-            "./group-guid-test.json",
-            JSON.stringify(
-                groupGuids,
-                null,
-                2
-            )
-        );
+       
 
 
         console.log(

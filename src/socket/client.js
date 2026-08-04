@@ -13,6 +13,15 @@ const {
     sendChunkedResponse
 } = require("../../utils/sendChunkedResponse");
 
+const ConnectorProtocolController =
+    require("../../utils/protocol/ConnectorProtocolController");
+
+const {
+    addChunk,
+    isComplete,
+    complete
+} = require("../../utils/requestCollector");
+
 const {
     importMasters
 } = require("../tally/importMasters");
@@ -88,6 +97,11 @@ function connectServer() {
         reconnectionDelay: 5000
 
     });
+
+    const protocolController =
+    new ConnectorProtocolController(
+        socket
+    );
 
     socket.on("connect", () => {
 
@@ -319,6 +333,15 @@ socket.on("getSalesVouchers", async (data) => {
 
 });
 
+function sendProgress(stage) {
+
+    socket.emit("getMastersProgress", {
+        stage,
+        timestamp: Date.now()
+    });
+
+}
+
 
 socket.on("getMasters", async (data) => {
 
@@ -444,32 +467,32 @@ if (result.vouchers && result.vouchers.length > 0) {
 
         console.log("✅ getMastersResult Sent");
 
-        */
+        
 
-        const masterPayload = {
+    const masterPayload = {
 
-    success: true,
+        success: true,
 
-    summary: result.summary,
+        summary: result.summary,
 
-     voucherCount: (result.vouchers || []).length,
-     voucherGuidCount: (result.voucherGuids || []).length,
+        voucherCount: (result.vouchers || []).length,
+        voucherGuidCount: (result.voucherGuids || []).length,
 
-    groups: result.groups,
+        groups: result.groups,
 
-    units: result.units,
+        units: result.units,
 
-    ledgers: result.ledgers,
+        ledgers: result.ledgers,
 
-    stockGroups: result.stockGroups,
+        stockGroups: result.stockGroups,
 
-    stocks: result.stocks,
+        stocks: result.stocks,
 
-    godowns: result.godowns,
+        godowns: result.godowns,
 
-    costCentres: result.costCentres
+        costCentres: result.costCentres
 
-};
+    };
 
 console.log(
     "Master Payload Size :",
@@ -488,8 +511,15 @@ socket.emit(
 );
 
 console.log("✅ Master data sent");
-
 /*
+await sendChunkedResponse(
+    socket,
+    "getMastersGroups",
+    result.groups || []
+);
+
+console.log("✅ Groups sent");
+
 const vouchers = result.vouchers || [];
 
 if (vouchers.length > 0) {
@@ -507,7 +537,7 @@ if (vouchers.length > 0) {
     console.log("No vouchers found");
 
 }
-    */
+    
 
 const vouchers = result.vouchers || [];
 
@@ -534,6 +564,44 @@ if (vouchers.length > 0) {
     );
 }
 
+*/
+
+const masterPayload = {
+
+    success: true,
+
+    summary: result.summary,
+
+    voucherCount:
+        (result.vouchers || []).length,
+
+    voucherGuidCount:
+        (result.voucherGuids || []).length
+
+};
+
+console.log(
+    "Master Payload Size :",
+    (
+        Buffer.byteLength(
+            JSON.stringify(masterPayload)
+        ) / 1024
+    ).toFixed(2),
+    "KB"
+);
+
+socket.emit(
+    "getMastersResult",
+    masterPayload
+);
+
+console.log(
+    "✅ Master payload sent"
+);
+
+await protocolController.sendMasters(
+    result
+);
 
     } catch (err) {
 
@@ -956,6 +1024,107 @@ socket.on("getMastersCostCentreGuids", async (data) => {
                 error:err.message
             }
         );
+
+    }
+
+});
+
+socket.on("voucherByGuidChunk", (data) => {
+
+    try {
+
+        addChunk(data);
+
+        socket.emit("voucherByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: true
+        });
+
+        console.log(
+            `Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
+        );
+
+    } catch (err) {
+
+        socket.emit("voucherByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: false,
+            error: err.message
+        });
+
+    }
+
+});
+
+socket.on("voucherByGuidComplete", async (data) => {
+
+    try {
+
+        if (!isComplete(data.batchId)) {
+
+            throw new Error(
+                "Missing request chunks"
+            );
+
+        }
+
+        const voucherGuids =
+            complete(data.batchId);
+
+        console.log(
+            "Merged GUIDs :",
+            voucherGuids.length
+        );
+
+        const vouchers = await importVoucherBulkByGuid({
+
+    company: data.company,
+
+    voucherGuids
+
+});
+
+socket.emit(
+    "voucherByGuidResult",
+    {
+        success: true,
+        collectionName: "vouchers",
+        voucherCount: vouchers.length
+    }
+);
+
+if (vouchers.length > 0) {
+
+    await sendChunkedResponse(
+
+        socket,
+
+        "voucherByGuid",
+
+        vouchers
+
+    );
+
+} else {
+
+    socket.emit(
+        "voucherByGuidComplete",
+        {
+            totalChunks: 0,
+            totalItems: 0
+        }
+    );
+
+}
+
+        // Abhi sirf test
+        console.log("✅ Request Chunking Working");
+
+    } catch (err) {
+
+        console.error(err);
 
     }
 
