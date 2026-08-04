@@ -76,28 +76,11 @@ await executeChunks({
 
     });
 
-        fs.writeFileSync(
-
-            `./logs/stock-bulk-guid-request-${chunk.chunkIndex}.xml`,
-
-            requestXml,
-
-            "utf8"
-
-        );
+        
 
         const responseXml =
             await sendToTally(requestXml);
 
-        fs.writeFileSync(
-
-            `./logs/stock-bulk-guid-response-${chunk.chunkIndex}.xml`,
-
-            responseXml,
-
-            "utf8"
-
-        );
 
         if (!responseXml) {
 
@@ -111,20 +94,7 @@ await executeChunks({
             parseStockResponse(
                 responseXml
             );
-            
-        fs.writeFileSync(
-
-            `./logs/stock-bulk-guid-parsed-${chunk.chunkIndex}.json`,
-
-           JSON.stringify(
-                stocks,
-                null,
-                2
-            ),
-
-            "utf8"
-
-        );
+      
 
         allStocks.push(...stocks);
 

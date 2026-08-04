@@ -170,6 +170,11 @@ async function sendToTally(xml) {
  //     xml +
   //    "\n\n"
  //   );
+console.log("====================================");
+console.log(">>> Tally request started");
+console.trace("Called From");
+console.log("====================================");
+
 
     const response = await axios.post(
       TALLY_URL,
@@ -188,10 +193,14 @@ async function sendToTally(xml) {
  //     response.data +
  //     "\n"
   //  );
+console.log("<<< Tally response received");
 
     return response.data;
 
   } catch (err) {
+
+    console.log(">>> Tally request failed");
+console.error(err);
 
  //   fs.appendFileSync(
   //    DEBUG_FILE,

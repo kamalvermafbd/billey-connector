@@ -19,13 +19,13 @@ const {
 } = require("./voucherParser");
 
 
-const fs = require("fs");
 
 async function importVoucherGuids({
     company
 }) {
 
      await selectCompany(company);
+   
 
     const requestXml =
         buildVoucherGuidRequest({
@@ -34,7 +34,7 @@ async function importVoucherGuids({
 
     const xml =
         await sendToTally(requestXml);
-
+/*
     fs.appendFileSync(
     "./logs/send-to-tally-debug.jsonl",
     JSON.stringify({
@@ -43,10 +43,10 @@ async function importVoucherGuids({
         response: xml.substring(0, 1000)
     }) + "\n"
 );    
-
+*/
     const parsed =
         parseVoucherGuidResponse(xml);
-
+/*
         fs.writeFileSync(
     "./logs/voucher-guid-request.xml",
     requestXml,
@@ -64,7 +64,7 @@ fs.writeFileSync(
     JSON.stringify(parsed, null, 2),
     "utf8"
 );
-
+*/
     return parsed;
 
 }
@@ -85,10 +85,13 @@ async function importVoucherByGuid({
 
     const responseXml = await sendToTally(requestXml);
 
+    
+
     if (!responseXml) {
         throw new Error("Empty response received from Tally.");
     }
 
+    
     const vouchers = parseVoucherResponse(
         responseXml,
         lookups
@@ -113,41 +116,85 @@ async function importVouchers({
     lookups
 }) {
 
+    console.log("STEP 1 : Before selectCompany");
+
     await selectCompany(company);
-const requestXml = buildVoucherRequest({
+
+    console.log("STEP 2 : After selectCompany");
+
+    const requestXml = buildVoucherRequest({
     company,
     fromDate,
     toDate,
     lastAlterId
 });
 
+console.log("STEP 3 : XML Built");
+/*
 fs.writeFileSync(
     "./logs/request.xml",
     requestXml,
     "utf8"
 );
+*/
 const responseXml = await sendToTally(requestXml);
+
+console.log("STEP 4 : Response Received");
+
+if (!responseXml) {
+    throw new Error("Empty response received from Tally.");
+}
+
+console.log(
+    "Response XML Size :",
+    Buffer.byteLength(responseXml || "", "utf8"),
+    "bytes"
+);
+/*
 fs.writeFileSync(
     "./logs/response.xml",
     responseXml,
     "utf8"
 );
+*/
 
 
-console.log("Voucher response saved to voucher-response.xml");
+console.log("STEP 5 : Before parseVoucherResponse");
+const parseStart = Date.now();
 
-if (!responseXml) {
+let vouchers;
 
-    throw new Error("Empty response received from Tally.");
+try {
+
+    vouchers = parseVoucherResponse(
+        responseXml,
+        lookups
+    );
+
+} catch (err) {
+
+    console.error("❌ parseVoucherResponse FAILED");
+    console.error(err.stack);
+
+    throw err;
 
 }
 
-
-
-const vouchers = parseVoucherResponse(
-    responseXml,
-    lookups
+console.log(
+    "Parse Time :",
+    Date.now() - parseStart,
+    "ms"
 );
+
+console.log("STEP 6 : After parseVoucherResponse");
+console.log("Voucher Count :", vouchers.length);
+
+console.log("STEP 7 : Before return");
+
+console.log("STEP 8 : Returning importVouchers");
+console.log("Summary Count :", vouchers.length);
+console.log("====================================");
+
 
 return {
 

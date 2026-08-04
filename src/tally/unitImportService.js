@@ -28,11 +28,12 @@ async function importUnits({
     const requestXml = buildUnitRequest();
 
     const responseXml = await sendToTally(requestXml);
+    /*
     require("fs").writeFileSync(
     "unit-response.xml",
     responseXml
     );
-
+*/
     const units = parseUnitResponse(responseXml);
 
 const finalUnits = [];

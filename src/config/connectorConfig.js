@@ -48,12 +48,13 @@ function loadConfig() {
 }
 
 function saveConfig(config) {
-
+/*
     fs.writeFileSync(
         CONFIG_FILE,
         JSON.stringify(config, null, 2)
     );
 
+    */
 }
 
 module.exports = {

@@ -21,18 +21,12 @@ async function test() {
     toDate: "20260430"
 });
 
-    fs.writeFileSync(
-        path.join(__dirname, "logs", "request-alter.xml"),
-        requestXml
-    );
+   
 
     console.log("Sending request to Tally...");
     const responseXml = await sendToTally(requestXml);
 
-    fs.writeFileSync(
-        path.join(__dirname, "logs", "response-alter.xml"),
-        responseXml || ""
-    );
+  
 
     console.log("Response saved.");
 

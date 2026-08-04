@@ -30,10 +30,7 @@ function parseVoucherGuidResponse(xml) {
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
     );
 
-    fs.writeFileSync(
-    "./logs/first-guid-voucher.json",
-    JSON.stringify(vouchers[0], null, 2)
-);
+   
 
     return vouchers.map(v => ({
 
@@ -56,12 +53,7 @@ function parseVoucherResponse(
 
     const json = parser.parse(xml);
 
-    fs.writeFileSync(
-    "./logs/parsed-response.json",
-    JSON.stringify(json, null, 2)
-);
-
-    const vouchers = toArray(
+       const vouchers = toArray(
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
     );
 
@@ -83,15 +75,16 @@ return vouchers.map(v => {
 const parsedVoucher = {
     header,
     ledgers,
-    //inventory: parseVoucherInventory(v, lookups),
     inventory: parseVoucherInventory(
-    v,
-    lookups,
-    ledgers
-),
-    raw: v
+        v,
+        lookups,
+        ledgers
+    )
 };
 
+if (process.env.INTEGRITY_DEBUG === "true") {
+    parsedVoucher.raw = v;
+}
 // ======================================
 // RAW vs PARSED AUDIT
 // ======================================

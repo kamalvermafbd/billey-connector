@@ -90,6 +90,7 @@ async function importMasters({
     });
 
     console.log(`✓ Groups Imported : ${groups.length}`);
+    console.log("######## AFTER GROUPS ########");
 
     console.log("Importing Units...");
     const units = await importUnits({
@@ -121,6 +122,7 @@ async function importMasters({
     });
 
     console.log(`✓ Full Ledger Lookup Imported : ${allLedgers.length}`);
+    console.log("######## AFTER ALL LEDGERS ########");
 
     console.log("Importing Stock Groups...");
 
@@ -145,6 +147,7 @@ async function importMasters({
 });
 
     console.log(`✓ All Stocks Imported : ${allStocks.length}`);
+    console.log("######## AFTER ALL STOCKS ########");
 
   const lookups = buildTallyLookups({
     groups,
@@ -191,12 +194,14 @@ const costCentres = await importCostCentres({
 });
 
 console.log(`✓ Cost Centres Imported : ${costCentres.length}`);
+console.log("######## AFTER COST CENTRES ########");
 
 console.log("Importing Vouchers...");
 
 const voucherResult = await importVouchers({
     company,
     fromDate: companyInfo.booksBeginningFrom,
+    toDate: "20220401",   // temporary test
     lastAlterId,
     lookups
 });
@@ -209,6 +214,8 @@ console.log(
     "Voucher GUID Count :",
     voucherGuids.length
 );
+
+console.log("######## AFTER VOUCHER GUIDS ########");
 
 const vouchers = voucherResult.vouchers || [];
 
@@ -225,7 +232,7 @@ console.log(`✓ Vouchers Imported : ${vouchers.length}`);
     console.log("Master Import Completed");
     console.log("======================================");
 
-    
+    console.log("######## IMPORT MASTERS FINISHED ########");
 return {
 
    summary: {

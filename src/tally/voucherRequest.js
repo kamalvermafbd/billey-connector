@@ -211,7 +211,7 @@ function buildVoucherRequestByGuid({
                             ALLINVENTORYENTRIES,
                             
                             INVENTORYENTRIESIN,
-                            INVENTORYENTRIESOUT,
+                            INVENTORYENTRIESOUT
 
                         </FETCH>
 

@@ -74,6 +74,7 @@ await executeChunks({
 
             });
 
+            /*
         fs.writeFileSync(
 
             `./logs/voucher-bulk-guid-request-${chunk.chunkIndex}.xml`,
@@ -83,10 +84,10 @@ await executeChunks({
             "utf8"
 
         );
-
+*/
         const responseXml =
             await sendToTally(requestXml);
-
+/*
         fs.writeFileSync(
 
             `./logs/voucher-bulk-guid-response-${chunk.chunkIndex}.xml`,
@@ -96,7 +97,7 @@ await executeChunks({
             "utf8"
 
         );
-
+*/
         if (!responseXml) {
 
             throw new Error(
@@ -110,7 +111,7 @@ await executeChunks({
                 responseXml,
                 lookups
             );
-
+/*
         fs.writeFileSync(
 
             `./logs/voucher-bulk-guid-parsed-${chunk.chunkIndex}.json`,
@@ -124,7 +125,7 @@ await executeChunks({
             "utf8"
 
         );
-
+*/
         allVouchers.push(...vouchers);
 
        return {

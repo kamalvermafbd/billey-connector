@@ -58,28 +58,12 @@ await executeChunks({
 
             });
 
-        fs.writeFileSync(
-
-            `./logs/ledger-bulk-guid-request-${chunk.chunkIndex}.xml`,
-
-            requestXml,
-
-            "utf8"
-
-        );
+       
 
         const responseXml =
             await sendToTally(requestXml);
 
-        fs.writeFileSync(
-
-            `./logs/ledger-bulk-guid-response-${chunk.chunkIndex}.xml`,
-
-            responseXml,
-
-            "utf8"
-
-        );
+       
 
         if (!responseXml) {
 
@@ -94,19 +78,7 @@ await executeChunks({
                 responseXml
             );
             
-        fs.writeFileSync(
-
-            `./logs/ledger-bulk-guid-parsed-${chunk.chunkIndex}.json`,
-
-           JSON.stringify(
-                ledgers,
-                null,
-                2
-            ),
-
-            "utf8"
-
-        );
+        
 
         allLedgers.push(...ledgers);
 

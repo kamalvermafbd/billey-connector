@@ -32570,10 +32570,11 @@ var require_connectorConfig = __commonJS({
       );
     }
     function saveConfig(config) {
-      fs.writeFileSync(
+     /* fs.writeFileSync(
         CONFIG_FILE,
         JSON.stringify(config, null, 2)
       );
+      */
     }
     module2.exports = {
       loadConfig,
