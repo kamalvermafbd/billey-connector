@@ -38,9 +38,9 @@ function buildTallyLookups({
         ])
     );
 
-    const stockLookup = new Map(
+   const stockLookup = new Map(
         stocks.map(s => [
-            String(s.masterId || ""),
+            (s.name || "").trim().toUpperCase(),
             s
         ])
     );

@@ -85,11 +85,10 @@ function buildLedgerBulkGuidRequest({
                         TAXTYPE,
                         RATEOFTAXCALCULATION,
                         GSTRATE,
-                        TYPEOFDUTYTAX,
-                        TAXTYPE,
                         GSTDUTYHEAD,
-                        RATEOFTAXCALCULATION,
-                        GSTRATE,
+                        PARENTGUID,
+                        PARENTMASTERID,
+                        PARENTALTERID
 
                     </FETCH>
 

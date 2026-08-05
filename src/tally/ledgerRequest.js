@@ -75,7 +75,9 @@ const xml = `
                             GSTDUTYHEAD,
                             RATEOFTAXCALCULATION,
                             GSTRATE,
-                           
+                           PARENTGUID,
+                            PARENTMASTERID,
+                            PARENTALTERID
 
                         </FETCH>
 

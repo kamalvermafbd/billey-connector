@@ -42,7 +42,7 @@ function parseStockGroupResponse(xml) {
             ? [groups]
             : [];
 
-    return groupList.map(group => ({
+ /*   return groupList.map(group => ({
 
         name: getValue(group.NAME),
 
@@ -58,7 +58,26 @@ function parseStockGroupResponse(xml) {
 
         raw: group
 
-    }));
+    }));*/
+
+        return groupList.map(group => ({
+
+            name: getValue(group.NAME),
+
+            parent: getValue(group.PARENT),
+
+            guid: getValue(group.GROUPGUID),
+
+            masterId: getValue(group.GROUPMASTERID),
+
+            alterId: getValue(group.GROUPALTERID),
+
+            reservedName: getValue(group.RESERVEDNAME),
+
+            raw: group
+
+        }));
+
 
 }
 
