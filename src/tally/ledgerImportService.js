@@ -12,6 +12,11 @@ const {
     parseLedgerResponse
 } = require("./ledgerParser");
 
+const {
+    getLookups
+} = require("./lookupCache");
+
+
 async function importLedgers({
     company,
     booksBeginningFrom,
@@ -31,7 +36,71 @@ async function importLedgers({
 
     const responseXml = await sendToTally(requestXml);
 
-    return parseLedgerResponse(responseXml);
+    const ledgers =
+
+    parseLedgerResponse(
+
+        responseXml
+
+    );
+
+ const lookups =
+
+    getLookups(
+
+        company
+
+    ) || {};
+
+const groupLookup =
+
+    lookups.groupLookup ||
+
+    new Map();
+
+    for (const ledger of ledgers) {
+
+    const parent =
+
+        groupLookup.get(
+
+            String(
+
+                ledger.parent || ""
+
+            )
+
+            .trim()
+
+            .toUpperCase()
+
+        );
+
+    if (!parent) {
+
+        continue;
+
+    }
+
+        ledger.parentGroupGuid =
+
+            parent.guid;
+
+        ledger.parentGroupMasterId =
+
+            parent.masterId;
+
+        ledger.parentGroupAlterId =
+
+            parent.alterId;
+
+    }
+
+  
+
+    return ledgers;
+
+
 
 }
 

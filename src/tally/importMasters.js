@@ -1,5 +1,6 @@
 const fs = require("fs");
 
+
 const {
     importCompany
 } = require("./companyImportService");
@@ -72,6 +73,9 @@ async function importMasters({
         company
     });
 
+console.log("After importCompany");
+
+//companyInfo.booksBeginningFrom = "20210401";
     
     console.log(
         `✓ Company Imported : ${companyInfo.companyName}`
@@ -91,6 +95,32 @@ async function importMasters({
 
     console.log(`✓ Groups Imported : ${groups.length}`);
     console.log("######## AFTER GROUPS ########");
+
+    // ============================================================
+// Temporary lookup.
+// Groups are required before Ledger import so parent
+// group GUIDs can be resolved.
+// ============================================================
+
+    const masterLookups =
+
+    buildTallyLookups({
+
+        groups,
+
+        ledgers: [],
+
+        stocks: []
+
+    });
+
+    setLookups(
+
+        company,
+
+        masterLookups
+
+    );
 
     console.log("Importing Units...");
     const units = await importUnits({
@@ -124,6 +154,26 @@ async function importMasters({
     console.log(`✓ Full Ledger Lookup Imported : ${allLedgers.length}`);
     console.log("######## AFTER ALL LEDGERS ########");
 
+    fs.writeFileSync(
+
+    "ledgerLookupDebug.json",
+
+    JSON.stringify(
+
+        allLedgers[0],
+
+        null,
+
+        2
+
+    )
+
+);
+
+console.log(
+    "ledgerLookupDebug.json generated"
+);
+
     console.log("Importing Stock Groups...");
 
     const stockGroups = await importStockGroups({
@@ -131,6 +181,24 @@ async function importMasters({
     });
 
     console.log(`✓ Stock Groups Imported : ${stockGroups.length}`);
+
+    const stockLookups = buildTallyLookups({
+
+        groups,
+
+        ledgers: [],
+
+        stocks: stockGroups
+
+    });
+
+    setLookups(
+
+        company,
+
+        stockLookups
+
+    );
 
     console.log("Importing Stocks...");
     const stocks = await importStocks({
@@ -185,8 +253,6 @@ console.log(
     });
 
     console.log(`✓ Godowns Imported : ${godowns.length}`);
-
-  
 
     console.log("Importing Cost Centres...");
 const costCentres = await importCostCentres({

@@ -2,27 +2,24 @@ const fs = require("fs");
 const path = require("path");
 
 const {
-    importStockGuids
-} = require("./src/tally/stockGuidImportService");
-
+    importMasters
+} = require("./src/tally/importMasters");
 
 (async () => {
 
     try {
 
-        const stockGuids =
-            await importStockGuids({
+        const result =
 
-                company: "Sunil Ent(Client)"
+            await importMasters({
+
+                company: "Sunil Ent(Client"
 
             });
 
+        const stocks =
 
-        console.log(
-            "Total Stock GUIDs:",
-            stockGuids.length
-        );
-
+            result.stocks;
 
         const logDir =
             path.join(
@@ -31,18 +28,16 @@ const {
                 "logs"
             );
 
-
         if (!fs.existsSync(logDir)) {
 
             fs.mkdirSync(
                 logDir,
                 {
-                    recursive:true
+                    recursive: true
                 }
             );
 
         }
-
 
         const filePath =
             path.join(
@@ -50,24 +45,76 @@ const {
                 "stockGuids.json"
             );
 
+        const debugData = {
 
-      
+            summary:
 
+                result.summary,
+
+            totalStocks:
+
+                stocks.length,
+
+            firstStock: {
+
+                guid:
+
+                    stocks[0]?.guid,
+
+                parent:
+
+                    stocks[0]?.parent,
+
+                parentGroupGuid:
+
+                    stocks[0]?.parentGroupGuid,
+
+                parentGroupMasterId:
+
+                    stocks[0]?.parentGroupMasterId,
+
+                parentGroupAlterId:
+
+                    stocks[0]?.parentGroupAlterId
+
+            },
+
+            allStocks:
+
+                stocks
+
+        };
+
+        fs.writeFileSync(
+
+            filePath,
+
+            JSON.stringify(
+
+                debugData,
+
+                null,
+
+                2
+
+            )
+
+        );
 
         console.log(
-            "Stock GUID JSON Generated:",
+            "Stock GUID JSON generated:",
             filePath
         );
 
-
     }
-    catch(error) {
+
+    catch (err) {
 
         console.error(
             "Stock GUID Import Failed"
         );
 
-        console.error(error);
+        console.error(err);
 
     }
 

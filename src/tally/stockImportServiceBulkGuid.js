@@ -10,11 +10,11 @@ const {
 const {
     parseStockResponse
 } = require("./stockParser");
-/*
+
 const {
     getLookups
 } = require("./lookupCache");
-*/
+
 
 const {
     buildChunks
@@ -24,7 +24,6 @@ const {
     executeChunks
 } = require("../../utils/chunkExecutor");
 
-const fs = require("fs");
 
 const BULK_GUID_CHUNK_SIZE = 300 * 1024;
 
@@ -33,20 +32,6 @@ async function importStockBulkByGuid({
     stockGuids
 }){
     await selectCompany(company);
-
-  
-/*
-    const lookups = getLookups(company);
-
-if (!lookups) {
-
-    throw new Error(
-        "Lookup cache not found. Run importMasters() before Bulk GUID import."
-    );
-
-}
-
-*/
 
 if (!stockGuids?.length) {
 
@@ -60,6 +45,20 @@ const chunks = buildChunks(
 );
 
 const allStocks = [];
+
+const lookups =
+
+    getLookups(
+
+        company
+
+    ) || {};
+
+const stockLookup =
+
+    lookups.stockLookup ||
+
+    new Map();
 
 await executeChunks({
 
@@ -95,6 +94,43 @@ await executeChunks({
                 responseXml
             );
       
+            for (const stock of stocks) {
+
+    const parent =
+
+        stockLookup.get(
+
+            String(
+
+                stock.parent || ""
+
+            )
+
+            .trim()
+
+            .toUpperCase()
+
+        );
+
+    if (!parent) {
+
+        continue;
+
+    }
+
+    stock.parentGroupGuid =
+
+        parent.guid;
+
+    stock.parentGroupMasterId =
+
+        parent.masterId;
+
+    stock.parentGroupAlterId =
+
+        parent.alterId;
+
+}
 
         allStocks.push(...stocks);
 

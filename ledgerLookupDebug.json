@@ -1,0 +1,98 @@
+{
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000001f",
+  "masterId": "31",
+  "alterId": "596",
+  "name": "Cash",
+  "parent": "Cash-in-Hand",
+  "parentGroupGuid": "755da616-c913-46c0-9ad0-de5499d071a0-00000015",
+  "parentGroupMasterId": "21",
+  "parentGroupAlterId": "336",
+  "reservedName": "",
+  "gstApplicable": "",
+  "gstRegistrationType": "",
+  "gstin": "",
+  "mailingName": "",
+  "address": "",
+  "stateName": "",
+  "country": "",
+  "pinCode": "",
+  "phone": "",
+  "email": "",
+  "contactPerson": "Primary Mobile No.",
+  "openingBalance": 0,
+  "openingBalanceAmount": 0,
+  "openingBalanceType": "",
+  "isBillWise": false,
+  "isRevenue": false,
+  "isDeemedPositive": true,
+  "isParty": true,
+  "gstDutyType": "Others",
+  "gstTaxType": "",
+  "gstRate": 0,
+  "raw": {
+    "GUID": {
+      "#text": "755da616-c913-46c0-9ad0-de5499d071a0-0000001f",
+      "TYPE": "String"
+    },
+    "PARENT": {
+      "#text": "Cash-in-Hand",
+      "TYPE": "String"
+    },
+    "TAXTYPE": {
+      "#text": "Others",
+      "TYPE": "String"
+    },
+    "ISBILLWISEON": {
+      "#text": "No",
+      "TYPE": "Logical"
+    },
+    "ISREVENUE": {
+      "#text": "No",
+      "TYPE": "Logical"
+    },
+    "ISDEEMEDPOSITIVE": {
+      "#text": "Yes",
+      "TYPE": "Logical"
+    },
+    "ALTERID": {
+      "#text": 596,
+      "TYPE": "Number"
+    },
+    "MASTERID": {
+      "#text": 31,
+      "TYPE": "Number"
+    },
+    "RATEOFTAXCALCULATION": {
+      "#text": 0,
+      "TYPE": "Number"
+    },
+    "OPENINGBALANCE": {
+      "#text": 0,
+      "TYPE": "Amount"
+    },
+    "LANGUAGENAME.LIST": {
+      "NAME.LIST": {
+        "NAME": "Cash",
+        "TYPE": "String"
+      },
+      "LANGUAGEID": {
+        "#text": 1033,
+        "TYPE": "Number"
+      }
+    },
+    "LEDGSTREGDETAILS.LIST": "",
+    "LEDMAILINGDETAILS.LIST": "",
+    "CONTACTDETAILS.LIST": {
+      "NAME": {
+        "#text": "Primary Mobile No.",
+        "TYPE": "String"
+      },
+      "ISDEFAULTWHATSAPPNUM": {
+        "#text": "Yes",
+        "TYPE": "Logical"
+      }
+    },
+    "NAME": "Cash",
+    "RESERVEDNAME": ""
+  }
+}

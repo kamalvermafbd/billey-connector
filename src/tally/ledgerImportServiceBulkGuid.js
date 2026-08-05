@@ -11,6 +11,10 @@ const {
     parseLedgerResponse
 } = require("./ledgerParser");
 
+const {
+    getLookups
+} = require("./lookupCache");
+
 
 const {
     buildChunks
@@ -20,7 +24,6 @@ const {
     executeChunks
 } = require("../../utils/chunkExecutor");
 
-const fs = require("fs");
 
 const BULK_GUID_CHUNK_SIZE = 300 * 1024;
 
@@ -42,6 +45,21 @@ const chunks = buildChunks(
 );
 
 const allLedgers = [];
+
+  const lookups =
+
+    getLookups(
+
+        company
+
+    ) || {};
+
+const groupLookup =
+
+    lookups.groupLookup ||
+
+    new Map();
+
 
 await executeChunks({
 
@@ -78,7 +96,45 @@ await executeChunks({
                 responseXml
             );
             
-        
+      
+
+for (const ledger of ledgers) {
+
+    const parent =
+
+        groupLookup.get(
+
+            String(
+
+                ledger.parent || ""
+
+            )
+
+            .trim()
+
+            .toUpperCase()
+
+        );
+
+    if (!parent) {
+
+        continue;
+
+    }
+
+    ledger.parentGroupGuid =
+
+        parent.guid;
+
+    ledger.parentGroupMasterId =
+
+        parent.masterId;
+
+    ledger.parentGroupAlterId =
+
+        parent.alterId;
+
+}
 
         allLedgers.push(...ledgers);
 

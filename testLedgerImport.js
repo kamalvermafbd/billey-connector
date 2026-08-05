@@ -1,27 +1,27 @@
 const fs = require("fs");
 const path = require("path");
 
+
+
 const {
-    importLedgerGuids
-} = require("./src/tally/ledgerGuidImportService");
+    importMasters
+} = require("./src/tally/importMasters");
 
 
 (async () => {
 
     try {
+        const result =
 
-        const ledgers =
-            await importLedgerGuids({
+            await importMasters({
 
-                company: "Sunil Ent(Client)"
+                company: "Guru Kirpa Trading)"
 
             });
 
+        const ledgers =
 
-        console.log(
-            "Total Ledger GUIDs:",
-            ledgers.length
-        );
+            result.ledgers;
 
 
         const logDir =
@@ -50,7 +50,61 @@ const {
                 "ledgerGuids.json"
             );
 
+     const debugData = {
 
+            summary:
+
+                result.summary,
+
+            totalLedgers:
+
+                ledgers.length,
+
+            firstLedger: {
+
+                guid:
+
+                    ledgers[0]?.guid,
+
+                parent:
+
+                    ledgers[0]?.parent,
+
+                parentGuid:
+
+                    ledgers[0]?.parentGroupGuid,
+
+                parentMasterId:
+
+                    ledgers[0]?.parentGroupMasterId,
+
+                parentAlterId:
+
+                    ledgers[0]?.parentGroupAlterId
+
+            },
+
+            allLedgers:
+
+                ledgers
+
+        };
+
+        fs.writeFileSync(
+
+            filePath,
+
+            JSON.stringify(
+
+                debugData,
+
+                null,
+
+                2
+
+            )
+
+        );
       
 
 

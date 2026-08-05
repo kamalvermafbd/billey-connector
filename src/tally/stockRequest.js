@@ -49,7 +49,10 @@ function buildStockRequest({
         GSTAPPLICABLE,
         GSTTYPEOFSUPPLY,
         HSNDETAILS.LIST,
-        GSTDETAILS.LIST
+        GSTDETAILS.LIST,
+        PARENTGUID,
+        PARENTMASTERID,
+        PARENTALTERID
 
     </FETCH>
 
