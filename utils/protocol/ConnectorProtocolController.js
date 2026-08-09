@@ -77,6 +77,12 @@ async sendMasters(result) {
         result.units || []
     );
 
+    console.log("================================");
+console.log("SEND MASTER LEDGERS");
+console.log("result.ledgers :", result.ledgers?.length);
+console.log("first ledger :", result.ledgers?.[0]);
+console.log("================================");
+
     await this.sendCollection(
         "getMastersLedgers",
         result.ledgers || []

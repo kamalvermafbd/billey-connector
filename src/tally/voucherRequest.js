@@ -34,7 +34,9 @@ function buildVoucherRequest({
 
                 <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
 
-                <SVTODATE TYPE="Date">${toDate}</SVTODATE>
+               ${toDate
+    ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>`
+    : ""}
 
             </STATICVARIABLES>
 

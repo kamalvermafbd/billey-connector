@@ -267,7 +267,7 @@ console.log("Importing Vouchers...");
 const voucherResult = await importVouchers({
     company,
     fromDate: companyInfo.booksBeginningFrom,
-    toDate: "20220401",   // temporary test
+   // toDate: "20270401",   // temporary test
     lastAlterId,
     lookups
 });
@@ -316,7 +316,7 @@ return {
 
     units: units.length,
 
-    ledgers: ledgers.length,
+    ledgers: allLedgers.length,
 
     stockGroups: stockGroups.length,
 
@@ -331,7 +331,7 @@ return {
     totalMasters:
     groups.length +
     units.length +
-    ledgers.length +
+    allLedgers.length +
     stockGroups.length +
     stocks.length +
     godowns.length +
@@ -345,7 +345,7 @@ return {
 
     units,
 
-    ledgers,
+    ledgers: allLedgers,
 
     allLedgers,
 
