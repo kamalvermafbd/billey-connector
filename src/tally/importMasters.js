@@ -401,7 +401,7 @@ console.log("Importing Vouchers...");
 // ============================================
 
 console.log("Importing Full Voucher GUIDs...");
-
+/*
 const voucherGuids =
     await importVoucherGuids({
         company,
@@ -417,14 +417,35 @@ const voucherGuids =
 console.log(
     `✓ Total Voucher GUIDs Discovered : ${voucherGuids.length}`
 );
+*/
 
+const voucherRecords =
+    await importVoucherGuids({
+        company,
+        fromDate: companyInfo.booksBeginningFrom,
+        toDate:
+            new Date()
+                .toISOString()
+                .slice(0, 10)
+                .replace(/-/g, "")
+    });
+
+const voucherGuids =
+    voucherRecords
+        .map(row => row.guid)
+        .filter(Boolean);
+
+        console.log(
+    "Voucher GUID sample:",
+    voucherGuids.slice(0, 3)
+);
 
 
 // ============================================
 // STEP 1: ALTERID se changed Vouchers lao
 // GUID already response mein available hai
 // ============================================
-
+/*temp comment5 110826
 const voucherResult =
     await importVouchers({
         company,
@@ -455,7 +476,7 @@ const changedVoucherGuids =
 console.log(
     `✓ Changed Voucher GUIDs : ${changedVoucherGuids.length}`
 );
-
+*/
 
 // ============================================
 // STEP 3: Existing Bulk GUID Pipeline
@@ -466,8 +487,7 @@ console.log(
 const vouchers =
     await importVoucherBulkByGuid({
         company,
-        voucherGuids:
-            changedVoucherGuids
+        voucherGuids
     });
 
 console.log(

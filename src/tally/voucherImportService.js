@@ -96,7 +96,7 @@ console.log(
 // 50 VOUCHERS PER TALLY REQUEST
 // ============================================
 
-const LEVEL1_BATCH_SIZE = 200;
+const LEVEL1_BATCH_SIZE = 500;
 
 const level1Results = [];
 

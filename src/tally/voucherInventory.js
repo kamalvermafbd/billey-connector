@@ -14,6 +14,11 @@ function getValue(value) {
     return value ?? "";
 }
 
+function getStringValue(value) {
+    return String(getValue(value) ?? "");
+}
+
+
 function getNumber(value) {
 
     const n = Number(getValue(value));
@@ -483,7 +488,10 @@ const inventoryNode = item.__inventoryNode;
     voucherLedgers
 );
 
-    const lookupKey = (header.partyLedger || "").trim().toUpperCase();
+    const lookupKey =
+    getStringValue(header.partyLedger)
+        .trim()
+        .toUpperCase();
 
 const stockKey = getValue(item.STOCKITEMMASTERID);
 
@@ -515,8 +523,12 @@ fs.appendFileSync(
 if (!stock) {
     stock = [...stockLookup.values()].find(
         s =>
-            (s.name || "").trim().toUpperCase() ===
-            (getValue(item.STOCKITEMNAME) || "").trim().toUpperCase()
+            getStringValue(s.name)
+                .trim()
+                .toUpperCase() ===
+            getStringValue(item.STOCKITEMNAME)
+                .trim()
+                .toUpperCase()
     );
 }
 
@@ -539,7 +551,10 @@ const party = partyLookup?.get(lookupKey);
 */
     global.lookupDebug.push({
     type: "party",
-    lookupKey: (header.partyLedger || "").toUpperCase(),
+    lookupKey:
+    getStringValue(
+        header.partyLedger
+    ).toUpperCase(),
     originalParty: header.partyLedger,
 
     lookupsExists: !!lookups,
@@ -548,24 +563,26 @@ const party = partyLookup?.get(lookupKey);
     partyLookupSize: partyLookup?.size,
 
     hasKey: partyLookup?.has(
-        (header.partyLedger || "").toUpperCase()
-    ),
+    getStringValue(
+        header.partyLedger
+    ).toUpperCase()
+),
 
     foundParty: party || null
 });
 
     const ledger =
-        ledgerLookup?.get(
-            (
-                accounting[0]?.ledgerName || ""
-            ).toUpperCase()
-        );
-
+    ledgerLookup?.get(
+        getStringValue(
+            accounting[0]?.ledgerName
+        ).toUpperCase()
+    );
 
 global.lookupDebug.push({
     type: "ledger",
-    lookupKey: (
-        accounting[0]?.ledgerName || ""
+    lookupKey:
+    getStringValue(
+        accounting[0]?.ledgerName
     ).toUpperCase(),
     originalLedger: accounting[0]?.ledgerName,
     foundLedger: ledger || null
@@ -577,7 +594,9 @@ global.lookupDebug.push({
    const ledgerParent =
     ledger
         ? groupLookup?.get(
-            (ledger.parent || "").trim().toUpperCase()
+            getStringValue(ledger.parent)
+    .trim()
+    .toUpperCase()
         )
         : null;
 
@@ -586,7 +605,9 @@ global.lookupDebug.push({
 const partyParent =
     party
         ? groupLookup?.get(
-            (party.parent || "").trim().toUpperCase()
+            getStringValue(party.parent)
+                .trim()
+                .toUpperCase()
         )
         : null;
 

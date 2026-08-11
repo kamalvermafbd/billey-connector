@@ -1,13 +1,26 @@
 const crypto = require("crypto");
 const { buildChunks } = require("./ChunkBuilder");
 
-async function waitForAck(socket, ackEvent, batchId, chunkIndex) {
+async function waitForAck(
+    socket,
+    ackEvent,
+    batchId,
+    chunkIndex
+) {
 
     return new Promise((resolve, reject) => {
 
         const timeout = setTimeout(() => {
 
-            socket.off(ackEvent, onAck);
+            socket.off(
+                ackEvent,
+                onAck
+            );
+
+            socket.off(
+                "disconnect",
+                onDisconnect
+            );
 
             reject(
                 new Error(
@@ -15,30 +28,177 @@ async function waitForAck(socket, ackEvent, batchId, chunkIndex) {
                 )
             );
 
-        }, 30000);
+        }, 15 * 60 * 1000);
 
-       function onAck(data) {
+        function onAck(data) {
 
-    if (
-        data.batchId !== batchId ||
-        data.chunkIndex !== chunkIndex
-    ) {
-        return;
-    }
+            if (
+                !data ||
+                data.batchId !== batchId ||
+                data.chunkIndex !== chunkIndex
+            ) {
+                return;
+            }
 
-    clearTimeout(timeout);
-    socket.off(ackEvent, onAck);
+            clearTimeout(timeout);
 
-    if (data.success === false) {
-        return reject(
-            new Error(data.error || "Chunk rejected")
+            socket.off(
+                ackEvent,
+                onAck
+            );
+
+            socket.off(
+                "disconnect",
+                onDisconnect
+            );
+
+            if (data.success === false) {
+
+                return reject(
+                    new Error(
+                        data.error ||
+                        "Chunk rejected"
+                    )
+                );
+
+            }
+
+            resolve();
+
+        }
+
+        function onDisconnect(reason) {
+
+            clearTimeout(timeout);
+
+            socket.off(
+                ackEvent,
+                onAck
+            );
+
+            socket.off(
+                "disconnect",
+                onDisconnect
+            );
+
+            reject(
+                new Error(
+                    `Socket disconnected: ${reason}`
+                )
+            );
+
+        }
+
+        socket.on(
+            ackEvent,
+            onAck
         );
-    }
 
-    resolve();
+        socket.once(
+            "disconnect",
+            onDisconnect
+        );
+
+    });
+
 }
 
-        socket.on(ackEvent, onAck);
+
+async function waitForCompleteAck(
+    socket,
+    completeAckEvent,
+    batchId
+) {
+
+    return new Promise((resolve, reject) => {
+
+        const timeout = setTimeout(() => {
+
+            socket.off(
+                completeAckEvent,
+                onAck
+            );
+
+            socket.off(
+                "disconnect",
+                onDisconnect
+            );
+
+            reject(
+                new Error(
+                    "Complete ACK timeout"
+                )
+            );
+
+        }, 15 * 60 * 1000);
+
+        function onAck(data) {
+
+            if (
+                !data ||
+                data.batchId !== batchId
+            ) {
+                return;
+            }
+
+            clearTimeout(timeout);
+
+            socket.off(
+                completeAckEvent,
+                onAck
+            );
+
+            socket.off(
+                "disconnect",
+                onDisconnect
+            );
+
+            if (data.success === false) {
+
+                return reject(
+                    new Error(
+                        data.error ||
+                        "Complete rejected"
+                    )
+                );
+
+            }
+
+            resolve();
+
+        }
+
+        function onDisconnect(reason) {
+
+            clearTimeout(timeout);
+
+            socket.off(
+                completeAckEvent,
+                onAck
+            );
+
+            socket.off(
+                "disconnect",
+                onDisconnect
+            );
+
+            reject(
+                new Error(
+                    `Socket disconnected: ${reason}`
+                )
+            );
+
+        }
+
+        socket.on(
+            completeAckEvent,
+            onAck
+        );
+
+        socket.once(
+            "disconnect",
+            onDisconnect
+        );
 
     });
 
@@ -65,6 +225,9 @@ async function sendChunkedRequest(
 
     const completeEvent =
         `${baseEvent}Complete`;
+
+    const completeAckEvent =
+      `${baseEvent}CompleteAck`;
 
    console.log(
     `Sending ${chunks.length} request chunks`
@@ -118,24 +281,32 @@ async function sendChunkedRequest(
 
     }
 
-  socket.emit(
+ socket.emit(
     completeEvent,
     {
-
         batchId,
 
         ...payload,
 
-        totalChunks: chunks.length,
+        totalChunks:
+            chunks.length,
 
-        totalItems: items.length,
+        totalItems:
+            items.length,
 
-        completedAt: new Date().toISOString()
+        completedAt:
+            new Date().toISOString()
 
     }
 );
 
-   console.log(
+await waitForCompleteAck(
+    socket,
+    completeAckEvent,
+    batchId
+);
+
+console.log(
     "Request chunk transfer completed"
 );
 

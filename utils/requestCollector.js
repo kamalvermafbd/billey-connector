@@ -2,7 +2,44 @@ const batches = new Map();
 
 function addChunk(data) {
 
-    let batch = batches.get(data.batchId);
+    if (!data?.batchId) {
+        throw new Error(
+            "Chunk missing batchId"
+        );
+    }
+
+    if (
+        !Number.isInteger(data.chunkIndex) ||
+        data.chunkIndex < 1
+    ) {
+        throw new Error(
+            `Invalid chunkIndex: ${data.chunkIndex}`
+        );
+    }
+
+    if (
+        !Number.isInteger(data.totalChunks) ||
+        data.totalChunks < 1
+    ) {
+        throw new Error(
+            `Invalid totalChunks: ${data.totalChunks}`
+        );
+    }
+
+    if (data.chunkIndex > data.totalChunks) {
+        throw new Error(
+            `Chunk index ${data.chunkIndex} exceeds totalChunks ${data.totalChunks}`
+        );
+    }
+
+    if (!Array.isArray(data.data)) {
+        throw new Error(
+            "Chunk data must be an array"
+        );
+    }
+
+    let batch =
+        batches.get(data.batchId);
 
     if (!batch) {
 
@@ -10,23 +47,42 @@ function addChunk(data) {
 
             chunks: [],
 
-            totalChunks: data.totalChunks,
+            totalChunks:
+                data.totalChunks,
 
             receivedChunks: 0
 
         };
 
-        batches.set(data.batchId, batch);
+        batches.set(
+            data.batchId,
+            batch
+        );
+
+    } else if (
+        batch.totalChunks !==
+        data.totalChunks
+    ) {
+
+        throw new Error(
+            `totalChunks mismatch for batch ${data.batchId}`
+        );
 
     }
 
-    if (!batch.chunks[data.chunkIndex - 1]) {
+    if (
+        !batch.chunks[
+            data.chunkIndex - 1
+        ]
+    ) {
 
         batch.receivedChunks++;
 
     }
 
-    batch.chunks[data.chunkIndex - 1] = data.data;
+    batch.chunks[
+        data.chunkIndex - 1
+    ] = data.data;
 
 }
 

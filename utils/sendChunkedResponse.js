@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { buildChunks } = require("./ChunkBuilder");
 
-const ACK_TIMEOUT = 30000;
+const ACK_TIMEOUT = 15 * 60 * 1000;
 
 const HEARTBEAT_INTERVAL = 5000;
 
@@ -253,27 +253,21 @@ function startHeartbeat() {
 
     console.log("No chunks to send");
 
-    socket.emit(`${baseEvent}Complete`, {
-
-        batchId,
-
-        totalChunks: 0,
-
-        totalItems: 0,
-
-        completedAt: new Date().toISOString()
-
-    });
-
-    await waitForCompleteAck(
-
+    const completeAckPromise =
+    waitForCompleteAck(
         socket,
-
         `${baseEvent}CompleteAck`,
-
         batchId
-
     );
+
+socket.emit(`${baseEvent}Complete`, {
+    batchId,
+    totalChunks: 0,
+    totalItems: 0,
+    completedAt: new Date().toISOString()
+});
+
+await completeAckPromise;
 
     console.log("Empty collection completed");
 
@@ -366,21 +360,24 @@ console.log({
     totalItems: items.length
 });
 
-    socket.emit(
-    completeEvent,
-        {
-            batchId,
-            totalChunks: chunks.length,
-            totalItems: items.length,
-            completedAt: new Date().toISOString()
-        }
-    );
-
-    await waitForCompleteAck(
+    const completeAckPromise =
+    waitForCompleteAck(
         socket,
         completeAckEvent,
         batchId
     );
+
+socket.emit(
+    completeEvent,
+    {
+        batchId,
+        totalChunks: chunks.length,
+        totalItems: items.length,
+        completedAt: new Date().toISOString()
+    }
+);
+
+await completeAckPromise;
 
     console.log(
             "Complete event sent"

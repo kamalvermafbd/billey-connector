@@ -35,6 +35,11 @@ class ConnectorProtocolSender {
                 onReady
             );
 
+            this.socket.off(
+                "disconnect",
+                onDisconnect
+            );
+
             if (data.collection !== collection) {
                 return;
             }
@@ -101,9 +106,14 @@ async waitForReceived(
                 return;
             }
 
-            this.socket.off(
+           this.socket.off(
                 event,
                 onReceived
+            );
+
+            this.socket.off(
+                "disconnect",
+                onDisconnect
             );
 
             resolve();
@@ -166,6 +176,11 @@ async waitForCompleted(
             this.socket.off(
                 event,
                 onCompleted
+            );
+
+            this.socket.off(
+                "disconnect",
+                onDisconnect
             );
 
             if (data.success === false) {

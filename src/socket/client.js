@@ -624,11 +624,17 @@ socket.on("getMastersVoucherGuids", async (data) => {
 
     try {
 
-        const voucherGuids =
-            await importVoucherGuids({
-                company: data.company
-            });
+        console.log("GUID REQUEST DATES:", {
+            fromDate: data.fromDate,
+            toDate: data.toDate
+        });
 
+       const voucherGuids =
+        await importVoucherGuids({
+            company: data.company,
+            fromDate: data.fromDate,
+            toDate: data.toDate
+        });
         socket.emit(
             "getMastersVoucherGuidsResult",
             {
@@ -650,21 +656,22 @@ socket.on("getMastersVoucherGuids", async (data) => {
                 "✅ Voucher GUID chunks sent"
             );
 
-        } else {
+       } else {
 
-            console.log(
-                "No voucher GUIDs found"
-            );
-
-            socket.emit(
-        "getMastersVoucherGuidsComplete",
-        {
-            totalChunks: 0,
-            totalItems: 0
-        }
+    console.log(
+        "No voucher GUIDs found"
     );
 
-        }
+    await sendChunkedResponse(
+        socket,
+        "getMastersVoucherGuids",
+        []
+    );
+
+    console.log(
+        "✅ Empty Voucher GUID collection completed"
+    );
+}
 
     } catch (err) {
 
@@ -718,19 +725,21 @@ socket.on("getMastersGroupGuids", async (data) => {
 
         } else {
 
-            console.log(
-                "No Group GUIDs found"
-            );
+    console.log(
+        "No Group GUIDs found"
+    );
 
-            socket.emit(
-                "getMastersGroupGuidsComplete",
-                {
-                    totalChunks: 0,
-                    totalItems: 0
-                }
-            );
+    await sendChunkedResponse(
+        socket,
+        "getMastersGroupGuids",
+        []
+    );
 
-        }
+    console.log(
+        "✅ Empty Group GUID collection completed"
+    );
+
+}
 
 
     } catch (err) {
@@ -783,20 +792,21 @@ socket.on("getMastersLedgerGuids", async (data) => {
 
         } else {
 
-            console.log(
-                "No Ledger GUIDs found"
-            );
+    console.log(
+        "No Ledger GUIDs found"
+    );
 
-            socket.emit(
-                "getMastersLedgerGuidsComplete",
-                {
-                    totalChunks: 0,
-                    totalItems: 0
-                }
-            );
+    await sendChunkedResponse(
+        socket,
+        "getMastersLedgerGuids",
+        []
+    );
 
-        }
+    console.log(
+        "✅ Empty Ledger GUID collection completed"
+    );
 
+}
 
     } catch (err) {
 
@@ -1058,6 +1068,243 @@ socket.on("voucherByGuidChunk", (data) => {
 
 });
 
+socket.on("stockByGuidChunk", (data) => {
+
+    try {
+
+        addChunk(data);
+
+        socket.emit("stockByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: true
+        });
+
+        console.log(
+            `Stock Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
+        );
+
+    } catch (err) {
+
+        socket.emit("stockByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: false,
+            error: err.message
+        });
+
+    }
+
+});
+
+socket.on("stockByGuidComplete", async (data) => {
+
+    try {
+
+        if (!isComplete(data.batchId)) {
+
+            throw new Error(
+                "Missing stock request chunks"
+            );
+
+        }
+
+        const stockGuids =
+            complete(data.batchId);
+
+        socket.emit(
+        "stockByGuidCompleteAck",
+                {
+                    batchId: data.batchId,
+                    success: true
+                }
+            );
+        console.log(
+            "Merged Stock GUIDs :",
+            stockGuids.length
+        );
+
+        const stocks =
+            await importStockBulkByGuid({
+
+                company: data.company,
+
+                stockGuids
+
+            });
+
+        socket.emit(
+            "stockByGuidResult",
+            {
+                success: true,
+                collectionName: "stocks",
+                stockCount: stocks.length
+            }
+        );
+
+        if (stocks.length > 0) {
+
+            await sendChunkedResponse(
+                socket,
+                "stockByGuid",
+                stocks
+            );
+
+            console.log(
+                "✅ Missing Stock chunks sent"
+            );
+
+      } else {
+
+    await sendChunkedResponse(
+        socket,
+        "stockByGuid",
+        []
+    );
+
+    console.log(
+        "✅ Empty Stock collection completed"
+    );
+
+}
+
+    } catch (err) {
+
+        console.error(
+            "STOCK BY GUID ERROR",
+            err
+        );
+
+        socket.emit(
+            "stockByGuidResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("ledgerByGuidChunk", (data) => {
+
+    try {
+
+        addChunk(data);
+
+        socket.emit("ledgerByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: true
+        });
+
+    } catch (err) {
+
+        socket.emit("ledgerByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: false,
+            error: err.message
+        });
+
+    }
+
+});
+
+
+socket.on("ledgerByGuidComplete", async (data) => {
+
+    try {
+
+        if (!isComplete(data.batchId)) {
+
+            throw new Error(
+                "Missing ledger request chunks"
+            );
+
+        }
+
+        const ledgerGuids =
+            complete(data.batchId);
+
+        socket.emit(
+        "ledgerByGuidCompleteAck",
+            {
+                batchId: data.batchId,
+                success: true
+            }
+        );
+
+        console.log(
+            "Merged Ledger GUIDs :",
+            ledgerGuids.length
+        );
+
+        const ledgers =
+            await importLedgerBulkByGuid({
+
+                company: data.company,
+
+                ledgerGuids
+
+            });
+
+        socket.emit(
+            "ledgerByGuidResult",
+            {
+                success: true,
+                collectionName: "ledgers",
+                ledgerCount: ledgers.length
+            }
+        );
+
+        if (ledgers.length > 0) {
+
+            await sendChunkedResponse(
+                socket,
+                "ledgerByGuid",
+                ledgers
+            );
+
+            console.log(
+                "✅ Missing Ledger chunks sent"
+            );
+
+       } else {
+
+    await sendChunkedResponse(
+        socket,
+        "ledgerByGuid",
+        []
+    );
+
+    console.log(
+        "✅ Empty Ledger collection completed"
+    );
+
+}
+
+    } catch (err) {
+
+        console.error(
+            "LEDGER BY GUID ERROR",
+            err
+        );
+
+        socket.emit(
+            "ledgerByGuidResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+
 socket.on("voucherByGuidComplete", async (data) => {
 
     try {
@@ -1072,6 +1319,15 @@ socket.on("voucherByGuidComplete", async (data) => {
 
         const voucherGuids =
             complete(data.batchId);
+
+
+        socket.emit(
+            "voucherByGuidCompleteAck",
+            {
+                batchId: data.batchId,
+                success: true
+            }
+        );
 
         console.log(
             "Merged GUIDs :",
@@ -1109,12 +1365,10 @@ if (vouchers.length > 0) {
 
 } else {
 
-    socket.emit(
-        "voucherByGuidComplete",
-        {
-            totalChunks: 0,
-            totalItems: 0
-        }
+    await sendChunkedResponse(
+        socket,
+        "voucherByGuid",
+        []
     );
 
 }
@@ -1171,15 +1425,13 @@ socket.on("voucherByGuid", async (data) => {
 
         } else {
 
-            socket.emit(
-                "voucherByGuidComplete",
-                {
-                    totalChunks: 0,
-                    totalItems: 0
-                }
-            );
+    await sendChunkedResponse(
+        socket,
+        "voucherByGuid",
+        []
+    );
 
-        }
+}
 
     } catch (err) {
 
@@ -1235,17 +1487,15 @@ socket.on("stockByGuid", async (data) => {
                 "✅ Missing Stock chunks sent"
             );
 
-        } else {
+       } else {
 
-            socket.emit(
-                "stockByGuidComplete",
-                {
-                    totalChunks: 0,
-                    totalItems: 0
-                }
-            );
+    await sendChunkedResponse(
+        socket,
+        "stockByGuid",
+        []
+    );
 
-        }
+}
 
     } catch (err) {
 
@@ -1294,17 +1544,19 @@ socket.on("ledgerByGuid", async (data) => {
                 ledgers
             );
 
-        } else {
+       } else {
 
-            socket.emit(
-                "ledgerByGuidComplete",
-                {
-                    totalChunks: 0,
-                    totalItems: 0
-                }
-            );
+    await sendChunkedResponse(
+        socket,
+        "ledgerByGuid",
+        []
+    );
 
-        }
+    console.log(
+        "✅ Empty Ledger collection completed"
+    );
+
+}
 
     } catch (err) {
 

@@ -73,7 +73,7 @@ async function sendCollections(
         console.log(
             `${collection.key} : ${rows.length}`
         );
-
+/*
         if (rows.length === 0) {
 
             console.log(
@@ -83,7 +83,7 @@ async function sendCollections(
             continue;
 
         }
-
+*/
         await sender.sendCollection(
 
     collection.event,

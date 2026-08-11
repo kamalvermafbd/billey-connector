@@ -18,6 +18,8 @@ function buildVoucherBulkGuidRequest({
 
         <TYPE>Collection</TYPE>
 
+         
+
         <ID>BilleyVoucherCollection</ID>
 
     </HEADER>
@@ -40,9 +42,9 @@ function buildVoucherBulkGuidRequest({
 
                     <COLLECTION NAME="BilleyVoucherCollection">
 
-                        <TYPE>Voucher</TYPE>
+                      <FILTER>VoucherGuidFilter</FILTER>
 
-                        <FILTER>VoucherGuidFilter</FILTER>
+                        <TYPE>Voucher</TYPE>
 
                         <FETCH>
 

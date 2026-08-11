@@ -1,24 +1,24 @@
 {
-  "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006bb",
-  "masterId": "1723",
-  "alterId": "4350",
-  "name": "6 D Plus Studio",
-  "parent": "Sundry Debtors",
-  "parentGroupGuid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000014",
-  "parentGroupMasterId": "20",
-  "parentGroupAlterId": "4919",
+  "guid": "755da616-c913-46c0-9ad0-de5499d071a0-0000001f",
+  "masterId": "31",
+  "alterId": "596",
+  "name": "Cash",
+  "parent": "Cash-in-Hand",
+  "parentGroupGuid": "755da616-c913-46c0-9ad0-de5499d071a0-00000015",
+  "parentGroupMasterId": "21",
+  "parentGroupAlterId": "336",
   "reservedName": "",
   "gstApplicable": "",
-  "gstRegistrationType": "Regular",
-  "gstin": "06AACFZ5081A1ZE",
-  "mailingName": "6 D Plus Studio",
-  "address": "C-833, Vipul Plaza, Sector-81, Faridabad",
-  "stateName": "Haryana",
-  "country": "India",
+  "gstRegistrationType": "",
+  "gstin": "",
+  "mailingName": "",
+  "address": "",
+  "stateName": "",
+  "country": "",
   "pinCode": "",
   "phone": "",
   "email": "",
-  "contactPerson": "",
+  "contactPerson": "Primary Mobile No.",
   "openingBalance": 0,
   "openingBalanceAmount": 0,
   "openingBalanceType": "",
@@ -30,27 +30,12 @@
   "gstTaxType": "",
   "gstRate": 0,
   "raw": {
-    "ADDRESS.LIST": {
-      "ADDRESS": {
-        "#text": "C-833, Vipul Plaza, Sector-81, Faridabad",
-        "TYPE": "String"
-      },
-      "TYPE": "String"
-    },
     "GUID": {
-      "#text": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006bb",
-      "TYPE": "String"
-    },
-    "GSTREGISTRATIONTYPE": {
-      "#text": "Regular",
+      "#text": "755da616-c913-46c0-9ad0-de5499d071a0-0000001f",
       "TYPE": "String"
     },
     "PARENT": {
-      "#text": "Sundry Debtors",
-      "TYPE": "String"
-    },
-    "MAILINGNAME": {
-      "#text": "6 D Plus Studio",
+      "#text": "Cash-in-Hand",
       "TYPE": "String"
     },
     "TAXTYPE": {
@@ -70,11 +55,11 @@
       "TYPE": "Logical"
     },
     "ALTERID": {
-      "#text": 4350,
+      "#text": 596,
       "TYPE": "Number"
     },
     "MASTERID": {
-      "#text": 1723,
+      "#text": 31,
       "TYPE": "Number"
     },
     "RATEOFTAXCALCULATION": {
@@ -87,7 +72,7 @@
     },
     "LANGUAGENAME.LIST": {
       "NAME.LIST": {
-        "NAME": "6 D Plus Studio",
+        "NAME": "Cash",
         "TYPE": "String"
       },
       "LANGUAGEID": {
@@ -95,55 +80,19 @@
         "TYPE": "Number"
       }
     },
-    "LEDGSTREGDETAILS.LIST": {
-      "APPLICABLEFROM": {
-        "#text": 20210401,
-        "TYPE": "Date"
-      },
-      "GSTREGISTRATIONTYPE": {
-        "#text": "Regular",
+    "LEDGSTREGDETAILS.LIST": "",
+    "LEDMAILINGDETAILS.LIST": "",
+    "CONTACTDETAILS.LIST": {
+      "NAME": {
+        "#text": "Primary Mobile No.",
         "TYPE": "String"
       },
-      "STATE": {
-        "#text": "Haryana",
-        "TYPE": "String"
-      },
-      "PLACEOFSUPPLY": {
-        "#text": "Haryana",
-        "TYPE": "String"
-      },
-      "GSTIN": {
-        "#text": "06AACFZ5081A1ZE",
-        "TYPE": "String"
+      "ISDEFAULTWHATSAPPNUM": {
+        "#text": "Yes",
+        "TYPE": "Logical"
       }
     },
-    "LEDMAILINGDETAILS.LIST": {
-      "ADDRESS.LIST": {
-        "ADDRESS": "C-833, Vipul Plaza, Sector-81, Faridabad",
-        "TYPE": "String"
-      },
-      "APPLICABLEFROM": {
-        "#text": 20210401,
-        "TYPE": "Date"
-      },
-      "PINCODE": {
-        "TYPE": "String"
-      },
-      "MAILINGNAME": {
-        "#text": "6 D Plus Studio",
-        "TYPE": "String"
-      },
-      "STATE": {
-        "#text": "Haryana",
-        "TYPE": "String"
-      },
-      "COUNTRY": {
-        "#text": "India",
-        "TYPE": "String"
-      }
-    },
-    "CONTACTDETAILS.LIST": "",
-    "NAME": "6 D Plus Studio",
+    "NAME": "Cash",
     "RESERVEDNAME": ""
   }
 }
