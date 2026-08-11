@@ -10,12 +10,29 @@ const {
 } = require("./groupImportService");
 
 const {
+    fetchMasterIdsInBatches
+} = require("./tallyService");
+
+
+const {
     importUnits
 } = require("./unitImportService");
 
 const {
+    importVouchers
+} = require("./voucherImportService");
+
+const {
+    importVoucherBulkByGuid
+} = require("./voucherImportServiceBulkGuid");
+
+const {
     importLedgers
 } = require("./ledgerImportService");
+
+const {
+importLedgerBulkByGuid
+} = require("./ledgerImportServiceBulkGuid");
 
 const {
     importStockGroups
@@ -26,6 +43,11 @@ const {
 } = require("./stockImportService");
 
 const {
+importStockBulkByGuid
+} = require("./stockImportServiceBulkGuid");
+
+
+const {
     importGodowns
 } = require("./godownImportService");
 
@@ -33,15 +55,15 @@ const {
     importCostCentres
 } = require("./costCentreImportService");
 
-
 const {
-    importVouchers,
     importVoucherGuids
 } = require("./voucherImportService");
 
 const {
     buildTallyLookups
 } = require("./tallyLookups");
+
+
 
 // ============================================================
 // 30072026
@@ -87,13 +109,33 @@ console.log("After importCompany");
     );
     }
 
-    console.log("Importing Groups...");
+   console.log("Importing Groups...");
 
-    const groups = await importGroups({
-        company
+const masterBatches =
+    await fetchMasterIdsInBatches({
+        company,
+        batchSize: 50
     });
 
-    console.log(`✓ Groups Imported : ${groups.length}`);
+const groups = [];
+
+for (const batch of masterBatches) {
+
+    const batchGroups =
+        await importGroups({
+            company,
+            masterIds: batch
+        });
+
+    groups.push(
+        ...batchGroups
+    );
+    }
+
+    console.log(
+        `✓ Groups Imported : ${groups.length}`
+    );
+
     console.log("######## AFTER GROUPS ########");
 
     // ============================================================
@@ -129,7 +171,7 @@ console.log("After importCompany");
 
     console.log(`✓ Units Imported : ${units.length}`);
 
-
+/*
     console.log("Importing Ledgers...");
 
     // incremental ledgers save ke liye
@@ -141,7 +183,56 @@ console.log("After importCompany");
     });
 
     console.log(`✓ Changed Ledgers Imported : ${ledgers.length}`);
+*/
 
+console.log("Importing Ledgers...");
+
+// ============================================
+// STEP 1: ALTERID se changed Ledgers lao
+// GUID already response mein available hai
+// ============================================
+
+const changedLedgers =
+    await importLedgers({
+        company,
+        booksBeginningFrom:
+            companyInfo.booksBeginningFrom,
+        lastLedgerAlterId
+    });
+
+console.log(
+    `✓ Changed Ledgers Detected : ${changedLedgers.length}`
+);
+
+
+// ============================================
+// STEP 2: Changed Ledgers se GUIDs nikalo
+// ============================================
+
+const changedLedgerGuids =
+    changedLedgers
+        .map(ledger => ledger.guid)
+        .filter(Boolean);
+
+console.log(
+    `✓ Changed Ledger GUIDs : ${changedLedgerGuids.length}`
+);
+
+
+// ============================================
+// STEP 3: Existing Bulk GUID Pipeline
+// 50 GUID Level-1 already handled there
+// ============================================
+
+const ledgers =
+    await importLedgerBulkByGuid({
+        company,
+        ledgerGuids: changedLedgerGuids
+    });
+
+console.log(
+    `✓ Changed Ledgers Imported : ${ledgers.length}`
+);
 
     // full ledger list sirf lookup ke liye
     const allLedgers = await importLedgers({
@@ -201,13 +292,51 @@ console.log(
     );
 
     console.log("Importing Stocks...");
-    const stocks = await importStocks({
-        company,
-        lastStockAlterId,
 
-    });
+// ============================================
+// STEP 1: ALTERID se changed Stocks lao
+// GUID already response mein available hai
+// ============================================
 
-    console.log(`✓ Stocks Imported : ${stocks.length}`);
+const changedStocks =
+await importStocks({
+    company,
+    lastStockAlterId
+});
+
+console.log(
+    `✓ Changed Stocks Detected : ${changedStocks.length}`
+);
+
+
+// ============================================
+// STEP 2: Changed Stocks se GUIDs nikalo
+// ============================================
+
+const changedStockGuids =
+changedStocks
+    .map(stock => stock.guid)
+    .filter(Boolean);
+
+console.log(
+    `✓ Changed Stock GUIDs : ${changedStockGuids.length}`
+);
+
+
+// ============================================
+// STEP 3: Existing Bulk GUID Pipeline
+// 50 GUID Level-1 already handled there
+// ============================================
+
+const stocks =
+await importStockBulkByGuid({
+    company,
+    stockGuids: changedStockGuids
+});
+
+console.log(
+    `✓ Changed Stocks Imported : ${stocks.length}`
+);
 
     const allStocks = await importStocks({
     company,
@@ -264,28 +393,90 @@ console.log("######## AFTER COST CENTRES ########");
 
 console.log("Importing Vouchers...");
 
-const voucherResult = await importVouchers({
-    company,
-    fromDate: companyInfo.booksBeginningFrom,
-   // toDate: "20270401",   // temporary test
-    lastAlterId,
-    lookups
-});
 
-const voucherGuids = await importVoucherGuids({
-    company
-});
+
+// ============================================
+// PHASE 1: FULL VOUCHER GUID DISCOVERY
+// Level-1 = 50 GUIDs
+// ============================================
+
+console.log("Importing Full Voucher GUIDs...");
+
+const voucherGuids =
+    await importVoucherGuids({
+        company,
+        fromDate:
+            companyInfo.booksBeginningFrom,
+        toDate:
+            new Date()
+                .toISOString()
+                .slice(0, 10)
+                .replace(/-/g, "")
+    });
 
 console.log(
-    "Voucher GUID Count :",
-    voucherGuids.length
+    `✓ Total Voucher GUIDs Discovered : ${voucherGuids.length}`
 );
 
-console.log("######## AFTER VOUCHER GUIDS ########");
 
-const vouchers = voucherResult.vouchers || [];
 
-console.log(`✓ Vouchers Imported : ${vouchers.length}`);
+// ============================================
+// STEP 1: ALTERID se changed Vouchers lao
+// GUID already response mein available hai
+// ============================================
+
+const voucherResult =
+    await importVouchers({
+        company,
+        fromDate:
+            companyInfo.booksBeginningFrom,
+        // toDate: "20270401",
+        lastAlterId,
+        lookups
+    });
+
+const changedVouchers =
+    voucherResult.vouchers || [];
+
+console.log(
+    `✓ Changed Vouchers Detected : ${changedVouchers.length}`
+);
+
+
+// ============================================
+// STEP 2: Changed Vouchers se GUIDs nikalo
+// ============================================
+
+const changedVoucherGuids =
+    changedVouchers
+        .map(voucher => voucher.guid)
+        .filter(Boolean);
+
+console.log(
+    `✓ Changed Voucher GUIDs : ${changedVoucherGuids.length}`
+);
+
+
+// ============================================
+// STEP 3: Existing Bulk GUID Pipeline
+// Voucher Level-1 = 25 GUID
+// XML safety limit = 300 KB
+// ============================================
+
+const vouchers =
+    await importVoucherBulkByGuid({
+        company,
+        voucherGuids:
+            changedVoucherGuids
+    });
+
+console.log(
+    `✓ Changed Vouchers Imported : ${vouchers.length}`
+);
+
+console.log(
+    "######## AFTER VOUCHER BULK GUIDS ########"
+);
 
 //console.log("Importing Voucher Types...");
 //const voucherTypes = await importVoucherTypes({
@@ -326,7 +517,7 @@ return {
     godowns: godowns.length,
     costCentres: costCentres.length,
     vouchers: vouchers.length,
-    voucherGuids: voucherGuids.length,
+    //voucherGuids: voucherGuids.length,
 
     totalMasters:
     groups.length +
@@ -345,7 +536,7 @@ return {
 
     units,
 
-    ledgers: allLedgers,
+    ledgers,
 
     allLedgers,
 
@@ -358,7 +549,7 @@ return {
     godowns,
     costCentres,
     vouchers,
-    voucherGuids
+    //voucherGuids
     
 
 };

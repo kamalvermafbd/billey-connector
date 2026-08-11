@@ -1,7 +1,8 @@
-
 const {
     sendToTally,
-    selectCompany
+    selectCompany,
+    fetchVoucherIds,
+    fetchTallyCollection
 } = require("./tallyService");
 
 const {
@@ -18,57 +19,188 @@ const {
     parseVoucherGuidResponse
 } = require("./voucherParser");
 
-
-
 async function importVoucherGuids({
-    company
+    company,
+    fromDate,
+    toDate
 }) {
 
-     await selectCompany(company);
-   
+    if (!company) {
+        throw new Error(
+            "company missing in importVoucherGuids"
+        );
+    }
 
-    const requestXml =
-        buildVoucherGuidRequest({
-            company
-        });
+    if (!fromDate) {
+        throw new Error(
+            "fromDate missing in importVoucherGuids"
+        );
+    }
 
-    const xml =
-        await sendToTally(requestXml);
-/*
-    fs.appendFileSync(
-    "./logs/send-to-tally-debug.jsonl",
-    JSON.stringify({
-        stage: "VOUCHER_GUID_REQUEST",
-        request: requestXml.substring(0, 1000),
-        response: xml.substring(0, 1000)
-    }) + "\n"
-);    
-*/
-    const parsed =
-        parseVoucherGuidResponse(xml);
-/*
-        fs.writeFileSync(
-    "./logs/voucher-guid-request.xml",
-    requestXml,
-    "utf8"
+    if (!toDate) {
+        throw new Error(
+            "toDate missing in importVoucherGuids"
+        );
+    }
+
+    await selectCompany(company);
+
+    // ============================================
+    // MASTERID BOUNDED DISCOVERY
+    // MASTERID = discovery boundary only
+    // GUID = actual voucher identity
+    // ============================================
+
+    const allRecords =
+    await fetchVoucherIds({
+        company,
+        fromDate,
+        toDate
+    });
+
+console.log(
+    "Total Voucher Records:",
+    allRecords.length
 );
 
-fs.writeFileSync(
-    "./logs/voucher-guid-response.xml",
-    xml,
-    "utf8"
-);
+    // ============================================
+    // UNIQUE GUIDS
+    // ============================================
 
-fs.writeFileSync(
-    "./logs/voucher-guid-parsed.json",
-    JSON.stringify(parsed, null, 2),
-    "utf8"
-);
-*/
-    return parsed;
+    const uniqueByGuid =
+        new Map();
 
+    for (const record of allRecords) {
+
+        if (!record.guid) {
+            continue;
+        }
+
+        uniqueByGuid.set(
+            record.guid,
+            record
+        );
+    }
+
+    const finalRecords =
+        Array.from(
+            uniqueByGuid.values()
+        );
+
+    console.log(
+        "======================================"
+    );
+
+    // ============================================
+// LEVEL-1
+// 50 VOUCHERS PER TALLY REQUEST
+// ============================================
+
+const LEVEL1_BATCH_SIZE = 200;
+
+const level1Results = [];
+
+for (
+    let i = 0;
+    i < finalRecords.length;
+    i += LEVEL1_BATCH_SIZE
+) {
+
+    const batch =
+        finalRecords.slice(
+            i,
+            i + LEVEL1_BATCH_SIZE
+        );
+
+    console.log(
+        `Voucher Level-1 Batch ${
+            Math.floor(i / LEVEL1_BATCH_SIZE) + 1
+        } : ${batch.length}`
+    );
+
+    const masterIds =
+    batch
+        .map(
+            row => Number(row.masterid)
+        )
+        .filter(
+            Number.isFinite
+        );
+
+    if (!masterIds.length) {
+    throw new Error(
+        `Voucher Level-1 Batch ${
+            Math.floor(i / LEVEL1_BATCH_SIZE) + 1
+        } contains no valid MASTERIDs`
+    );
 }
 
+    const result =
+        await fetchTallyCollection({
+
+            company,
+
+            collectionName:
+                "BilleyVoucherCollection",
+
+            collectionType:
+                "Voucher",
+
+            fetchFields: [
+                "GUID",
+                "MASTERID",
+                "ALTERID",
+                "DATE",
+                "EFFECTIVEDATE",
+                "VOUCHERTYPENAME",
+                "VOUCHERNUMBER",
+                "REFERENCE",
+                "REFERENCEDATE",
+                "PARTYLEDGERNAME",
+                "NARRATION",
+                "ISINVOICE",
+                "ISOPTIONAL",
+                "ISCANCELLED"
+            ],
+
+            masterIds,
+
+            fromDate,
+            toDate
+        });
+
+    level1Results.push(
+        result
+    );
+}
+
+    console.log(
+        "FULL VOUCHER GUID DISCOVERY"
+    );
+
+    console.log(
+        "Date Range:",
+        fromDate,
+        "→",
+        toDate
+    );
+
+    console.log(
+        "Total Records:",
+        finalRecords.length
+    );
+
+    console.log(
+        "Unique GUIDs:",
+        finalRecords.length
+    );
+
+    console.log(
+        "======================================"
+    );
+
+    return finalRecords;
+}
 
 async function importVoucherByGuid({
     company,

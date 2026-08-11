@@ -215,6 +215,1223 @@ console.error(err);
 
 }
 
+// ============================================================
+// LEVEL-1 TALLY CHUNKING
+// MasterID Range Fetch
+// NEW CODE - EXISTING FUNCTIONS UNTOUCHED
+// ============================================================
+async function fetchTallyCollectionByMasterId({
+    company,
+    collectionName,
+    collectionType,
+    startId,
+    endId,
+    fetchFields = []
+}) {
+
+    if (!company) {
+        throw new Error(
+            "company missing in fetchTallyCollectionByMasterId"
+        );
+    }
+
+    if (!collectionName) {
+        throw new Error(
+            "collectionName missing in fetchTallyCollectionByMasterId"
+        );
+    }
+
+    if (!collectionType) {
+        throw new Error(
+            "collectionType missing in fetchTallyCollectionByMasterId"
+        );
+    }
+
+    if (
+        !Number.isFinite(startId) ||
+        !Number.isFinite(endId)
+    ) {
+        throw new Error(
+            "startId/endId must be numbers"
+        );
+    }
+
+    if (endId <= startId) {
+        throw new Error(
+            `Invalid MasterID range: ${startId} - ${endId}`
+        );
+    }
+
+    // Same company selection used by getAllLedgers()
+    await selectCompany(company);
+
+    const fetchXml =
+        fetchFields.length > 0
+            ? `
+        <FETCH>
+            ${fetchFields.join(",\n")}
+        </FETCH>
+      `
+            : "";
+
+    const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>${collectionName}</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="${collectionName}">
+
+                        <TYPE>${collectionType}</TYPE>
+
+                        ${fetchXml}
+
+                        <FILTER>
+                            BilleyMasterIDRangeFilter
+                        </FILTER>
+
+                    </COLLECTION>
+
+                   <SYSTEM TYPE="Formulae" NAME="BilleyMasterIDRangeFilter">
+    $MASTERID &gt; ${startId} AND $MASTERID &lt;= ${endId}
+</SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+    // ========================================================
+    // SAVE GENERATED XML FOR DEBUGGING
+    // ========================================================
+
+    fs.writeFileSync(
+        path.join(
+            __dirname,
+            "..",
+            "logs",
+            "master-id-request.xml"
+        ),
+        xml
+    );
+
+    const startedAt = Date.now();
+
+    console.log(
+        "===================================="
+    );
+
+    console.log(
+        "TALLY MASTER ID RANGE TEST"
+    );
+
+    console.log(
+        "Company :",
+        company
+    );
+
+    console.log(
+        "Collection :",
+        collectionName
+    );
+
+    console.log(
+        "Type :",
+        collectionType
+    );
+
+    console.log(
+        "MasterID Range :",
+        `${startId} - ${endId}`
+    );
+
+    console.log(
+        "FILTER : ENABLED"
+    );
+
+    console.log(
+        "Request XML saved to:",
+        "src/logs/master-id-request.xml"
+    );
+
+    const result =
+        await sendToTally(xml);
+
+    const durationMs =
+        Date.now() - startedAt;
+
+    const responseBytes =
+        Buffer.byteLength(
+            String(result || ""),
+            "utf8"
+        );
+
+    console.log(
+        "Response Bytes :",
+        responseBytes
+    );
+
+    console.log(
+        "Response KB :",
+        Math.round(
+            responseBytes / 1024
+        )
+    );
+
+    console.log(
+        "Duration MS :",
+        durationMs
+    );
+
+    console.log(
+        "===================================="
+    );
+
+    return result;
+}
+
+async function fetchMasterIds({
+    company
+}) {
+
+    if (!company) {
+        throw new Error(
+            "company missing in fetchMasterIds"
+        );
+    }
+
+    await selectCompany(company);
+
+    const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>BilleyMasterIdCollection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyMasterIdCollection">
+
+                        <TYPE>Group</TYPE>
+
+                        <FETCH>
+                            MASTERID
+                        </FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+    const response =
+        await sendToTally(xml);
+
+    const json =
+        parser.parse(response);
+
+    const rawMasters =
+        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP;
+
+    const masters =
+        toArray(rawMasters);
+
+    return masters
+        .map(m =>
+            Number(
+                getValue(m.MASTERID)
+            )
+        )
+        .filter(id =>
+            Number.isFinite(id)
+        );
+}
+
+async function fetchMasterIdsInBatches({
+    company,
+    batchSize = 50
+}) {
+
+    const masterIds =
+        await fetchMasterIds({
+            company
+        });
+
+    const batches = [];
+
+    for (
+        let i = 0;
+        i < masterIds.length;
+        i += batchSize
+    ) {
+
+        batches.push(
+            masterIds.slice(
+                i,
+                i + batchSize
+            )
+        );
+    }
+
+    return batches;
+}
+
+async function fetchMastersInBatches({
+    company,
+    collectionName,
+    collectionType,
+    fetchFields = [],
+    batchSize = 50
+}) {
+
+    const batches =
+        await fetchMasterIdsInBatches({
+            company,
+            batchSize
+        });
+
+    const allResults = [];
+
+    for (const batch of batches) {
+
+        const result =
+            await fetchTallyCollection({
+
+                company,
+
+                collectionName,
+
+                collectionType,
+
+                fetchFields,
+
+                masterIds: batch
+            });
+
+        allResults.push(result);
+    }
+
+    return allResults;
+}
+
+
+
+async function fetchVouchersInBatches({
+    company,
+    fromDate,
+    toDate,
+    batchSize = 50
+}) {
+
+    const batches =
+        await fetchVoucherIdsInBatches({
+            company,
+            fromDate,
+            toDate,
+            batchSize
+        });
+
+    const allResults = [];
+
+    for (const batch of batches) {
+
+        const masterIds =
+            batch
+                .map(row => row.masterid)
+                .filter(
+                    id => Number.isFinite(
+                        Number(id)
+                    )
+                )
+                .map(id => Number(id));
+
+        if (!masterIds.length) {
+            continue;
+        }
+
+        const result =
+            await fetchTallyCollection({
+
+                company,
+
+                collectionName:
+                    "BilleyVoucherCollection",
+
+                collectionType:
+                    "Voucher",
+
+                fetchFields: [
+                    "GUID",
+                    "MASTERID",
+                    "ALTERID",
+                    "DATE",
+                    "EFFECTIVEDATE",
+                    "VOUCHERTYPENAME",
+                    "VOUCHERNUMBER",
+                    "REFERENCE",
+                    "REFERENCEDATE",
+                    "PARTYLEDGERNAME",
+                    "NARRATION",
+                    "ISINVOICE",
+                    "ISOPTIONAL",
+                    "ISCANCELLED"
+                ],
+
+                masterIds,
+
+                fromDate,
+                toDate
+            });
+
+        allResults.push(result);
+    }
+
+    return allResults;
+}
+
+async function fetchVoucherIds({
+    company,
+    fromDate,
+    toDate,
+    startMasterId = null,
+    endMasterId = null
+}) {
+
+    if (!company) {
+        throw new Error(
+            "company missing in fetchVoucherIds"
+        );
+    }
+
+    if (!fromDate) {
+        throw new Error(
+            "fromDate missing in fetchVoucherIds"
+        );
+    }
+
+    if (!toDate) {
+        throw new Error(
+            "toDate missing in fetchVoucherIds"
+        );
+    }
+
+    await selectCompany(company);
+
+    const useMasterIdRange =
+        startMasterId !== null &&
+        endMasterId !== null;
+
+    const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyVoucherIdCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVFROMDATE TYPE="Date">
+                    ${fromDate}
+                </SVFROMDATE>
+
+                <SVTODATE TYPE="Date">
+                    ${toDate}
+                </SVTODATE>
+
+                <SVCURRENTDATE TYPE="Date">
+                    ${toDate}
+                </SVCURRENTDATE>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherIdCollection">
+
+                        <TYPE>Voucher</TYPE>
+
+                        ${
+                            useMasterIdRange
+                                ? `
+                        <FILTER>
+                            BilleyVoucherMasterIdRangeFilter
+                        </FILTER>
+                        `
+                                : ""
+                        }
+
+                        <FETCH>
+
+                            MASTERID,
+                            GUID,
+                            ALTERID,
+                            DATE,
+                            VOUCHERTYPENAME,
+                            VOUCHERNUMBER
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                    ${
+                        useMasterIdRange
+                            ? `
+                    <SYSTEM
+                        TYPE="Formulae"
+                        NAME="BilleyVoucherMasterIdRangeFilter">
+
+                       $MASTERID &gt; ${Number(startMasterId)}
+                        AND
+                        $MASTERID &lt;= ${Number(endMasterId)}
+
+                    </SYSTEM>
+                    `
+                            : ""
+                    }
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+    console.log(
+        "======================================"
+    );
+
+    console.log(
+        "VOUCHER DISCOVERY REQUEST"
+    );
+
+    console.log(
+        "Company:",
+        company
+    );
+
+    console.log(
+        "Date:",
+        fromDate,
+        "→",
+        toDate
+    );
+
+    if (useMasterIdRange) {
+
+        console.log(
+            "MASTERID RANGE:",
+            startMasterId,
+            "→",
+            endMasterId
+        );
+
+    } else {
+
+        console.log(
+            "MASTERID RANGE: FULL"
+        );
+
+    }
+
+    console.log(
+        "======================================"
+    );
+
+    const response =
+        await sendToTally(xml);
+
+    if (!response) {
+        throw new Error(
+            "Empty response received from Tally."
+        );
+    }
+
+    const json =
+        parser.parse(response);
+
+    const rawVouchers =
+        json
+            ?.ENVELOPE
+            ?.BODY
+            ?.DATA
+            ?.COLLECTION
+            ?.VOUCHER;
+
+    const vouchers =
+        toArray(rawVouchers);
+
+    const result =
+        vouchers
+            .map(v => ({
+
+                masterid:
+                    Number(
+                        getValue(v.MASTERID)
+                    ),
+
+                guid:
+                    getValue(v.GUID),
+
+                alterid:
+                    Number(
+                        getValue(v.ALTERID)
+                    ),
+
+                date:
+                    getValue(v.DATE),
+
+                voucherTypeName:
+                    getValue(v.VOUCHERTYPENAME),
+
+                voucherNumber:
+                    getValue(v.VOUCHERNUMBER)
+
+            }))
+            .filter(row =>
+                Number.isFinite(
+                    row.masterid
+                ) &&
+                row.guid
+            );
+
+    console.log(
+        "Vouchers Found:",
+        result.length
+    );
+
+    console.log(
+        "======================================"
+    );
+
+    return result;
+}
+
+async function fetchVoucherIdsInBatches({
+    company,
+    fromDate,
+    toDate,
+    batchSize = 50
+}) {
+
+    const voucherIds =
+        await fetchVoucherIds({
+            company,
+            fromDate,
+            toDate
+        });
+
+    const batches = [];
+
+    for (
+        let i = 0;
+        i < voucherIds.length;
+        i += batchSize
+    ) {
+
+        batches.push(
+            voucherIds.slice(
+                i,
+                i + batchSize
+            )
+        );
+    }
+
+    return batches;
+}
+
+// ============================================================
+// GENERIC TALLY COLLECTION HELPER
+// ============================================================
+async function fetchTallyCollection({
+    company,
+    collectionName,
+    collectionType,
+    fetchFields = [],
+    filterName = null,
+    filterFormula = null,
+    masterIds = [],
+    fromDate = null,
+    toDate = null
+}) {
+
+    if (!company) {
+        throw new Error(
+            "company missing in fetchTallyCollection"
+        );
+    }
+
+    if (!collectionName) {
+        throw new Error(
+            "collectionName missing in fetchTallyCollection"
+        );
+    }
+
+    if (!collectionType) {
+        throw new Error(
+            "collectionType missing in fetchTallyCollection"
+        );
+    }
+
+    await selectCompany(company);
+
+    const fetchXml =
+        fetchFields.length > 0
+            ? `
+                <FETCH>
+                    ${fetchFields.join(",\n")}
+                </FETCH>
+              `
+            : "";
+
+    // ========================================================
+    // MASTER ID FILTER
+    // ========================================================
+
+    let finalFilterName =
+        filterName;
+
+    let finalFilterFormula =
+        filterFormula;
+
+    if (
+        Array.isArray(masterIds) &&
+        masterIds.length > 0
+    ) {
+
+        const ids =
+            masterIds
+                .map(id => Number(id))
+                .filter(
+                    id => Number.isFinite(id)
+                );
+
+        if (ids.length === 0) {
+            throw new Error(
+                "masterIds contains no valid numbers"
+            );
+        }
+
+        finalFilterName =
+            "BilleyMasterIDListFilter";
+
+        finalFilterFormula =
+            "(" +
+            ids
+                .map(
+                    id =>
+                        `$MASTERID = ${id}`
+                )
+                .join(" OR ") +
+            ")";
+    }
+
+    const filterXml =
+        finalFilterName &&
+        finalFilterFormula
+            ? `
+                <FILTER>
+                    ${finalFilterName}
+                </FILTER>
+              `
+            : "";
+
+    const formulaXml =
+        finalFilterName &&
+        finalFilterFormula
+            ? `
+                <SYSTEM
+                    TYPE="Formulae"
+                    NAME="${finalFilterName}">
+                    ${finalFilterFormula}
+                </SYSTEM>
+              `
+            : "";
+
+    // ========================================================
+    // DATE VARIABLES
+    // ========================================================
+
+    const dateXml =
+        fromDate && toDate
+            ? `
+                <SVFROMDATE TYPE="Date">
+                    ${fromDate}
+                </SVFROMDATE>
+
+                <SVTODATE TYPE="Date">
+                    ${toDate}
+                </SVTODATE>
+
+                <SVCURRENTDATE TYPE="Date">
+                    ${toDate}
+                </SVCURRENTDATE>
+              `
+            : "";
+
+    const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>${collectionName}</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                ${dateXml}
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="${collectionName}">
+
+                        <TYPE>${collectionType}</TYPE>
+
+                        ${fetchXml}
+
+                        ${filterXml}
+
+                    </COLLECTION>
+
+                    ${formulaXml}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+    console.log(
+        "===================================="
+    );
+
+    console.log(
+        "TALLY GENERIC COLLECTION REQUEST"
+    );
+
+    console.log(
+        "Company:",
+        company
+    );
+
+    console.log(
+        "Collection:",
+        collectionName
+    );
+
+    console.log(
+        "Type:",
+        collectionType
+    );
+
+    if (
+        Array.isArray(masterIds) &&
+        masterIds.length > 0
+    ) {
+
+        console.log(
+            "MASTER IDS:",
+            masterIds.length
+        );
+
+    }
+
+    if (fromDate && toDate) {
+
+        console.log(
+            "Date:",
+            fromDate,
+            "→",
+            toDate
+        );
+
+    }
+
+    if (finalFilterFormula) {
+
+        console.log(
+            "Filter:",
+            finalFilterFormula
+        );
+
+    }
+
+    console.log(
+        "===================================="
+    );
+
+    return await sendToTally(xml);
+}
+/*
+async function fetchTallyCollectionByVoucherId({
+    company,
+    voucherId,
+    fetchFields = []
+}) {
+
+    
+    if (!company) {
+        throw new Error(
+            "company missing in fetchTallyCollectionByVoucherId"
+        );
+    }
+
+    if (
+        voucherId === undefined ||
+        voucherId === null ||
+        voucherId === ""
+    ) {
+        throw new Error(
+            "voucherId missing in fetchTallyCollectionByVoucherId"
+        );
+    }
+
+    if (
+        !Number.isFinite(
+            Number(voucherId)
+        )
+    ) {
+        throw new Error(
+            "voucherId must be a number"
+        );
+    }
+
+    // ========================================================
+    // SAME COMPANY SELECTION USED BY OTHER TALLY FUNCTIONS
+    // ========================================================
+
+    await selectCompany(company);
+
+    // ========================================================
+    // FETCH
+    // ========================================================
+
+    const fields =
+        fetchFields.length > 0
+            ? fetchFields
+            : [
+                "GUID",
+                "MASTERID",
+                "ALTERID",
+                "DATE",
+                "EFFECTIVEDATE",
+                "VOUCHERTYPENAME",
+                "VOUCHERNUMBER",
+                "REFERENCE",
+                "REFERENCEDATE",
+                "PARTYLEDGERNAME",
+                "NARRATION",
+                "ISINVOICE",
+                "ISOPTIONAL",
+                "ISCANCELLED"
+            ];
+
+    const fetchXml = `
+    <FETCH>
+        ${fields.join(",\n")}
+    </FETCH>
+    `;
+
+    // ========================================================
+    // PROVEN WORKING XML STRUCTURE
+    // ========================================================
+
+    const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>BilleyVoucherCollection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherCollection">
+
+                        <TYPE>Voucher</TYPE>
+
+                        ${fetchXml}
+
+                        <FILTER>
+                            BilleyVoucherIdFilter
+                        </FILTER>
+
+                    </COLLECTION>
+
+                    <SYSTEM
+                        TYPE="Formulae"
+                        NAME="BilleyVoucherIdFilter">
+
+                        $MASTERID = ${Number(voucherId)}
+
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+    // ========================================================
+    // SAVE REQUEST XML
+    // ========================================================
+
+    const requestFile =
+        path.join(
+            __dirname,
+            "..",
+            "logs",
+            "voucher-master-id-request.xml"
+        );
+
+    fs.writeFileSync(
+        requestFile,
+        xml
+    );
+
+    // ========================================================
+    // DEBUG
+    // ========================================================
+
+    console.log(
+        "===================================="
+    );
+
+    console.log(
+        "TALLY VOUCHER MASTER ID REQUEST"
+    );
+
+    console.log(
+        "Company:",
+        company
+    );
+
+    console.log(
+        "Voucher MasterID:",
+        Number(voucherId)
+    );
+
+    console.log(
+        "Request XML:",
+        requestFile
+    );
+
+    console.log(
+        "===================================="
+    );
+
+    // ========================================================
+    // SEND TO TALLY
+    // ========================================================
+
+    const result =
+        await sendToTally(xml);
+
+    return result;
+}
+*/
+
+async function fetchTallyCollectionByVoucherId({
+    company,
+    voucherId,
+    fetchFields = []
+}) {
+
+    if (!voucherId) {
+        throw new Error(
+            "voucherId missing in fetchTallyCollectionByVoucherId"
+        );
+    }
+
+    const fields =
+        fetchFields.length > 0
+            ? fetchFields
+            : [
+                "GUID",
+                "MASTERID",
+                "ALTERID",
+                "DATE",
+                "EFFECTIVEDATE",
+                "VOUCHERTYPENAME",
+                "VOUCHERNUMBER",
+                "REFERENCE",
+                "REFERENCEDATE",
+                "PARTYLEDGERNAME",
+                "NARRATION",
+                "ISINVOICE",
+                "ISOPTIONAL",
+                "ISCANCELLED"
+            ];
+
+    return await fetchTallyCollection({
+
+        company,
+
+        collectionName:
+            "BilleyVoucherCollection",
+
+        collectionType:
+            "Voucher",
+
+        fetchFields:
+            fields,
+
+        filterName:
+            "BilleyVoucherIdFilter",
+
+        filterFormula:
+            `$MASTERID = ${Number(voucherId)}`
+    });
+}
+
+
+
+
+
+
+
+
+
+
+
+
 async function getTallyCompanies() {
 
   const xml = `
@@ -266,6 +1483,33 @@ return {
 };
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // =========================
 // SELECT TALLY COMPANY
@@ -1445,33 +2689,47 @@ creditPeriod,
 module.exports = {
 
   sendToTally,
+  fetchTallyCollection,
 
+  // =========================
+  // MASTER FLOW
+  // =========================
+  fetchMasterIds,
+  fetchMasterIdsInBatches,
+  fetchMastersInBatches,
+
+  // =========================
+  // VOUCHER FLOW
+  // =========================
+  fetchVoucherIds,
+  fetchVoucherIdsInBatches,
+  fetchVouchersInBatches,
+
+  // =========================
+  // EXISTING HELPERS
+  // =========================
+  fetchTallyCollectionByMasterId,
+  fetchTallyCollectionByVoucherId,
+
+  // =========================
+  // OTHER FUNCTIONS
+  // =========================
   createUnit,
-
   createStockItem,
-
-    createSalesLedger,
-
+  createSalesLedger,
   createLedger,
-
   createSale,
 
   getTallyCompanies,
-
   selectCompany,
-  
+
   getAllLedgers,
-
   getStockItems,
-
   getTallyMappingData,
-
   getUnits,
-
   getSalesVouchers,
-
   getGroups,
 
-  //getStockMasters
+  // getStockMasters
 
 };

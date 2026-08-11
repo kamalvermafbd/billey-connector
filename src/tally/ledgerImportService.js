@@ -20,7 +20,8 @@ const {
 async function importLedgers({
     company,
     booksBeginningFrom,
-    lastLedgerAlterId = null
+    lastLedgerAlterId = null,
+    masterIds = []
 }){
 
     console.log("Ledger booksBeginningFrom:", booksBeginningFrom);
@@ -29,9 +30,10 @@ async function importLedgers({
 
     
 
-    const requestXml = buildLedgerRequest({
+   const requestXml = buildLedgerRequest({
         booksBeginningFrom,
-        lastLedgerAlterId
+        lastLedgerAlterId,
+        masterIds
     });
 
     const responseXml = await sendToTally(requestXml);

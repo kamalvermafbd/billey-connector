@@ -2,13 +2,8 @@ const fs = require("fs");
 const path = require("path");
 
 const {
-    fetchMasterIdsInBatches
-} = require("./src/tally/tallyService");
-
-const {
-    importLedgers
-} = require("./src/tally/ledgerImportService");
-
+    importLedgerGuids
+} = require("./src/tally/ledgerGuidImportService");
 
 (async () => {
 
@@ -18,64 +13,40 @@ const {
         __dirname,
         "src",
         "logs",
-        "ledger50BatchTestResult.log"
+        "ledgerGuidListTestResult.log"
     );
 
     try {
 
         // ============================================
-        // STEP 1: Master IDs ko 50-50 batches mein lo
+        // STEP 1: Tally se COMPLETE Ledger GUID list
         // ============================================
 
-        const batches =
-            await fetchMasterIdsInBatches({
-                company,
-                batchSize: 50
-            });
-
-        const firstBatch =
-            batches[0] || [];
-
-
-        // ============================================
-        // STEP 2: Sirf FIRST 50 Master IDs test karo
-        // ============================================
-
-        const ledgers =
-            await importLedgers({
-                company,
-                masterIds: firstBatch
+        const ledgerGuids =
+            await importLedgerGuids({
+                company
             });
 
 
         // ============================================
-        // STEP 3: Complete test result file
+        // STEP 2: Complete result file
         // ============================================
 
         const result = {
 
             test:
-                "LEDGER 50 MASTER ID BATCH",
+                "LEDGER TOTAL GUID LIST",
 
             company,
 
-            totalBatches:
-                batches.length,
+            totalLedgers:
+                ledgerGuids.length,
 
-            firstBatchRequested:
-                firstBatch.length,
-
-            requestedMasterIds:
-                firstBatch,
-
-            ledgersReturned:
-                ledgers.length,
-
-            returnedLedgers:
-                ledgers,
+            ledgerGuids:
+                ledgerGuids,
 
             success:
-                ledgers.length > 0
+                ledgerGuids.length > 0
 
         };
 
@@ -99,11 +70,11 @@ const {
         );
 
         console.log(
-            "LEDGER 50-ID TEST COMPLETED"
+            "LEDGER TOTAL GUID TEST COMPLETED"
         );
 
         console.log(
-            `Requested: ${firstBatch.length} | Returned: ${ledgers.length}`
+            `Total Ledger GUIDs: ${ledgerGuids.length}`
         );
 
 
@@ -112,7 +83,7 @@ const {
         const errorResult = {
 
             test:
-                "LEDGER 50 MASTER ID BATCH",
+                "LEDGER TOTAL GUID LIST",
 
             company,
 
@@ -142,7 +113,7 @@ const {
 
 
         console.error(
-            "LEDGER 50-ID TEST FAILED"
+            "LEDGER TOTAL GUID TEST FAILED"
         );
 
         console.error(

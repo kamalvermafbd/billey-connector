@@ -1,5 +1,6 @@
-function buildGroupRequest() {
-
+function buildGroupRequest({
+    masterIds = []
+}) {
     return `
 <ENVELOPE>
 
@@ -28,28 +29,35 @@ function buildGroupRequest() {
 
                         <TYPE>Group</TYPE>
 
+                        <FILTER>MasterIdFilter</FILTER>
+
                       <FETCH>
 
-    NAME,
-    PARENT,
-    GUID,
-    MASTERID,
-    ALTERID,
-    RESERVEDNAME,
-    ISREVENUE,
-    ISDEEMEDPOSITIVE,
-    PARENTGUID,
-PARENTMASTERID,
-PARENTALTERID,
+                        NAME,
+                        PARENT,
+                        GUID,
+                        MASTERID,
+                        ALTERID,
+                        RESERVEDNAME,
+                        ISREVENUE,
+                        ISDEEMEDPOSITIVE,
+                        PARENTGUID,
+                        PARENTMASTERID,
+                        PARENTALTERID,
 
-ISSUBLEDGER,
-ISBILLWISEON,
-TRACKNEGATIVEBALANCES,
-ISCONDENSED
+                        ISSUBLEDGER,
+                        ISBILLWISEON,
+                        TRACKNEGATIVEBALANCES,
+                        ISCONDENSED
 
-</FETCH>
+                    </FETCH>
 
                     </COLLECTION>
+                    <SYSTEM TYPE="Formulae" NAME="MasterIdFilter">
+                        ${masterIds
+                            .map(id => `$MASTERID = ${id}`)
+                            .join(" OR ")}
+                    </SYSTEM>
 
                 </TDLMESSAGE>
 

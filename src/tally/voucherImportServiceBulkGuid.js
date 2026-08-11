@@ -14,10 +14,11 @@ const {
 const {
     getLookups
 } = require("./lookupCache");
-
+/*
 const {
     buildChunks
 } = require("../../utils/ChunkBuilder");
+*/
 
 const {
     executeChunks
@@ -25,7 +26,8 @@ const {
 
 const fs = require("fs");
 
-const BULK_GUID_CHUNK_SIZE = 300 * 1024;
+const VOUCHER_GUID_BATCH_SIZE = 10;
+const VOUCHER_XML_MAX_SIZE = 300 * 1024;
 
 async function importVoucherBulkByGuid({
     company,
@@ -52,12 +54,150 @@ if (!voucherGuids?.length) {
 
 }
 
-const chunks = buildChunks(
-    voucherGuids,
-    BULK_GUID_CHUNK_SIZE
+const chunks = [];
+
+let currentChunk = [];
+
+for (const guid of voucherGuids) {
+
+    if (currentChunk.length >= VOUCHER_GUID_BATCH_SIZE) {
+
+        chunks.push({
+            chunkIndex: chunks.length + 1,
+            data: currentChunk
+        });
+
+        currentChunk = [];
+    }
+
+    const testChunk = [
+        ...currentChunk,
+        guid
+    ];
+
+    const testXml =
+        buildVoucherBulkGuidRequest({
+
+            company,
+
+            voucherGuids: testChunk
+
+        });
+
+    const testXmlSize =
+        Buffer.byteLength(
+            testXml,
+            "utf8"
+        );
+
+
+    // ============================================
+    // 300 KB LIMIT
+    // ============================================
+
+    if (
+        testXmlSize > VOUCHER_XML_MAX_SIZE &&
+        currentChunk.length > 0
+    ) {
+
+        chunks.push({
+
+            chunkIndex:
+                chunks.length + 1,
+
+            data:
+                currentChunk
+
+        });
+
+        currentChunk = [guid];
+
+        continue;
+    }
+
+
+    // Single Voucher GUID itself > 300 KB
+    if (
+        testXmlSize > VOUCHER_XML_MAX_SIZE &&
+        currentChunk.length === 0
+    ) {
+
+        throw new Error(
+            `Single Voucher GUID request exceeds 300 KB: ${guid}`
+        );
+
+    }
+
+
+    currentChunk.push(guid);
+}
+
+
+// ============================================
+// LAST CHUNK
+// ============================================
+
+if (currentChunk.length > 0) {
+
+    chunks.push({
+
+        chunkIndex:
+            chunks.length + 1,
+
+        data:
+            currentChunk
+
+    });
+
+}
+
+
+console.log(
+    "===================================="
 );
 
+console.log(
+    "VOUCHER BULK GUID CHUNKS"
+);
+
+console.log(
+    "Total GUIDs:",
+    voucherGuids.length
+);
+
+console.log(
+    "Total Chunks:",
+    chunks.length
+);
+
+console.log(
+    "Max GUIDs / Chunk:",
+    VOUCHER_GUID_BATCH_SIZE
+);
+
+console.log(
+    "Max XML Size:",
+    VOUCHER_XML_MAX_SIZE,
+    "bytes"
+);
+
+console.log(
+    "===================================="
+);
+
+
 const allVouchers = [];
+
+
+const totalChunks =
+    chunks.length;
+
+for (const chunk of chunks) {
+
+    chunk.totalChunks =
+        totalChunks;
+
+}
 
 await executeChunks({
 
@@ -74,30 +214,10 @@ await executeChunks({
 
             });
 
-            /*
-        fs.writeFileSync(
-
-            `./logs/voucher-bulk-guid-request-${chunk.chunkIndex}.xml`,
-
-            requestXml,
-
-            "utf8"
-
-        );
-*/
+        
         const responseXml =
             await sendToTally(requestXml);
-/*
-        fs.writeFileSync(
 
-            `./logs/voucher-bulk-guid-response-${chunk.chunkIndex}.xml`,
-
-            responseXml,
-
-            "utf8"
-
-        );
-*/
         if (!responseXml) {
 
             throw new Error(
@@ -111,21 +231,7 @@ await executeChunks({
                 responseXml,
                 lookups
             );
-/*
-        fs.writeFileSync(
 
-            `./logs/voucher-bulk-guid-parsed-${chunk.chunkIndex}.json`,
-
-            JSON.stringify(
-                vouchers,
-                null,
-                2
-            ),
-
-            "utf8"
-
-        );
-*/
         allVouchers.push(...vouchers);
 
        return {

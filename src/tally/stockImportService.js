@@ -10,7 +10,7 @@ const {
 const {
     parseStockResponse
 } = require("./stockParser");
-
+    
 const {
     getLookups
 } = require("./lookupCache");

@@ -1,61 +1,71 @@
 function buildVoucherGuidRequest({
-    company
+    company,
+    fromDate,
+    toDate
 }) {
 
     return `
-<ENVELOPE>
+<HEADER>
 
-    <HEADER>
+    <VERSION>1</VERSION>
 
-        <VERSION>1</VERSION>
+    <TALLYREQUEST>Export</TALLYREQUEST>
 
-        <TALLYREQUEST>Export</TALLYREQUEST>
+    <TYPE>Collection</TYPE>
 
-        <TYPE>Collection</TYPE>
+    <ID>BilleyVoucherCollection</ID>
 
-        <ID>BilleyVoucherGuidCollection</ID>
+</HEADER>
 
-    </HEADER>
+<BODY>
 
-    <BODY>
+    <DESC>
 
-        <DESC>
+        <STATICVARIABLES>
 
-            <STATICVARIABLES>
+            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            ${
+                fromDate
+                    ? `<SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>`
+                    : ""
+            }
 
-            </STATICVARIABLES>
+            ${
+                toDate
+                    ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>`
+                    : ""
+            }
 
-            <TDL>
+        </STATICVARIABLES>
 
-                <TDLMESSAGE>
+        <TDL>
 
-                    <COLLECTION NAME="BilleyVoucherGuidCollection">
+            <TDLMESSAGE>
 
-                        <TYPE>Voucher</TYPE>
+                <COLLECTION NAME="BilleyVoucherCollection">
 
-                        <FETCH>
+                    <TYPE>Voucher</TYPE>
 
-                            GUID,
+                    <FETCH>
 
-                            ALTERID
+                        GUID,
 
-                        </FETCH>
+                        ALTERID
 
-                    </COLLECTION>
+                    </FETCH>
 
-                </TDLMESSAGE>
+                </COLLECTION>
 
-            </TDL>
+            </TDLMESSAGE>
 
-        </DESC>
+        </TDL>
 
-    </BODY>
+    </DESC>
 
-</ENVELOPE>
+</BODY>
 `;
 }
 

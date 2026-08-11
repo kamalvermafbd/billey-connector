@@ -27,6 +27,9 @@ const {
 
 const BULK_GUID_CHUNK_SIZE = 300 * 1024;
 
+const STOCK_GUID_BATCH_SIZE = 50;
+
+
 async function importStockBulkByGuid({
     company,
     stockGuids
@@ -39,10 +42,20 @@ if (!stockGuids?.length) {
 
 }
 
-const chunks = buildChunks(
-    stockGuids,
-    BULK_GUID_CHUNK_SIZE
-);
+const level1Batches = [];
+
+for (
+    let i = 0;
+    i < stockGuids.length;
+    i += STOCK_GUID_BATCH_SIZE
+) {
+    level1Batches.push(
+        stockGuids.slice(
+            i,
+            i + STOCK_GUID_BATCH_SIZE
+        )
+    );
+}
 
 const allStocks = [];
 
@@ -59,6 +72,21 @@ const stockLookup =
     lookups.stockLookup ||
 
     new Map();
+
+for (
+    let batchIndex = 0;
+    batchIndex < level1Batches.length;
+    batchIndex++
+) {
+
+    const level1Batch =
+        level1Batches[batchIndex];
+
+    const chunks =
+        buildChunks(
+            level1Batch,
+            BULK_GUID_CHUNK_SIZE
+        );
 
 await executeChunks({
 
@@ -147,6 +175,8 @@ await executeChunks({
     }
 
 });
+
+}
 
 return allStocks;
 

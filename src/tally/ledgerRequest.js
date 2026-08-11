@@ -1,6 +1,7 @@
 function buildLedgerRequest({
     booksBeginningFrom,
-    lastLedgerAlterId = null
+    lastLedgerAlterId = null,
+    masterIds = []
 }) {
 const xml = `
 <ENVELOPE>
@@ -33,10 +34,11 @@ const xml = `
 
                         <TYPE>Ledger</TYPE>
 
-                        ${lastLedgerAlterId !== null
+                     ${masterIds.length
+                    ? `<FILTER>LedgerMasterIdFilter</FILTER>`
+                    : lastLedgerAlterId !== null
                         ? `<FILTER>LedgerAlterIdFilter</FILTER>`
                         : ""}
-
                        <FETCH>
 
                             NAME,
@@ -87,7 +89,15 @@ const xml = `
 
                     </COLLECTION>
 
-                    ${lastLedgerAlterId !== null
+                   ${masterIds.length
+                        ? `
+                        <SYSTEM TYPE="Formulae" NAME="LedgerMasterIdFilter">
+                            ${masterIds
+                                .map(id => `$MASTERID = ${id}`)
+                                .join(" OR ")}
+                        </SYSTEM>
+                        `
+                        : lastLedgerAlterId !== null
                             ? `
                             <SYSTEM TYPE="Formulae" NAME="LedgerAlterIdFilter">
                                 $ALTERID > ${lastLedgerAlterId}

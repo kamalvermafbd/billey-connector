@@ -27,6 +27,9 @@ const {
 
 const BULK_GUID_CHUNK_SIZE = 300 * 1024;
 
+const LEDGER_GUID_BATCH_SIZE = 50;
+
+
 async function importLedgerBulkByGuid({
     company,
     ledgerGuids
@@ -39,10 +42,29 @@ if (!ledgerGuids?.length) {
 
 }
 
+/*
 const chunks = buildChunks(
     ledgerGuids,
     BULK_GUID_CHUNK_SIZE
 );
+*/
+
+const level1Batches = [];
+
+for (
+    let i = 0;
+    i < ledgerGuids.length;
+    i += LEDGER_GUID_BATCH_SIZE
+) {
+
+    level1Batches.push(
+        ledgerGuids.slice(
+            i,
+            i + LEDGER_GUID_BATCH_SIZE
+        )
+    );
+
+}
 
 const allLedgers = [];
 
@@ -59,6 +81,22 @@ const groupLookup =
     lookups.groupLookup ||
 
     new Map();
+
+for (
+    let batchIndex = 0;
+    batchIndex < level1Batches.length;
+    batchIndex++
+) {
+
+    const level1Batch =
+        level1Batches[batchIndex];
+
+    const chunks =
+        buildChunks(
+            level1Batch,
+            BULK_GUID_CHUNK_SIZE
+        );
+
 
 
 await executeChunks({
@@ -151,6 +189,8 @@ for (const ledger of ledgers) {
     }
 
 });
+
+}
 
 return allLedgers;
 

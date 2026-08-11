@@ -13,13 +13,18 @@ const {
 
 
 async function importGroups({
-    company
+    company,
+    masterIds = []
 }) {
 
     await selectCompany(company);
 
-    const requestXml = buildGroupRequest();
-
+   // const requestXml = buildGroupRequest();
+const requestXml =
+    buildGroupRequest({
+        masterIds
+    });
+    
     const responseXml = await sendToTally(requestXml);
 
     const groups = parseGroupResponse(responseXml);

@@ -9,7 +9,7 @@ function buildVoucherBulkGuidRequest({
 
     return `
 <ENVELOPE>
-
+ 
     <HEADER>
 
         <VERSION>1</VERSION>
