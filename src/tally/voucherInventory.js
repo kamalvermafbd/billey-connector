@@ -447,6 +447,7 @@ addInventoryItems(
     "INVENTORYENTRIESOUT.LIST"
 );
 
+/*
 fs.appendFileSync(
     INVENTORY_DEBUG_FILE,
     JSON.stringify({
@@ -464,6 +465,7 @@ fs.appendFileSync(
         total: items.length
     }) + "\n"
 );
+*/
 
 if (items.length === 0) {
     return [];
@@ -500,6 +502,7 @@ const stockKey = getValue(item.STOCKITEMMASTERID);
 
 let stock = stockLookup?.get(stockKey);
 
+/*
 fs.appendFileSync(
     "./logs/stock-lookup-debug.jsonl",
     JSON.stringify({
@@ -519,6 +522,7 @@ fs.appendFileSync(
 
     }) + "\n"
 );
+*/
 
 if (!stock) {
     stock = [...stockLookup.values()].find(

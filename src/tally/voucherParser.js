@@ -152,6 +152,7 @@ for (const key of rawKeys) {
 
 }
 
+/*
 fs.appendFileSync(
 
     "./logs/raw-vs-parsed-audit.jsonl",
@@ -181,6 +182,7 @@ fs.appendFileSync(
     + "\n\n"
 
 );
+*/
 
 
 return parsedVoucher;

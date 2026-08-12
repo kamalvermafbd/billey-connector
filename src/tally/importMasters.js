@@ -245,21 +245,7 @@ console.log(
     console.log(`✓ Full Ledger Lookup Imported : ${allLedgers.length}`);
     console.log("######## AFTER ALL LEDGERS ########");
 
-    fs.writeFileSync(
-
-    "ledgerLookupDebug.json",
-
-    JSON.stringify(
-
-        allLedgers[0],
-
-        null,
-
-        2
-
-    )
-
-);
+ 
 
 console.log(
     "ledgerLookupDebug.json generated"

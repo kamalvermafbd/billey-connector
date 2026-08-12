@@ -24,8 +24,6 @@ const {
     executeChunks
 } = require("../../utils/chunkExecutor");
 
-const fs = require("fs");
-const path = require("path");
 
 const VOUCHER_GUID_BATCH_SIZE = 100;
 const VOUCHER_XML_MAX_SIZE = 300 * 1024;
@@ -216,16 +214,7 @@ await executeChunks({
             });
 
 
-            fs.writeFileSync(
-    path.join(
-        __dirname,
-        "..",
-        "logs",
-        `voucher-bulk-guid-chunk-${chunk.chunkIndex}.xml`
-    ),
-    requestXml,
-    "utf8"
-);
+        
         
         const responseXml =
             await sendToTally(requestXml);
@@ -238,16 +227,7 @@ await executeChunks({
 
         }
 
-        fs.writeFileSync(
-    path.join(
-        __dirname,
-        "..",
-        "logs",
-        `voucher-bulk-guid-response-${chunk.chunkIndex}.xml`
-    ),
-    responseXml,
-    "utf8"
-);
+     
 
         const vouchers =
             parseVoucherResponse(
