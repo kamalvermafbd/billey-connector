@@ -11,19 +11,29 @@ const {
     parseStockGroupResponse
 } = require("./stockGroupParser");
 
+
 async function importStockGroups({
     company
 }) {
 
     await selectCompany(company);
 
-    const requestXml = buildStockGroupRequest();
+    const requestXml =
+        buildStockGroupRequest(
+            company
+        );
 
-    const responseXml = await sendToTally(requestXml);
+    const responseXml =
+        await sendToTally(
+            requestXml
+        );
 
-    return parseStockGroupResponse(responseXml);
+    return parseStockGroupResponse(
+        responseXml
+    );
 
 }
+
 
 module.exports = {
     importStockGroups

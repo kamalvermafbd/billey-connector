@@ -1,4 +1,4 @@
-function buildGroupGuidRequest() {
+function buildGroupGuidRequest(company) {
 
     return `
 <ENVELOPE>
@@ -14,9 +14,15 @@ function buildGroupGuidRequest() {
 
         <DESC>
 
-            <STATICVARIABLES>
+           <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 

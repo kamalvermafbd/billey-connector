@@ -1,6 +1,8 @@
-function buildUnitObjectRequest(name) {
+function buildUnitObjectRequest(name, company) {
+
     return `
 <ENVELOPE>
+
     <HEADER>
         <VERSION>1</VERSION>
         <TALLYREQUEST>Export</TALLYREQUEST>
@@ -10,21 +12,38 @@ function buildUnitObjectRequest(name) {
     </HEADER>
 
     <BODY>
+
         <DESC>
+
             <STATICVARIABLES>
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
             </STATICVARIABLES>
 
             <FETCHLIST>
+
                 <FETCH>GUID</FETCH>
                 <FETCH>ALTERID</FETCH>
                 <FETCH>MASTERID</FETCH>
                 <FETCH>NAME</FETCH>
+
             </FETCHLIST>
+
         </DESC>
+
     </BODY>
+
 </ENVELOPE>
 `;
 }
 
-module.exports = { buildUnitObjectRequest };
+module.exports = {
+    buildUnitObjectRequest
+};

@@ -28,8 +28,8 @@ function parseVoucherHeader(v) {
 
     alterid: getValue(v.ALTERID),
 
-   // voucherType: getValue(v.VOUCHERTYPENAME),
-voucherTypeName: getValue(v.VOUCHERTYPENAME),
+    voucherType: getValue(v.VOUCHERTYPENAME),
+//voucherTypeName: getValue(v.VOUCHERTYPENAME),
     voucherNumber: getValue(v.VOUCHERNUMBER),
 
     voucherDate: getValue(v.DATE),

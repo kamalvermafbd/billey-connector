@@ -1,6 +1,6 @@
-function buildCostCentreGuidRequest() {
+function buildCostCentreGuidRequest(company) {
 
-return `
+    return `
 <ENVELOPE>
 
 <HEADER>
@@ -11,13 +11,23 @@ return `
 </HEADER>
 
 <BODY>
+
 <DESC>
 
 <STATICVARIABLES>
-<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+<SVCURRENTCOMPANY>
+    ${company}
+</SVCURRENTCOMPANY>
+
+<SVEXPORTFORMAT>
+    $$SysName:XML
+</SVEXPORTFORMAT>
+
 </STATICVARIABLES>
 
 <TDL>
+
 <TDLMESSAGE>
 
 <COLLECTION NAME="Billey Cost Centre GUID Collection">
@@ -33,14 +43,15 @@ ALTERID
 </COLLECTION>
 
 </TDLMESSAGE>
+
 </TDL>
 
 </DESC>
+
 </BODY>
 
 </ENVELOPE>
 `;
-
 }
 
 module.exports = {

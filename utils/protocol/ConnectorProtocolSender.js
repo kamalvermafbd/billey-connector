@@ -116,6 +116,13 @@ async waitForReceived(
                 onDisconnect
             );
 
+            console.log(
+                "✅ CONNECTOR RECEIVED ACK:",
+                collection,
+                batchId,
+                chunkIndex
+            );
+
             resolve();
 
         };
@@ -309,6 +316,13 @@ async sendCollection(
 
         for (const chunk of chunks) {
 
+            console.log(
+    "📤 CONNECTOR SENDING CHUNK:",
+    collection,
+    batchId,
+    chunk.chunkIndex
+);
+
         this.socket.emit(
 
            EVENTS.CHUNK,
@@ -333,6 +347,13 @@ async sendCollection(
 
             }
 
+        );
+
+        console.log(
+            "⏳ CONNECTOR WAITING ACK:",
+            collection,
+            batchId,
+            chunk.chunkIndex
         );
 
         await this.waitForReceived(

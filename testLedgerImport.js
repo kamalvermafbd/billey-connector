@@ -2,77 +2,127 @@ const fs = require("fs");
 const path = require("path");
 
 const {
-    fetchMasterIdsInBatches
-} = require("./src/tally/tallyService");
+    importLedgerGuids
+} = require("./src/tally/ledgerGuidImportService");
 
 const {
-    importLedgers
-} = require("./src/tally/ledgerImportService");
+    importLedgerBulkByGuid
+} = require("./src/tally/ledgerImportServiceBulkGuid");
 
 
 (async () => {
 
-    const company = "Guru Kirpa Trading";
+    const company =
+        "Guru Kirpa Trading";
 
-    const logFile = path.join(
-        __dirname,
-        "src",
-        "logs",
-        "ledger50BatchTestResult.log"
-    );
+
+    const logFile =
+        path.join(
+            __dirname,
+            "src",
+            "logs",
+            "ledgerGuidBatchTestResult.json"
+        );
+
 
     try {
 
         // ============================================
-        // STEP 1: Master IDs ko 50-50 batches mein lo
+        // STEP 1: Actual Ledger GUIDs from Tally
         // ============================================
 
-        const batches =
-            await fetchMasterIdsInBatches({
-                company,
-                batchSize: 50
+        const ledgerGuids =
+            await importLedgerGuids({
+                company
             });
 
-        const firstBatch =
-            batches[0] || [];
+
+        console.log(
+            "TOTAL LEDGER GUIDS:",
+            ledgerGuids.length
+        );
 
 
         // ============================================
-        // STEP 2: Sirf FIRST 50 Master IDs test karo
+        // STEP 2: FIRST 50 GUIDs only
+        // ============================================
+
+        const firstBatch =
+            ledgerGuids.slice(
+                0,
+                50
+            );
+
+
+        // ============================================
+        // STEP 3: Import those 50 Ledgers
         // ============================================
 
         const ledgers =
-            await importLedgers({
+            await importLedgerBulkByGuid({
                 company,
-                masterIds: firstBatch
+                ledgerGuids: firstBatch
             });
 
 
         // ============================================
-        // STEP 3: Complete test result file
+        // STEP 4: Verification details
+        // ============================================
+
+        const returnedLedgers =
+            ledgers.map(ledger => ({
+
+                masterId:
+                    ledger.masterId,
+
+                alterId:
+                    ledger.alterId,
+
+                guid:
+                    ledger.guid,
+
+                name:
+                    ledger.name,
+
+                parent:
+                    ledger.parent,
+
+                parentGroupGuid:
+                    ledger.parentGroupGuid,
+
+                parentGroupMasterId:
+                    ledger.parentGroupMasterId,
+
+                parentGroupAlterId:
+                    ledger.parentGroupAlterId
+
+            }));
+
+
+        // ============================================
+        // STEP 5: Save result
         // ============================================
 
         const result = {
 
             test:
-                "LEDGER 50 MASTER ID BATCH",
+                "LEDGER GUID BATCH",
 
             company,
 
-            totalBatches:
-                batches.length,
+            totalLedgerGuids:
+                ledgerGuids.length,
 
             firstBatchRequested:
                 firstBatch.length,
 
-            requestedMasterIds:
+            requestedGuids:
                 firstBatch,
 
             ledgersReturned:
                 ledgers.length,
 
-            returnedLedgers:
-                ledgers,
+            returnedLedgers,
 
             success:
                 ledgers.length > 0
@@ -88,31 +138,34 @@ const {
                 result,
                 null,
                 2
-            )
+            ),
+
+            "utf8"
 
         );
 
 
         console.log(
-            "Result file generated:",
+            "LEDGER GUID TEST COMPLETED"
+        );
+
+        console.log(
+            `Total GUIDs: ${ledgerGuids.length} | Requested: ${firstBatch.length} | Returned: ${ledgers.length}`
+        );
+
+        console.log(
+            "Result:",
             logFile
         );
 
-        console.log(
-            "LEDGER 50-ID TEST COMPLETED"
-        );
 
-        console.log(
-            `Requested: ${firstBatch.length} | Returned: ${ledgers.length}`
-        );
-
-
-    } catch (err) {
+    }
+    catch (err) {
 
         const errorResult = {
 
             test:
-                "LEDGER 50 MASTER ID BATCH",
+                "LEDGER GUID BATCH",
 
             company,
 
@@ -136,17 +189,23 @@ const {
                 errorResult,
                 null,
                 2
-            )
+            ),
+
+            "utf8"
 
         );
 
 
         console.error(
-            "LEDGER 50-ID TEST FAILED"
+            "LEDGER GUID TEST FAILED"
         );
 
         console.error(
-            "Result file generated:",
+            err.message
+        );
+
+        console.error(
+            "Result:",
             logFile
         );
 

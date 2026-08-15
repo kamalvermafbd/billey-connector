@@ -20,7 +20,7 @@ async function importStockGuids({
 
     return parseStockGuidResponse(
         await sendToTally(
-            buildStockGuidRequest()
+            buildStockGuidRequest(company)
         )
     );
 

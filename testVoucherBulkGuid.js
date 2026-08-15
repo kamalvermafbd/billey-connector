@@ -19,49 +19,38 @@ const {
     importVoucherBulkByGuid
 } = require("./src/tally/voucherImportServiceBulkGuid");
 
+
 (async () => {
 
-    const company =
-        "Guru Kirpa Trading";
+    const company = "Guru Kirpa Trading";
 
-    const guidFile =
-        path.join(
-            __dirname,
-            "src",
-            "logs",
-            "voucherLevel1GuidDiscovery.json"
-        );
+    const guidFile = path.join(
+        __dirname,
+        "src",
+        "logs",
+        "voucherLevel1GuidDiscovery.json"
+    );
 
-    const summaryFile =
-        path.join(
-            __dirname,
-            "src",
-            "logs",
-            "voucherBulkGuidTest.log"
-        );
+    const summaryFile = path.join(
+        __dirname,
+        "src",
+        "logs",
+        "voucherBulkGuidTest.log"
+    );
+
 
     try {
 
-        console.log(
-            "======================================"
-        );
+        console.log("======================================");
+        console.log("VOUCHER BULK GUID DIRECT TEST");
+        console.log("======================================");
 
-        console.log(
-            "VOUCHER BULK GUID LEVEL-1 TEST"
-        );
+        console.log("Company:", company);
 
-        console.log(
-            "======================================"
-        );
-
-        console.log(
-            "Company:",
-            company
-        );
 
         // ============================================
         // STEP 1
-        // READ DISCOVERED GUIDS
+        // LOAD ONE REAL GUID
         // ============================================
 
         if (!fs.existsSync(guidFile)) {
@@ -72,6 +61,7 @@ const {
 
         }
 
+
         const voucherRecords =
             JSON.parse(
                 fs.readFileSync(
@@ -79,6 +69,7 @@ const {
                     "utf8"
                 )
             );
+
 
         if (!Array.isArray(voucherRecords)) {
 
@@ -88,32 +79,71 @@ const {
 
         }
 
-        const voucherGuids =
-    [
-        ...new Set(
-            voucherRecords
-                .map(row => row?.guid)
-                .filter(Boolean)
-        )
-    ].slice(0, 10);
+
+        /*
+         * IMPORTANT
+         *
+         * ReconciliationManager produces:
+         *
+         * [
+         *   {
+         *      guid: "...",
+         *      ...
+         *   }
+         * ]
+         *
+         * For this test we take ONLY ONE GUID.
+         *
+         * This bypasses:
+         *
+         * Socket.IO
+         * sendChunkedToConnector
+         * requestCollector
+         *
+         * We directly test:
+         *
+         * GUID
+         *   ↓
+         * importVoucherBulkByGuid()
+         *   ↓
+         * Tally
+         */
+
+        const voucherGuids = [
+            ...new Set(
+                voucherRecords
+                    .map(
+                        row => row?.guid
+                    )
+                    .filter(Boolean)
+            )
+        ].slice(0, 1);
+
 
         console.log(
-            "GUIDs loaded:",
+            "Test GUID count:",
             voucherGuids.length
         );
+
+
+        console.log(
+            "Test GUID:",
+            voucherGuids[0] || "NONE"
+        );
+
 
         if (!voucherGuids.length) {
 
             throw new Error(
-                "No voucher GUIDs found."
+                "No voucher GUID found."
             );
 
         }
 
+
         // ============================================
         // STEP 2
-        // BUILD REAL PRODUCTION LOOKUPS
-        // Same source as importMasters()
+        // BUILD SAME LOOKUP CACHE
         // ============================================
 
         console.log(
@@ -128,35 +158,33 @@ const {
             "======================================"
         );
 
-        console.log(
-            "Fetching Groups..."
-        );
 
         const groups =
-            await getGroups(company);
+            await getGroups(
+                company
+            );
+
 
         console.log(
             "Groups:",
             groups.length
         );
 
-        // ============================================
-        // BUILD GROUP TREE
-        // Same logic used by tallyService
-        // ============================================
 
         const groupTree = {};
 
-        groups.forEach(group => {
 
-            groupTree[group.name] =
-                group.parent;
+        groups.forEach(
+            group => {
 
-        });
+                groupTree[
+                    group.name
+                ] =
+                    group.parent;
 
-        console.log(
-            "Fetching Full Ledgers..."
+            }
         );
+
 
         const allLedgers =
             await getAllLedgers(
@@ -164,19 +192,18 @@ const {
                 groupTree
             );
 
+
         console.log(
-            "All Ledgers:",
+            "Ledgers:",
             allLedgers.length
         );
 
-        console.log(
-            "Fetching Full Stocks..."
-        );
 
         const stockJson =
             await getStockItems(
                 company
             );
+
 
         const stockRaw =
             stockJson
@@ -186,6 +213,7 @@ const {
                 ?.COLLECTION
                 ?.STOCKITEM;
 
+
         const stockItems =
             Array.isArray(stockRaw)
                 ? stockRaw
@@ -193,27 +221,28 @@ const {
                     ? [stockRaw]
                     : [];
 
+
         const allStocks =
-            stockItems.map(item => ({
+            stockItems.map(
+                item => ({
 
-                name:
-                    item.NAME,
+                    name:
+                        item.NAME,
 
-                unit:
-                    typeof item.BASEUNITS === "object"
-                        ? item.BASEUNITS["#text"]
-                        : item.BASEUNITS || ""
+                    unit:
+                        typeof item.BASEUNITS === "object"
+                            ? item.BASEUNITS["#text"]
+                            : item.BASEUNITS || ""
 
-            }));
+                })
+            );
+
 
         console.log(
-            "All Stocks:",
+            "Stocks:",
             allStocks.length
         );
 
-        // ============================================
-        // SAME LOOKUP BUILDER AS importMasters()
-        // ============================================
 
         const lookups =
             buildTallyLookups({
@@ -228,68 +257,39 @@ const {
 
             });
 
+
         setLookups(
             company,
             lookups
         );
 
-        console.log(
-            "======================================"
-        );
 
         console.log(
             "LOOKUP CACHE READY"
         );
 
-        console.log(
-            "Group Lookup:",
-            lookups.groupLookup.size
-        );
-
-        console.log(
-            "Ledger Lookup:",
-            lookups.ledgerLookup.size
-        );
-
-        console.log(
-            "Stock Lookup:",
-            lookups.stockLookup.size
-        );
-
-        console.log(
-            "Party Lookup:",
-            lookups.partyLookup.size
-        );
-
-        console.log(
-            "======================================"
-        );
 
         // ============================================
         // STEP 3
-        // REAL BULK GUID IMPORT
+        // DIRECT BULK GUID TEST
         // ============================================
 
         console.log(
-            "STARTING BULK GUID IMPORT"
+            "======================================"
         );
 
         console.log(
-            "Total GUIDs:",
-            voucherGuids.length
-        );
-
-        console.log(
-            "Batch Size:",
-            "10"
+            "STARTING DIRECT BULK GUID TEST"
         );
 
         console.log(
             "======================================"
         );
 
+
         const startedAt =
             Date.now();
+
 
         const vouchers =
             await importVoucherBulkByGuid({
@@ -300,50 +300,59 @@ const {
 
             });
 
+
         const elapsedMs =
             Date.now() -
             startedAt;
 
+
         // ============================================
+        // STEP 4
         // RESULT
         // ============================================
+
+        const returnedGuids =
+            vouchers
+                .map(
+                    voucher =>
+                        voucher?.guid
+                )
+                .filter(Boolean);
+
 
         const result = {
 
             test:
-                "VOUCHER BULK GUID LEVEL-1",
+                "DIRECT VOUCHER BULK GUID",
 
             company,
 
-            inputGuidRecords:
-                voucherRecords.length,
+            inputGuid:
+                voucherGuids[0],
 
-            uniqueInputGuids:
+            inputGuidCount:
                 voucherGuids.length,
 
             vouchersReturned:
                 vouchers.length,
+
+            returnedGuids,
 
             elapsedMs,
 
             elapsedSeconds:
                 Number(
                     (
-                        elapsedMs / 1000
+                        elapsedMs /
+                        1000
                     ).toFixed(2)
                 ),
 
-            batchSize:
-                10,
-
-            xmlMaxSize:
-                300 * 1024,
-
             success:
-                voucherGuids.length > 0 &&
                 vouchers.length > 0
 
         };
+
 
         fs.writeFileSync(
 
@@ -356,62 +365,69 @@ const {
             ),
 
             "utf8"
+
         );
 
-        // ============================================
-        // CONSOLE RESULT
-        // ============================================
 
         console.log(
             "======================================"
         );
 
         console.log(
-            "BULK GUID TEST RESULT"
+            "DIRECT BULK GUID TEST RESULT"
         );
 
         console.log(
             "======================================"
         );
 
+
         console.log(
-            "Input GUIDs:",
-            result.uniqueInputGuids
+            "Input GUID:",
+            result.inputGuid
         );
+
 
         console.log(
             "Vouchers Returned:",
             result.vouchersReturned
         );
 
+
+        console.log(
+            "Returned GUIDs:",
+            result.returnedGuids
+        );
+
+
         console.log(
             "Elapsed:",
             `${result.elapsedSeconds} seconds`
         );
 
-        console.log(
-            "Batch Size:",
-            result.batchSize
-        );
 
         console.log(
             "Summary:",
             summaryFile
         );
 
+
         console.log(
             "======================================"
         );
+
 
         console.log(
             result.success
-                ? "RESULT: PASS"
-                : "RESULT: CHECK REQUIRED"
+                ? "RESULT: PASS — TALLY GUID FETCH WORKS"
+                : "RESULT: FAIL — TALLY GUID FETCH RETURNED 0"
         );
+
 
         console.log(
             "======================================"
         );
+
 
         if (!result.success) {
 
@@ -419,12 +435,14 @@ const {
 
         }
 
+
     } catch (err) {
+
 
         const errorResult = {
 
             test:
-                "VOUCHER BULK GUID LEVEL-1",
+                "DIRECT VOUCHER BULK GUID",
 
             company,
 
@@ -439,6 +457,7 @@ const {
 
         };
 
+
         fs.writeFileSync(
 
             summaryFile,
@@ -450,23 +469,29 @@ const {
             ),
 
             "utf8"
+
         );
+
 
         console.error(
             "======================================"
         );
 
+
         console.error(
-            "VOUCHER BULK GUID TEST FAILED"
+            "DIRECT BULK GUID TEST FAILED"
         );
+
 
         console.error(
             err.stack
         );
 
+
         console.error(
             "======================================"
         );
+
 
         process.exitCode = 1;
 

@@ -1,4 +1,4 @@
-function buildCostCentreRequest() {
+function buildCostCentreRequest(company) {
 
     return `
 <ENVELOPE>
@@ -16,7 +16,13 @@ function buildCostCentreRequest() {
 
             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -27,18 +33,19 @@ function buildCostCentreRequest() {
                     <COLLECTION NAME="Billey Cost Centre Collection">
 
                         <TYPE>CostCentre</TYPE>
-<FETCH>
 
-    GUID,
-    MASTERID,
-    ALTERID,
+                        <FETCH>
 
-    NAME,
-    PARENT,
-    CATEGORY,
-    RESERVEDNAME
+                            GUID,
+                            MASTERID,
+                            ALTERID,
 
-</FETCH>
+                            NAME,
+                            PARENT,
+                            CATEGORY,
+                            RESERVEDNAME
+
+                        </FETCH>
 
                     </COLLECTION>
 
@@ -52,7 +59,6 @@ function buildCostCentreRequest() {
 
 </ENVELOPE>
 `;
-
 }
 
 module.exports = {

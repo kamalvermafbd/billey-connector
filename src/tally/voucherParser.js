@@ -26,6 +26,12 @@ function parseVoucherGuidResponse(xml) {
 
     const json = parser.parse(xml);
 
+    require("fs").writeFileSync(
+    "./logs/one-voucher-response.json",
+    JSON.stringify(json, null, 2),
+    "utf8"
+);
+
     const vouchers = toArray(
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
     );

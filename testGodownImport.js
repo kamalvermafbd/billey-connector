@@ -5,24 +5,19 @@ const {
     importGodownGuids
 } = require("./src/tally/godownGuidImportService");
 
-
 (async () => {
 
     try {
 
         const godownGuids =
             await importGodownGuids({
-
-                company: "Sunil Ent(Client)"
-
+                company: "Guru Kirpa Trading"
             });
-
 
         console.log(
             "Total Godown GUIDs:",
             godownGuids.length
         );
-
 
         const logDir =
             path.join(
@@ -31,18 +26,16 @@ const {
                 "logs"
             );
 
-
         if (!fs.existsSync(logDir)) {
 
             fs.mkdirSync(
                 logDir,
                 {
-                    recursive:true
+                    recursive: true
                 }
             );
 
         }
-
 
         const filePath =
             path.join(
@@ -50,18 +43,23 @@ const {
                 "godownGuids.json"
             );
 
-
-       
-
+        fs.writeFileSync(
+            filePath,
+            JSON.stringify(
+                godownGuids,
+                null,
+                2
+            ),
+            "utf8"
+        );
 
         console.log(
             "Godown GUID JSON Generated:",
             filePath
         );
 
-
     }
-    catch(error) {
+    catch (error) {
 
         console.error(
             "Godown GUID Import Failed"

@@ -12,17 +12,25 @@ const {
 } = require("./costCentreGuidParser");
 
 
-async function importCostCentreGuids({company}){
+async function importCostCentreGuids({
+    company
+}) {
 
     await selectCompany(company);
 
     const requestXml =
-        buildCostCentreGuidRequest();
+        buildCostCentreGuidRequest(
+            company
+        );
 
     const responseXml =
-        await sendToTally(requestXml);
+        await sendToTally(
+            requestXml
+        );
 
-    return parseCostCentreGuidResponse(responseXml);
+    return parseCostCentreGuidResponse(
+        responseXml
+    );
 
 }
 

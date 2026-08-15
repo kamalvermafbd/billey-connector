@@ -1,4 +1,4 @@
-function buildLedgerGuidRequest() {
+function buildLedgerGuidRequest(company) {
 
     return `
 <ENVELOPE>
@@ -16,10 +16,15 @@ function buildLedgerGuidRequest() {
 
             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
-
 
             <TDL>
 
@@ -30,11 +35,9 @@ function buildLedgerGuidRequest() {
                         <TYPE>Ledger</TYPE>
 
                         <FETCH>
-
                             GUID,
                             MASTERID,
                             ALTERID
-
                         </FETCH>
 
                     </COLLECTION>
@@ -43,16 +46,13 @@ function buildLedgerGuidRequest() {
 
             </TDL>
 
-
         </DESC>
 
     </BODY>
 
 </ENVELOPE>
 `;
-
 }
-
 
 module.exports = {
     buildLedgerGuidRequest

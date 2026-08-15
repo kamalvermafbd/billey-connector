@@ -1,27 +1,21 @@
-[
-  {
-    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000e2",
-    "masterId": "226",
-    "alterId": "374"
-  },
-  {
-    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000fa",
-    "masterId": "250",
-    "alterId": "377"
-  },
-  {
-    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000e3",
-    "masterId": "227",
-    "alterId": "375"
-  },
-  {
-    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000f7",
-    "masterId": "247",
-    "alterId": "376"
-  },
-  {
-    "guid": "755da616-c913-46c0-9ad0-de5499d071a0-000000fd",
-    "masterId": "253",
-    "alterId": "378"
-  }
-]
+{
+  "company": "Guru Kirpa Trading",
+  "totalStockGroupGuids": 3,
+  "stockGroupGuids": [
+    {
+      "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007b6",
+      "masterId": "1974",
+      "alterId": "5203"
+    },
+    {
+      "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007b5",
+      "masterId": "1973",
+      "alterId": "5201"
+    },
+    {
+      "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007b7",
+      "masterId": "1975",
+      "alterId": "5204"
+    }
+  ]
+}

@@ -1,9 +1,11 @@
 function buildLedgerRequest({
+    company,
     booksBeginningFrom,
     lastLedgerAlterId = null,
     masterIds = []
 }) {
-const xml = `
+
+    const xml = `
 <ENVELOPE>
 
     <HEADER>
@@ -17,14 +19,25 @@ const xml = `
 
         <DESC>
 
-          <STATICVARIABLES>
+            <STATICVARIABLES>
 
-    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
 
-  <SVFROMDATE TYPE="Date">${booksBeginningFrom}</SVFROMDATE>
-<SVTODATE TYPE="Date">${booksBeginningFrom}</SVTODATE>
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
-</STATICVARIABLES>
+                <SVFROMDATE TYPE="Date">
+                    ${booksBeginningFrom}
+                </SVFROMDATE>
+
+                <SVTODATE TYPE="Date">
+                    ${booksBeginningFrom}
+                </SVTODATE>
+
+            </STATICVARIABLES>
 
             <TDL>
 
@@ -34,12 +47,15 @@ const xml = `
 
                         <TYPE>Ledger</TYPE>
 
-                     ${masterIds.length
-                    ? `<FILTER>LedgerMasterIdFilter</FILTER>`
-                    : lastLedgerAlterId !== null
-                        ? `<FILTER>LedgerAlterIdFilter</FILTER>`
-                        : ""}
-                       <FETCH>
+                        ${
+                            masterIds.length
+                            ? `<FILTER>LedgerMasterIdFilter</FILTER>`
+                            : lastLedgerAlterId !== null
+                                ? `<FILTER>LedgerAlterIdFilter</FILTER>`
+                                : ""
+                        }
+
+                        <FETCH>
 
                             NAME,
                             GUID,
@@ -69,15 +85,18 @@ const xml = `
                             ISBILLWISEON,
                             ISREVENUE,
                             ISDEEMEDPOSITIVE,
+
                             LEDGSTREGDETAILS.LIST,
                             LEDMAILINGDETAILS.LIST,
                             CONTACTDETAILS.LIST,
+
                             TYPEOFDUTYTAX,
                             TAXTYPE,
                             GSTDUTYHEAD,
                             RATEOFTAXCALCULATION,
                             GSTRATE,
-                           PARENTGUID,
+
+                            PARENTGUID,
                             PARENTMASTERID,
                             PARENTALTERID
 
@@ -89,7 +108,8 @@ const xml = `
 
                     </COLLECTION>
 
-                   ${masterIds.length
+                    ${
+                        masterIds.length
                         ? `
                         <SYSTEM TYPE="Formulae" NAME="LedgerMasterIdFilter">
                             ${masterIds
@@ -103,7 +123,8 @@ const xml = `
                                 $ALTERID > ${lastLedgerAlterId}
                             </SYSTEM>
                             `
-                            : ""}
+                            : ""
+                    }
 
                 </TDLMESSAGE>
 
@@ -116,13 +137,20 @@ const xml = `
 </ENVELOPE>
 `;
 
-console.log("================================");
-console.log("booksBeginningFrom:", booksBeginningFrom);
-console.log("================================");
-//console.log(xml);
+    console.log(
+        "================================"
+    );
 
-return xml;
+    console.log(
+        "booksBeginningFrom:",
+        booksBeginningFrom
+    );
 
+    console.log(
+        "================================"
+    );
+
+    return xml;
 }
 
 module.exports = {

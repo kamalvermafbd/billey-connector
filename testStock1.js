@@ -2,8 +2,8 @@ const fs = require("fs");
 const path = require("path");
 
 const {
-    importStocks
-} = require("./src/tally/stockImportService");
+    importStockGuids
+} = require("./src/tally/stockGuidImportService");
 
 const {
     importStockBulkByGuid
@@ -15,22 +15,20 @@ const {
     const company =
         "Guru Kirpa Trading";
 
-    const lastStockAlterId =
-        3500;
 
     const logFile =
         path.join(
             __dirname,
             "src",
             "logs",
-            "stockAlterIdBulkGuidTestResult.log"
+            "stockTotalGuidTestResult.json"
         );
 
 
     try {
 
         console.log("================================");
-        console.log("STOCK ALTERID → BULK GUID TEST");
+        console.log("STOCK TOTAL GUID TEST");
         console.log("================================");
 
         console.log(
@@ -38,128 +36,164 @@ const {
             company
         );
 
-        console.log(
-            "Baseline Stock AlterID:",
-            lastStockAlterId
-        );
-
 
         // ============================================
         // STEP 1
-        // AlterID se changed Stocks lao
+        // Tally se ALL actual Stock GUIDs
         // ============================================
 
-        const changedStocks =
-            await importStocks({
-
-                company,
-
-                lastStockAlterId
-
+        const stockGuids =
+            await importStockGuids({
+                company
             });
 
 
         console.log(
-            "Changed Stocks:",
-            changedStocks.length
+            "Total Stock GUIDs:",
+            stockGuids.length
         );
 
 
         // ============================================
         // STEP 2
-        // Changed Stocks se GUIDs nikalo
+        // ALL GUIDs existing bulk pipeline ko do
         // ============================================
 
-        const changedStockGuids =
-            changedStocks
-                .map(
-                    stock =>
-                        stock.guid
-                )
-                .filter(Boolean);
+        const importedStocks =
+            await importStockBulkByGuid({
+
+                company,
+
+                stockGuids
+
+            });
 
 
         console.log(
-            "Changed Stock GUIDs:",
-            changedStockGuids.length
-        );
-
-
-        console.log(
-            "GUIDs:",
-            changedStockGuids
-        );
-
-
-        // ============================================
-        // STEP 3
-        // Existing Bulk GUID Pipeline
-        // 50 GUID Level-1
-        // ============================================
-
-        let importedStocks = [];
-
-
-        if (changedStockGuids.length > 0) {
-
-            importedStocks =
-                await importStockBulkByGuid({
-
-                    company,
-
-                    stockGuids:
-                        changedStockGuids
-
-                });
-
-        }
-
-
-        console.log(
-            "Bulk Imported Stocks:",
+            "Total Stocks Imported:",
             importedStocks.length
         );
 
 
         // ============================================
+        // STEP 3
+        // Verification details
+        // ============================================
+
+        const requestedGuidSet =
+            new Set(
+                stockGuids
+                    .map(item => item.guid)
+                    .filter(Boolean)
+            );
+
+
+        const returnedGuidSet =
+            new Set(
+                importedStocks
+                    .map(stock => stock.guid)
+                    .filter(Boolean)
+            );
+
+
+        const missingGuids =
+            [...requestedGuidSet]
+                .filter(
+                    guid =>
+                        !returnedGuidSet.has(guid)
+                );
+
+
+        const duplicateReturnedGuids =
+            importedStocks
+                .map(stock => stock.guid)
+                .filter(Boolean)
+                .filter(
+                    (guid, index, array) =>
+                        array.indexOf(guid) !== index
+                );
+
+
+        // ============================================
         // STEP 4
-        // Result
+        // Names + IDs verification
+        // ============================================
+
+        const returnedStocks =
+            importedStocks.map(stock => ({
+
+                name:
+                    stock.name,
+
+                guid:
+                    stock.guid,
+
+                masterId:
+                    stock.masterId,
+
+                alterId:
+                    stock.alterId,
+
+                parent:
+                    stock.parent
+
+            }));
+
+
+        // ============================================
+        // STEP 5
+        // Final result
         // ============================================
 
         const result = {
 
             test:
-                "STOCK ALTERID → BULK GUID",
+                "STOCK TOTAL GUID",
 
             company,
 
-            baselineAlterId:
-                lastStockAlterId,
+            totalStockGuids:
+                stockGuids.length,
 
-            changedStocks:
-                changedStocks.length,
-
-            changedStockGuids:
-                changedStockGuids.length,
-
-            bulkImportedStocks:
+            totalStocksImported:
                 importedStocks.length,
 
+            requestedUniqueGuids:
+                requestedGuidSet.size,
+
+            returnedUniqueGuids:
+                returnedGuidSet.size,
+
+            missingGuidCount:
+                missingGuids.length,
+
+            duplicateReturnedGuidCount:
+                duplicateReturnedGuids.length,
+
+            missingGuids,
+
+            duplicateReturnedGuids,
+
             requestedGuids:
-                changedStockGuids,
+                stockGuids,
 
-            changedStockRecords:
-                changedStocks,
-
-            importedStockRecords:
-                importedStocks,
+            returnedStocks,
 
             success:
-                changedStockGuids.length ===
-                importedStocks.length
+                requestedGuidSet.size ===
+                returnedGuidSet.size
+                &&
+                missingGuids.length === 0
+                &&
+                duplicateReturnedGuids.length === 0
 
         };
 
+
+        // ============================================
+        // STEP 6
+        // Save latest result
+        // ============================================
 
         fs.writeFileSync(
 
@@ -169,30 +203,29 @@ const {
                 result,
                 null,
                 2
-            )
+            ),
+
+            "utf8"
 
         );
 
 
         console.log("================================");
+
         console.log(
-            "STOCK ALTERID BULK GUID TEST COMPLETED"
+            `Tally Stock GUIDs: ${stockGuids.length}`
         );
 
         console.log(
-            `Baseline AlterID: ${lastStockAlterId}`
+            `Imported Stocks: ${importedStocks.length}`
         );
 
         console.log(
-            `Changed: ${changedStocks.length}`
+            `Missing GUIDs: ${missingGuids.length}`
         );
 
         console.log(
-            `GUIDs: ${changedStockGuids.length}`
-        );
-
-        console.log(
-            `Bulk Imported: ${importedStocks.length}`
+            `Duplicate Returned GUIDs: ${duplicateReturnedGuids.length}`
         );
 
         console.log(
@@ -211,17 +244,15 @@ const {
         console.log("================================");
 
 
-    } catch (err) {
+    }
+    catch (err) {
 
         const errorResult = {
 
             test:
-                "STOCK ALTERID → BULK GUID",
+                "STOCK TOTAL GUID",
 
             company,
-
-            baselineAlterId:
-                lastStockAlterId,
 
             success:
                 false,
@@ -243,13 +274,15 @@ const {
                 errorResult,
                 null,
                 2
-            )
+            ),
+
+            "utf8"
 
         );
 
 
         console.error(
-            "STOCK ALTERID BULK GUID TEST FAILED"
+            "STOCK TOTAL GUID TEST FAILED"
         );
 
         console.error(

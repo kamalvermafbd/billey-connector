@@ -3,31 +3,34 @@ const {
     selectCompany
 } = require("./tallyService");
 
-
 const {
     buildUnitGuidRequest
 } = require("./unitGuidRequest");
-
 
 const {
     parseUnitGuidResponse
 } = require("./unitGuidParser");
 
 
-async function importUnitGuids({company}){
+async function importUnitGuids({
+    company
+}) {
 
     await selectCompany(company);
 
-
     const requestXml =
-        buildUnitGuidRequest();
-
+        buildUnitGuidRequest(
+            company
+        );
 
     const responseXml =
-        await sendToTally(requestXml);
+        await sendToTally(
+            requestXml
+        );
 
-
-    return parseUnitGuidResponse(responseXml);
+    return parseUnitGuidResponse(
+        responseXml
+    );
 
 }
 

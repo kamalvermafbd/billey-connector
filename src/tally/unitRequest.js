@@ -1,4 +1,4 @@
-function buildUnitRequest() {
+function buildUnitRequest(company) {
 
     return `
 <ENVELOPE>
@@ -16,7 +16,13 @@ function buildUnitRequest() {
 
             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -26,26 +32,34 @@ function buildUnitRequest() {
 
                     <COLLECTION NAME="Billey Unit Collection">
 
-    <TYPE>Unit</TYPE>
+                        <TYPE>Unit</TYPE>
 
-    <COMPUTE>UNITGUID : $GUID</COMPUTE>
-    <COMPUTE>UNITMASTERID : $MASTERID</COMPUTE>
-    <COMPUTE>UNITALTERID : $ALTERID</COMPUTE>
+                        <COMPUTE>
+                            UNITGUID : $GUID
+                        </COMPUTE>
 
-    <FETCH>
+                        <COMPUTE>
+                            UNITMASTERID : $MASTERID
+                        </COMPUTE>
 
-        UNITGUID,
-        UNITMASTERID,
-        UNITALTERID,
+                        <COMPUTE>
+                            UNITALTERID : $ALTERID
+                        </COMPUTE>
 
-        NAME,
-        FORMALNAME,
-        DECIMALPLACES,
-        RESERVEDNAME
+                        <FETCH>
 
-    </FETCH>
+                            UNITGUID,
+                            UNITMASTERID,
+                            UNITALTERID,
 
-</COLLECTION>
+                            NAME,
+                            FORMALNAME,
+                            DECIMALPLACES,
+                            RESERVEDNAME
+
+                        </FETCH>
+
+                    </COLLECTION>
 
                 </TDLMESSAGE>
 
@@ -57,7 +71,6 @@ function buildUnitRequest() {
 
 </ENVELOPE>
 `;
-
 }
 
 module.exports = {

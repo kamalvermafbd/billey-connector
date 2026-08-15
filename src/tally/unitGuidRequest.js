@@ -1,6 +1,6 @@
-function buildUnitGuidRequest() {
+function buildUnitGuidRequest(company) {
 
-return `
+    return `
 <ENVELOPE>
 
 <HEADER>
@@ -15,7 +15,15 @@ return `
 <DESC>
 
 <STATICVARIABLES>
-<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+<SVCURRENTCOMPANY>
+    ${company}
+</SVCURRENTCOMPANY>
+
+<SVEXPORTFORMAT>
+    $$SysName:XML
+</SVEXPORTFORMAT>
+
 </STATICVARIABLES>
 
 <TDL>
@@ -44,7 +52,6 @@ ALTERID
 
 </ENVELOPE>
 `;
-
 }
 
 module.exports = {

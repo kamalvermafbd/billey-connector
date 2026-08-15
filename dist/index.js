@@ -24317,7 +24317,7 @@ var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
       SERVER_URL: "https://webthaali-api.onrender.com",
-     // SERVER_URL: "http://localhost:5000",
+      //SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -24623,7 +24623,7 @@ var require_XMLHttpRequest = __commonJS({
         } else {
           var contentFile = ".node-xmlhttprequest-content-" + process.pid;
           var syncFile = ".node-xmlhttprequest-sync-" + process.pid;
-          
+          fs.writeFileSync(syncFile, "", "utf8");
           var execString = "var http = require('http'), https = require('https'), fs = require('fs');var doRequest = http" + (ssl ? "s" : "") + ".request;var options = " + JSON.stringify(options) + ";var responseText = '';var responseData = Buffer.alloc(0);var req = doRequest(options, function(response) {response.on('data', function(chunk) {  var data = Buffer.from(chunk);  responseText += data.toString('utf8');  responseData = Buffer.concat([responseData, data]);});response.on('end', function() {fs.writeFileSync('" + contentFile + "', JSON.stringify({err: null, data: {statusCode: response.statusCode, headers: response.headers, text: responseText, data: responseData.toString('base64')}}), 'utf8');fs.unlinkSync('" + syncFile + "');});response.on('error', function(error) {fs.writeFileSync('" + contentFile + "', 'NODE-XMLHTTPREQUEST-ERROR:' + JSON.stringify(error), 'utf8');fs.unlinkSync('" + syncFile + "');});}).on('error', function(error) {fs.writeFileSync('" + contentFile + "', 'NODE-XMLHTTPREQUEST-ERROR:' + JSON.stringify(error), 'utf8');fs.unlinkSync('" + syncFile + "');});" + (data ? "req.write('" + JSON.stringify(data).slice(1, -1).replace(/'/g, "\\'") + "');" : "") + "req.end();";
           var syncProc = spawn(process.argv[0], ["-e", execString]);
           var statusText;
@@ -32570,11 +32570,6 @@ var require_connectorConfig = __commonJS({
       );
     }
     function saveConfig(config) {
-     /* fs.writeFileSync(
-        CONFIG_FILE,
-        JSON.stringify(config, null, 2)
-      );
-      */
     }
     module2.exports = {
       loadConfig,
@@ -49843,6 +49838,38 @@ var require_sales_ledger_template = __commonJS({
   }
 });
 
+// src/tally/ledgerClassifier.js
+var require_ledgerClassifier = __commonJS({
+  "src/tally/ledgerClassifier.js"(exports2, module2) {
+    function getSalesGL(allLedgers) {
+      return allLedgers.filter(
+        (x) => x.parent === "Sales Accounts"
+      );
+    }
+    function getTaxGL(allLedgers) {
+      return allLedgers.filter(
+        (x) => x.parent === "Duties & Taxes"
+      );
+    }
+    function getDebtors(allLedgers) {
+      return allLedgers.filter(
+        (x) => x.parent === "Sundry Debtors"
+      );
+    }
+    function getRoundOffGL(allLedgers) {
+      return allLedgers.filter(
+        (x) => x.name.toUpperCase().includes("ROUND")
+      );
+    }
+    module2.exports = {
+      getSalesGL,
+      getTaxGL,
+      getDebtors,
+      getRoundOffGL
+    };
+  }
+});
+
 // src/tally/tallyService.js
 var require_tallyService = __commonJS({
   "src/tally/tallyService.js"(exports2, module2) {
@@ -49860,6 +49887,12 @@ var require_tallyService = __commonJS({
     var saleTemplate = require_sale_template();
     var stockTemplate = require_stock_template();
     var salesLedgerTemplate = require_sales_ledger_template();
+    var {
+      getSalesGL,
+      getTaxGL,
+      getDebtors,
+      getRoundOffGL
+    } = require_ledgerClassifier();
     var TALLY_URL = "http://localhost:9000";
     var parser = new XMLParser({
       ignoreAttributes: false,
@@ -49867,8 +49900,58 @@ var require_tallyService = __commonJS({
       parseTagValue: true,
       trimValues: true
     });
+    function toArray(value) {
+      if (!value) {
+        return [];
+      }
+      return Array.isArray(value) ? value : [value];
+    }
+    function getValue(v) {
+      if (v == null) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "number") return v;
+      if (typeof v === "object") {
+        if ("#text" in v) return v["#text"];
+        if ("TEXT" in v) return v.TEXT;
+      }
+      return "";
+    }
+    function buildGroupTree(groups) {
+      const tree = {};
+      groups.forEach((group) => {
+        tree[group.name] = group.parent;
+      });
+      return tree;
+    }
+    function getNumber(v) {
+      const value = Number(getValue(v));
+      return isNaN(value) ? 0 : value;
+    }
+    function getDate(v) {
+      const value = String(getValue(v));
+      if (value.length !== 8) return value;
+      return `${value.substring(0, 4)}-${value.substring(4, 6)}-${value.substring(6, 8)}`;
+    }
+    function splitQuantity(value) {
+      value = getValue(value);
+      if (!value) {
+        return {
+          qty: 0,
+          unit: ""
+        };
+      }
+      const parts = value.trim().split(/\s+/);
+      return {
+        qty: Number(parts[0]) || 0,
+        unit: parts.slice(1).join(" ")
+      };
+    }
     async function sendToTally(xml) {
       try {
+        console.log("====================================");
+        console.log(">>> Tally request started");
+        console.trace("Called From");
+        console.log("====================================");
         const response = await axios.post(
           TALLY_URL,
           xml,
@@ -49878,10 +49961,748 @@ var require_tallyService = __commonJS({
             }
           }
         );
+        console.log("<<< Tally response received");
         return response.data;
       } catch (err) {
+        console.log(">>> Tally request failed");
+        console.error(err);
         throw err;
       }
+    }
+    async function fetchTallyCollectionByMasterId({
+      company,
+      collectionName,
+      collectionType,
+      startId,
+      endId,
+      fetchFields = []
+    }) {
+      if (!company) {
+        throw new Error(
+          "company missing in fetchTallyCollectionByMasterId"
+        );
+      }
+      if (!collectionName) {
+        throw new Error(
+          "collectionName missing in fetchTallyCollectionByMasterId"
+        );
+      }
+      if (!collectionType) {
+        throw new Error(
+          "collectionType missing in fetchTallyCollectionByMasterId"
+        );
+      }
+      if (!Number.isFinite(startId) || !Number.isFinite(endId)) {
+        throw new Error(
+          "startId/endId must be numbers"
+        );
+      }
+      if (endId <= startId) {
+        throw new Error(
+          `Invalid MasterID range: ${startId} - ${endId}`
+        );
+      }
+      await selectCompany(company);
+      const fetchXml = fetchFields.length > 0 ? `
+        <FETCH>
+            ${fetchFields.join(",\n")}
+        </FETCH>
+      ` : "";
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>${collectionName}</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="${collectionName}">
+
+                        <TYPE>${collectionType}</TYPE>
+
+                        ${fetchXml}
+
+                        <FILTER>
+                            BilleyMasterIDRangeFilter
+                        </FILTER>
+
+                    </COLLECTION>
+
+                   <SYSTEM TYPE="Formulae" NAME="BilleyMasterIDRangeFilter">
+    $MASTERID &gt; ${startId} AND $MASTERID &lt;= ${endId}
+</SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      fs.writeFileSync(
+        path.join(
+          __dirname,
+          "..",
+          "logs",
+          "master-id-request.xml"
+        ),
+        xml
+      );
+      const startedAt = Date.now();
+      console.log(
+        "===================================="
+      );
+      console.log(
+        "TALLY MASTER ID RANGE TEST"
+      );
+      console.log(
+        "Company :",
+        company
+      );
+      console.log(
+        "Collection :",
+        collectionName
+      );
+      console.log(
+        "Type :",
+        collectionType
+      );
+      console.log(
+        "MasterID Range :",
+        `${startId} - ${endId}`
+      );
+      console.log(
+        "FILTER : ENABLED"
+      );
+      console.log(
+        "Request XML saved to:",
+        "src/logs/master-id-request.xml"
+      );
+      const result = await sendToTally(xml);
+      const durationMs = Date.now() - startedAt;
+      const responseBytes = Buffer.byteLength(
+        String(result || ""),
+        "utf8"
+      );
+      console.log(
+        "Response Bytes :",
+        responseBytes
+      );
+      console.log(
+        "Response KB :",
+        Math.round(
+          responseBytes / 1024
+        )
+      );
+      console.log(
+        "Duration MS :",
+        durationMs
+      );
+      console.log(
+        "===================================="
+      );
+      return result;
+    }
+    async function fetchMasterIds({
+      company
+    }) {
+      if (!company) {
+        throw new Error(
+          "company missing in fetchMasterIds"
+        );
+      }
+      await selectCompany(company);
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>BilleyMasterIdCollection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyMasterIdCollection">
+
+                        <TYPE>Group</TYPE>
+
+                        <FETCH>
+                            MASTERID
+                        </FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      const response = await sendToTally(xml);
+      const json = parser.parse(response);
+      const rawMasters = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP;
+      const masters = toArray(rawMasters);
+      return masters.map(
+        (m) => Number(
+          getValue(m.MASTERID)
+        )
+      ).filter(
+        (id) => Number.isFinite(id)
+      );
+    }
+    async function fetchMasterIdsInBatches({
+      company,
+      batchSize = 50
+    }) {
+      const masterIds = await fetchMasterIds({
+        company
+      });
+      const batches = [];
+      for (let i = 0; i < masterIds.length; i += batchSize) {
+        batches.push(
+          masterIds.slice(
+            i,
+            i + batchSize
+          )
+        );
+      }
+      return batches;
+    }
+    async function fetchMastersInBatches({
+      company,
+      collectionName,
+      collectionType,
+      fetchFields = [],
+      batchSize = 50
+    }) {
+      const batches = await fetchMasterIdsInBatches({
+        company,
+        batchSize
+      });
+      const allResults = [];
+      for (const batch of batches) {
+        const result = await fetchTallyCollection({
+          company,
+          collectionName,
+          collectionType,
+          fetchFields,
+          masterIds: batch
+        });
+        allResults.push(result);
+      }
+      return allResults;
+    }
+    async function fetchVouchersInBatches({
+      company,
+      fromDate,
+      toDate,
+      batchSize = 50
+    }) {
+      const batches = await fetchVoucherIdsInBatches({
+        company,
+        fromDate,
+        toDate,
+        batchSize
+      });
+      const allResults = [];
+      for (const batch of batches) {
+        const masterIds = batch.map((row) => row.masterid).filter(
+          (id) => Number.isFinite(
+            Number(id)
+          )
+        ).map((id) => Number(id));
+        if (!masterIds.length) {
+          continue;
+        }
+        const result = await fetchTallyCollection({
+          company,
+          collectionName: "BilleyVoucherCollection",
+          collectionType: "Voucher",
+          fetchFields: [
+            "GUID",
+            "MASTERID",
+            "ALTERID",
+            "DATE",
+            "EFFECTIVEDATE",
+            "VOUCHERTYPENAME",
+            "VOUCHERNUMBER",
+            "REFERENCE",
+            "REFERENCEDATE",
+            "PARTYLEDGERNAME",
+            "NARRATION",
+            "ISINVOICE",
+            "ISOPTIONAL",
+            "ISCANCELLED"
+          ],
+          masterIds,
+          fromDate,
+          toDate
+        });
+        allResults.push(result);
+      }
+      return allResults;
+    }
+    async function fetchVoucherIds({
+      company,
+      fromDate,
+      toDate,
+      startMasterId = null,
+      endMasterId = null
+    }) {
+      if (!company) {
+        throw new Error(
+          "company missing in fetchVoucherIds"
+        );
+      }
+      if (!fromDate) {
+        throw new Error(
+          "fromDate missing in fetchVoucherIds"
+        );
+      }
+      if (!toDate) {
+        throw new Error(
+          "toDate missing in fetchVoucherIds"
+        );
+      }
+      await selectCompany(company);
+      const useMasterIdRange = startMasterId !== null && endMasterId !== null;
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyVoucherIdCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVFROMDATE TYPE="Date">
+                    ${fromDate}
+                </SVFROMDATE>
+
+                <SVTODATE TYPE="Date">
+                    ${toDate}
+                </SVTODATE>
+
+                <SVCURRENTDATE TYPE="Date">
+                    ${toDate}
+                </SVCURRENTDATE>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherIdCollection">
+
+                        <TYPE>Voucher</TYPE>
+
+                        ${useMasterIdRange ? `
+                        <FILTER>
+                            BilleyVoucherMasterIdRangeFilter
+                        </FILTER>
+                        ` : ""}
+
+                        <FETCH>
+
+                            MASTERID,
+                            GUID,
+                            ALTERID,
+                            DATE,
+                            VOUCHERTYPENAME,
+                            VOUCHERNUMBER
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                    ${useMasterIdRange ? `
+                    <SYSTEM
+                        TYPE="Formulae"
+                        NAME="BilleyVoucherMasterIdRangeFilter">
+
+                       $MASTERID &gt; ${Number(startMasterId)}
+                        AND
+                        $MASTERID &lt;= ${Number(endMasterId)}
+
+                    </SYSTEM>
+                    ` : ""}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      console.log(
+        "======================================"
+      );
+      console.log(
+        "VOUCHER DISCOVERY REQUEST"
+      );
+      console.log(
+        "Company:",
+        company
+      );
+      console.log(
+        "Date:",
+        fromDate,
+        "\u2192",
+        toDate
+      );
+      if (useMasterIdRange) {
+        console.log(
+          "MASTERID RANGE:",
+          startMasterId,
+          "\u2192",
+          endMasterId
+        );
+      } else {
+        console.log(
+          "MASTERID RANGE: FULL"
+        );
+      }
+      console.log(
+        "======================================"
+      );
+      const response = await sendToTally(xml);
+      if (!response) {
+        throw new Error(
+          "Empty response received from Tally."
+        );
+      }
+      const json = parser.parse(response);
+      const rawVouchers = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER;
+      const vouchers = toArray(rawVouchers);
+      const result = vouchers.map((v) => ({
+        masterid: Number(
+          getValue(v.MASTERID)
+        ),
+        guid: getValue(v.GUID),
+        alterid: Number(
+          getValue(v.ALTERID)
+        ),
+        date: getValue(v.DATE),
+        voucherTypeName: getValue(v.VOUCHERTYPENAME),
+        voucherNumber: getValue(v.VOUCHERNUMBER)
+      })).filter(
+        (row) => Number.isFinite(
+          row.masterid
+        ) && row.guid
+      );
+      console.log(
+        "Vouchers Found:",
+        result.length
+      );
+      console.log(
+        "======================================"
+      );
+      return result;
+    }
+    async function fetchVoucherIdsInBatches({
+      company,
+      fromDate,
+      toDate,
+      batchSize = 50
+    }) {
+      const voucherIds = await fetchVoucherIds({
+        company,
+        fromDate,
+        toDate
+      });
+      const batches = [];
+      for (let i = 0; i < voucherIds.length; i += batchSize) {
+        batches.push(
+          voucherIds.slice(
+            i,
+            i + batchSize
+          )
+        );
+      }
+      return batches;
+    }
+    async function fetchTallyCollection({
+      company,
+      collectionName,
+      collectionType,
+      fetchFields = [],
+      filterName = null,
+      filterFormula = null,
+      masterIds = [],
+      fromDate = null,
+      toDate = null
+    }) {
+      if (!company) {
+        throw new Error(
+          "company missing in fetchTallyCollection"
+        );
+      }
+      if (!collectionName) {
+        throw new Error(
+          "collectionName missing in fetchTallyCollection"
+        );
+      }
+      if (!collectionType) {
+        throw new Error(
+          "collectionType missing in fetchTallyCollection"
+        );
+      }
+      await selectCompany(company);
+      const fetchXml = fetchFields.length > 0 ? `
+                <FETCH>
+                    ${fetchFields.join(",\n")}
+                </FETCH>
+              ` : "";
+      let finalFilterName = filterName;
+      let finalFilterFormula = filterFormula;
+      if (Array.isArray(masterIds) && masterIds.length > 0) {
+        const ids = masterIds.map((id) => Number(id)).filter(
+          (id) => Number.isFinite(id)
+        );
+        if (ids.length === 0) {
+          throw new Error(
+            "masterIds contains no valid numbers"
+          );
+        }
+        finalFilterName = "BilleyMasterIDListFilter";
+        finalFilterFormula = "(" + ids.map(
+          (id) => `$MASTERID = ${id}`
+        ).join(" OR ") + ")";
+      }
+      const filterXml = finalFilterName && finalFilterFormula ? `
+                <FILTER>
+                    ${finalFilterName}
+                </FILTER>
+              ` : "";
+      const formulaXml = finalFilterName && finalFilterFormula ? `
+                <SYSTEM
+                    TYPE="Formulae"
+                    NAME="${finalFilterName}">
+                    ${finalFilterFormula}
+                </SYSTEM>
+              ` : "";
+      const dateXml = fromDate && toDate ? `
+                <SVFROMDATE TYPE="Date">
+                    ${fromDate}
+                </SVFROMDATE>
+
+                <SVTODATE TYPE="Date">
+                    ${toDate}
+                </SVTODATE>
+
+                <SVCURRENTDATE TYPE="Date">
+                    ${toDate}
+                </SVCURRENTDATE>
+              ` : "";
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>${collectionName}</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                ${dateXml}
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="${collectionName}">
+
+                        <TYPE>${collectionType}</TYPE>
+
+                        ${fetchXml}
+
+                        ${filterXml}
+
+                    </COLLECTION>
+
+                    ${formulaXml}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      console.log(
+        "===================================="
+      );
+      console.log(
+        "TALLY GENERIC COLLECTION REQUEST"
+      );
+      console.log(
+        "Company:",
+        company
+      );
+      console.log(
+        "Collection:",
+        collectionName
+      );
+      console.log(
+        "Type:",
+        collectionType
+      );
+      if (Array.isArray(masterIds) && masterIds.length > 0) {
+        console.log(
+          "MASTER IDS:",
+          masterIds.length
+        );
+      }
+      if (fromDate && toDate) {
+        console.log(
+          "Date:",
+          fromDate,
+          "\u2192",
+          toDate
+        );
+      }
+      if (finalFilterFormula) {
+        console.log(
+          "Filter:",
+          finalFilterFormula
+        );
+      }
+      console.log(
+        "===================================="
+      );
+      return await sendToTally(xml);
+    }
+    async function fetchTallyCollectionByVoucherId({
+      company,
+      voucherId,
+      fetchFields = []
+    }) {
+      if (!voucherId) {
+        throw new Error(
+          "voucherId missing in fetchTallyCollectionByVoucherId"
+        );
+      }
+      const fields = fetchFields.length > 0 ? fetchFields : [
+        "GUID",
+        "MASTERID",
+        "ALTERID",
+        "DATE",
+        "EFFECTIVEDATE",
+        "VOUCHERTYPENAME",
+        "VOUCHERNUMBER",
+        "REFERENCE",
+        "REFERENCEDATE",
+        "PARTYLEDGERNAME",
+        "NARRATION",
+        "ISINVOICE",
+        "ISOPTIONAL",
+        "ISCANCELLED"
+      ];
+      return await fetchTallyCollection({
+        company,
+        collectionName: "BilleyVoucherCollection",
+        collectionType: "Voucher",
+        fetchFields: fields,
+        filterName: "BilleyVoucherIdFilter",
+        filterFormula: `$MASTERID = ${Number(voucherId)}`
+      });
     }
     async function getTallyCompanies() {
       const xml = `
@@ -49961,7 +50782,94 @@ var require_tallyService = __commonJS({
 `;
       return await sendToTally(xml);
     }
-    async function getAllLedgers(company) {
+    async function getGroups(company) {
+      await selectCompany(company);
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyGroupCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyGroupCollection">
+
+                        <TYPE>Group</TYPE>
+
+                       <FETCH>
+
+    Name,
+    Parent,
+    GUID,
+    MASTERID,
+    ALTERID,
+    RESERVEDNAME,
+    GSTREGISTRATIONTYPE,
+    GSTIN,
+    ADDRESS,
+    STATE,
+    COUNTRY,
+    PINCODE,
+    LEDGERPHONE,
+    EMAIL,
+    CONTACTPERSON,
+    ISBILLWISEON
+
+</FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      const result = await sendToTally(xml);
+      const json = parser.parse(result);
+      const groupsRaw = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP;
+      const groups = Array.isArray(groupsRaw) ? groupsRaw : groupsRaw ? [groupsRaw] : [];
+      return groups.map((group) => ({
+        name: group.NAME,
+        parent: getValue(group.PARENT),
+        reservedName: group.RESERVEDNAME || ""
+      }));
+    }
+    function getRootGroup(groupName, groupTree) {
+      let current = groupName;
+      while (groupTree[current] && groupTree[current] !== "Primary" && groupTree[current] !== " Primary") {
+        current = groupTree[current];
+      }
+      return current;
+    }
+    async function getAllLedgers(company, groupTree) {
       await selectCompany(
         company
       );
@@ -49976,7 +50884,7 @@ var require_tallyService = __commonJS({
 
     <TYPE>Collection</TYPE>
 
-    <ID>List of Ledgers</ID>
+   <ID>BilleyLedgerCollection</ID>
 
   </HEADER>
 
@@ -49996,6 +50904,27 @@ var require_tallyService = __commonJS({
 
       </STATICVARIABLES>
 
+      <TDL>
+
+    <TDLMESSAGE>
+
+        <COLLECTION NAME="BilleyLedgerCollection">
+
+            <TYPE>Ledger</TYPE>
+
+            <FETCH>
+
+                Name,
+                Parent
+
+            </FETCH>
+
+        </COLLECTION>
+
+    </TDLMESSAGE>
+
+</TDL>
+
     </DESC>
 
   </BODY>
@@ -50003,56 +50932,22 @@ var require_tallyService = __commonJS({
 </ENVELOPE>
 `;
       const result = await sendToTally(xml);
-      const ledgers = [];
-      const regex = /<LEDGER NAME="([^"]+)"/g;
-      let match;
-      while ((match = regex.exec(result)) !== null) {
-        ledgers.push({
-          name: match[1]
-        });
-      }
+      const json = parser.parse(result);
+      const ledgersRaw = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.LEDGER;
+      const ledgers = Array.isArray(ledgersRaw) ? ledgersRaw : ledgersRaw ? [ledgersRaw] : [];
+      const ledgerList = ledgers.map((ledger) => ({
+        name: ledger.NAME,
+        parent: getValue(ledger.PARENT),
+        rootGroup: getRootGroup(
+          getValue(ledger.PARENT),
+          groupTree
+        )
+      }));
       console.log(
         "TALLY LEDGERS",
-        ledgers
+        ledgerList
       );
-      const roundOffGL = ledgers.filter((x) => {
-        const name = x.name.toUpperCase();
-        return name.includes("ROUND");
-      });
-      console.log(
-        "ROUND OFF GL",
-        roundOffGL
-      );
-      const salesGL = ledgers.filter((x) => {
-        const name = x.name.toUpperCase();
-        return name.includes("SALE");
-      });
-      console.log(
-        "SALES GL",
-        salesGL
-      );
-      const taxGL = ledgers.filter((x) => {
-        const name = x.name.toUpperCase();
-        return name.includes("CGST") || name.includes("SGST") || name.includes("IGST");
-      });
-      console.log(
-        "TAX GL",
-        taxGL
-      );
-      const debtors = ledgers.filter((x) => {
-        const name = x.name.toUpperCase();
-        return !(name.includes("SALE") || name.includes("CGST") || name.includes("SGST") || name.includes("IGST") || name.includes("CASH") || name.includes("ROUND") || name.includes("PROFIT"));
-      });
-      console.log(
-        "DEBTORS",
-        debtors
-      );
-      return {
-        salesGL,
-        taxGL,
-        roundOffGL,
-        debtors
-      };
+      return ledgerList;
     }
     async function getStockItems(company) {
       const xml = `
@@ -50159,10 +51054,122 @@ var require_tallyService = __commonJS({
       const json = parser.parse(result);
       return json;
     }
+    async function getSalesVouchers(company) {
+      await selectCompany(company);
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleySalesCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+    <TDLMESSAGE>
+
+        <COLLECTION NAME="BilleySalesCollection">
+
+            <TYPE>Voucher</TYPE>
+
+            <CHILDOF>Sales</CHILDOF>
+
+           <FETCH>
+    Date,
+    VoucherNumber,
+    PartyLedgerName,
+    Narration,
+    AllInventoryEntries,
+    LedgerEntries,
+    PartyGSTIN,
+    PlaceOfSupply,
+    BasicBuyerName,
+    BasicBuyerAddress,
+    GSTRegistrationType,
+    PersistedView,
+    VoucherTypeName
+</FETCH>
+
+        </COLLECTION>
+
+    </TDLMESSAGE>
+
+</TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      const result = await sendToTally(xml);
+      const fs2 = require("fs");
+      const path2 = require("path");
+      const outputFile = path2.join(
+        __dirname,
+        "sales-vouchers.xml"
+      );
+      console.log(
+        "\u2705 Sales vouchers saved to:",
+        outputFile
+      );
+      const json = parser.parse(result);
+      return json;
+    }
     async function getTallyMappingData(company) {
       console.log("COMPANY RECEIVED:", company);
-      const ledgerData = await getAllLedgers(company);
-      console.log("LEDGER DATA", ledgerData);
+      const groups = await getGroups(company);
+      console.log(
+        JSON.stringify(groups, null, 2)
+      );
+      const groupTree = buildGroupTree(groups);
+      const salesJson = await getSalesVouchers(company);
+      const vouchers = toArray(
+        salesJson?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
+      );
+      console.log(
+        "TOTAL VOUCHERS:",
+        vouchers.length
+      );
+      const sales = vouchers.map(normalizeVoucher);
+      console.log(JSON.stringify(sales[0], null, 2));
+      const allLedgers = await getAllLedgers(
+        company,
+        groupTree
+      );
+      console.log(
+        "ALL LEDGERS",
+        allLedgers
+      );
+      const ledgerData = {
+        salesGL: getSalesGL(allLedgers),
+        taxGL: getTaxGL(allLedgers),
+        roundOffGL: getRoundOffGL(allLedgers),
+        debtors: getDebtors(allLedgers)
+      };
+      console.log(
+        "LEDGER DATA",
+        ledgerData
+      );
       const stockJson = await getStockItems(company);
       const stockRaw = stockJson?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKITEM;
       const stock = Array.isArray(stockRaw) ? stockRaw : stockRaw ? [stockRaw] : [];
@@ -50184,10 +51191,74 @@ var require_tallyService = __commonJS({
           roundOffGL: ledgerData.roundOffGL,
           units: unitList,
           stock: stockList,
+          sales,
           hsn: [],
           debtors: ledgerData.debtors
         }
       };
+    }
+    function normalizeVoucher(v) {
+      return {
+        voucherNumber: getNumber(v.VOUCHERNUMBER),
+        date: getDate(v.DATE),
+        party: getValue(v.PARTYLEDGERNAME),
+        gstin: getValue(v.PARTYGSTIN),
+        gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
+        placeOfSupply: getValue(v.PLACEOFSUPPLY),
+        buyerName: getValue(v.BASICBUYERNAME),
+        narration: getValue(v.NARRATION),
+        items: parseItems(v),
+        ledgers: parseLedgers(v),
+        taxes: parseTaxes(v)
+      };
+    }
+    function parseItems(v) {
+      return toArray(v["ALLINVENTORYENTRIES.LIST"]).map((item) => {
+        const qty = splitQuantity(item.ACTUALQTY);
+        const billed = splitQuantity(item.BILLEDQTY);
+        const rate = splitQuantity(item.RATE);
+        return {
+          stockItem: getValue(item.STOCKITEMNAME),
+          hsn: String(getValue(item.GSTHSNNAME)),
+          qty: qty.qty,
+          qtyUnit: qty.unit,
+          billedQty: billed.qty,
+          billedQtyUnit: billed.unit,
+          rate: rate.qty,
+          rateUnit: rate.unit,
+          amount: getNumber(item.AMOUNT)
+        };
+      });
+    }
+    function parseLedgers(v) {
+      const ledgers = toArray(v["LEDGERENTRIES.LIST"]);
+      return ledgers.map((l) => ({
+        ledger: l.LEDGERNAME,
+        amount: Number(l.AMOUNT)
+      }));
+    }
+    function parseTaxes(v) {
+      const taxes = {
+        cgst: 0,
+        sgst: 0,
+        igst: 0
+      };
+      toArray(v["ALLINVENTORYENTRIES.LIST"]).forEach((item) => {
+        toArray(item["RATEDETAILS.LIST"]).forEach((rate) => {
+          switch (rate.GSTRATEDUTYHEAD) {
+            case "CGST":
+              taxes.cgst = Number(rate.GSTRATE);
+              break;
+            case "SGST/UTGST":
+              taxes.sgst = Number(rate.GSTRATE);
+              break;
+            case "IGST":
+              taxes.igst = Number(rate.GSTRATE);
+              break;
+          }
+        });
+      });
+      return taxes;
     }
     async function createStockItem({
       company,
@@ -50203,7 +51274,6 @@ var require_tallyService = __commonJS({
         hsn,
         gstRate
       });
-    
       return xml;
     }
     async function createSalesLedger({
@@ -50214,7 +51284,6 @@ var require_tallyService = __commonJS({
         company,
         ledgerName
       });
-    
       return xml;
     }
     function createUnit({
@@ -50419,6 +51488,27 @@ var require_tallyService = __commonJS({
     }
     module2.exports = {
       sendToTally,
+      fetchTallyCollection,
+      // =========================
+      // MASTER FLOW
+      // =========================
+      fetchMasterIds,
+      fetchMasterIdsInBatches,
+      fetchMastersInBatches,
+      // =========================
+      // VOUCHER FLOW
+      // =========================
+      fetchVoucherIds,
+      fetchVoucherIdsInBatches,
+      fetchVouchersInBatches,
+      // =========================
+      // EXISTING HELPERS
+      // =========================
+      fetchTallyCollectionByMasterId,
+      fetchTallyCollectionByVoucherId,
+      // =========================
+      // OTHER FUNCTIONS
+      // =========================
       createUnit,
       createStockItem,
       createSalesLedger,
@@ -50429,8 +51519,5209 @@ var require_tallyService = __commonJS({
       getAllLedgers,
       getStockItems,
       getTallyMappingData,
-      getUnits
-      //getStockMasters
+      getUnits,
+      getSalesVouchers,
+      getGroups
+      // getStockMasters
+    };
+  }
+});
+
+// utils/ChunkBuilder.js
+var require_ChunkBuilder = __commonJS({
+  "utils/ChunkBuilder.js"(exports2, module2) {
+    var DEFAULT_MAX_CHUNK_SIZE = 500 * 1024;
+    function getObjectSize(obj) {
+      return Buffer.byteLength(JSON.stringify(obj), "utf8");
+    }
+    function buildChunks(items, options = DEFAULT_MAX_CHUNK_SIZE) {
+      const config = typeof options === "number" ? {
+        maxChunkSize: options,
+        getItemSize: getObjectSize
+      } : {
+        maxChunkSize: DEFAULT_MAX_CHUNK_SIZE,
+        getItemSize: getObjectSize,
+        ...options
+      };
+      const {
+        maxChunkSize,
+        getItemSize
+      } = config;
+      if (!Number.isInteger(maxChunkSize) || maxChunkSize <= 0) {
+        throw new Error(
+          "Invalid maxChunkSize"
+        );
+      }
+      if (typeof getItemSize !== "function") {
+        throw new Error(
+          "Invalid getItemSize"
+        );
+      }
+      if (!Array.isArray(items)) {
+        throw new Error(
+          "buildChunks expects an array"
+        );
+      }
+      if (items.length === 0) {
+        return [];
+      }
+      const chunks = [];
+      let currentChunk = [];
+      let currentSize = 0;
+      for (const [i, item] of items.entries()) {
+        if (item == null) {
+          throw new Error(
+            `Invalid item at index ${i}`
+          );
+        }
+        const itemSize = getItemSize(item);
+        if (itemSize > maxChunkSize) {
+          console.log(
+            "OVERSIZE ITEM",
+            {
+              index: i,
+              size: itemSize,
+              keys: Object.keys(item)
+            }
+          );
+          throw new Error(
+            `Single item exceeds chunk size (${itemSize} bytes)`
+          );
+        }
+        if (currentChunk.length > 0 && currentSize + itemSize > maxChunkSize) {
+          chunks.push({
+            payloadSize: currentSize,
+            data: currentChunk
+          });
+          currentChunk = [];
+          currentSize = 0;
+        }
+        currentChunk.push(item);
+        currentSize += itemSize;
+      }
+      if (currentChunk.length) {
+        chunks.push({
+          payloadSize: currentSize,
+          data: currentChunk
+        });
+      }
+      const totalChunks = chunks.length;
+      return chunks.map((chunk, index) => ({
+        chunkIndex: index + 1,
+        totalChunks,
+        payloadSize: chunk.payloadSize,
+        data: chunk.data
+      }));
+    }
+    module2.exports = {
+      buildChunks,
+      getObjectSize,
+      DEFAULT_MAX_CHUNK_SIZE
+    };
+  }
+});
+
+// utils/sendChunkedResponse.js
+var require_sendChunkedResponse = __commonJS({
+  "utils/sendChunkedResponse.js"(exports2, module2) {
+    var crypto = require("crypto");
+    var { buildChunks } = require_ChunkBuilder();
+    var ACK_TIMEOUT = 15 * 60 * 1e3;
+    var HEARTBEAT_INTERVAL = 5e3;
+    async function waitForAck(socket, ackEvent, batchId, chunkIndex) {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          socket.off(
+            ackEvent,
+            onAck
+          );
+          socket.off(
+            "disconnect",
+            onDisconnect
+          );
+          reject(
+            new Error(
+              `ACK timeout for chunk ${chunkIndex}`
+            )
+          );
+        }, ACK_TIMEOUT);
+        function onAck(data) {
+          console.log("CHUNK ACK RECEIVED");
+          console.log(data);
+          if (!data) {
+            return;
+          }
+          console.log("ACK EVENT RECEIVED");
+          console.log(data);
+          if (data.batchId !== batchId || data.chunkIndex !== chunkIndex) {
+            return;
+          }
+          clearTimeout(timeout);
+          socket.off(ackEvent, onAck);
+          socket.off(
+            "disconnect",
+            onDisconnect
+          );
+          if (data.success === false) {
+            return reject(
+              new Error(data.error || "Chunk rejected")
+            );
+          }
+          resolve();
+        }
+        function onDisconnect(reason) {
+          clearTimeout(timeout);
+          socket.off(
+            ackEvent,
+            onAck
+          );
+          socket.off(
+            "disconnect",
+            onDisconnect
+          );
+          reject(
+            new Error(
+              `Socket disconnected: ${reason}`
+            )
+          );
+        }
+        socket.on(ackEvent, onAck);
+        socket.once(
+          "disconnect",
+          onDisconnect
+        );
+      });
+    }
+    async function waitForCompleteAck(socket, completeAckEvent, batchId) {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          socket.off(
+            completeAckEvent,
+            onAck
+          );
+          socket.off(
+            "disconnect",
+            onDisconnect
+          );
+          reject(
+            new Error(
+              "Collection complete ACK timeout"
+            )
+          );
+        }, ACK_TIMEOUT);
+        function onAck(data) {
+          console.log("COMPLETE ACK RECEIVED");
+          console.log(data);
+          if (!data) {
+            return;
+          }
+          if (data.batchId !== batchId) {
+            return;
+          }
+          clearTimeout(timeout);
+          socket.off(
+            completeAckEvent,
+            onAck
+          );
+          socket.off(
+            "disconnect",
+            onDisconnect
+          );
+          if (data.success === false) {
+            return reject(
+              new Error(
+                data.error || "Collection rejected"
+              )
+            );
+          }
+          resolve();
+        }
+        function onDisconnect(reason) {
+          clearTimeout(timeout);
+          socket.off(
+            completeAckEvent,
+            onAck
+          );
+          socket.off(
+            "disconnect",
+            onDisconnect
+          );
+          reject(
+            new Error(
+              `Socket disconnected: ${reason}`
+            )
+          );
+        }
+        socket.on(
+          completeAckEvent,
+          onAck
+        );
+        socket.once(
+          "disconnect",
+          onDisconnect
+        );
+      });
+    }
+    async function sendChunkedResponse(socket, baseEvent, items, maxChunkSize) {
+      let heartbeat;
+      function startHeartbeat() {
+        heartbeat = setInterval(() => {
+          if (!socket.connected) {
+            return;
+          }
+          socket.emit(`${baseEvent}Progress`, {
+            batchId,
+            timestamp: Date.now()
+          });
+        }, HEARTBEAT_INTERVAL);
+      }
+      function stopHeartbeat() {
+        if (heartbeat) {
+          clearInterval(heartbeat);
+          heartbeat = null;
+        }
+      }
+      const batchId = crypto.randomUUID();
+      const chunks = buildChunks(items, maxChunkSize);
+      if (chunks.length === 0) {
+        console.log("No chunks to send");
+        const completeAckPromise = waitForCompleteAck(
+          socket,
+          `${baseEvent}CompleteAck`,
+          batchId
+        );
+        socket.emit(`${baseEvent}Complete`, {
+          batchId,
+          totalChunks: 0,
+          totalItems: 0,
+          completedAt: (/* @__PURE__ */ new Date()).toISOString()
+        });
+        await completeAckPromise;
+        console.log("Empty collection completed");
+        return;
+      }
+      const chunkEvent = `${baseEvent}Chunk`;
+      const ackEvent = `${baseEvent}ChunkAck`;
+      const completeEvent = `${baseEvent}Complete`;
+      const completeAckEvent = `${baseEvent}CompleteAck`;
+      console.log(
+        `Sending ${chunks.length} chunks`
+      );
+      startHeartbeat();
+      try {
+        for (const chunk of chunks) {
+          if (!socket.connected) {
+            throw new Error(
+              "Socket disconnected"
+            );
+          }
+          console.log(
+            `Sending chunk ${chunk.chunkIndex}/${chunk.totalChunks} (${chunk.payloadSize} bytes)`
+          );
+          socket.emit(chunkEvent, {
+            batchId,
+            chunkIndex: chunk.chunkIndex,
+            totalChunks: chunk.totalChunks,
+            payloadSize: chunk.payloadSize,
+            data: chunk.data
+          });
+          console.log(
+            `Chunk ${chunk.chunkIndex}/${chunk.totalChunks} sent`
+          );
+          await waitForAck(
+            socket,
+            ackEvent,
+            batchId,
+            chunk.chunkIndex
+          );
+          console.log(
+            `ACK received for chunk ${chunk.chunkIndex}/${chunk.totalChunks}`
+          );
+        }
+        console.log(
+          "EMITTING COMPLETE:",
+          completeEvent
+        );
+        console.log({
+          batchId,
+          totalChunks: chunks.length,
+          totalItems: items.length
+        });
+        const completeAckPromise = waitForCompleteAck(
+          socket,
+          completeAckEvent,
+          batchId
+        );
+        socket.emit(
+          completeEvent,
+          {
+            batchId,
+            totalChunks: chunks.length,
+            totalItems: items.length,
+            completedAt: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        );
+        await completeAckPromise;
+        console.log(
+          "Complete event sent"
+        );
+        console.log(
+          "Chunk transfer completed"
+        );
+      } finally {
+        stopHeartbeat();
+      }
+    }
+    module2.exports = {
+      sendChunkedResponse
+    };
+  }
+});
+
+// utils/protocol/ProtocolEvents.js
+var require_ProtocolEvents = __commonJS({
+  "utils/protocol/ProtocolEvents.js"(exports2, module2) {
+    module2.exports = {
+      READY: "protocol:ready",
+      CHUNK: "protocol:chunk",
+      RECEIVED: "protocol:received",
+      COMPLETE: "protocol:complete",
+      COMPLETED: "protocol:completed",
+      ERROR: "protocol:error"
+    };
+  }
+});
+
+// utils/protocol/ConnectorProtocolSession.js
+var require_ConnectorProtocolSession = __commonJS({
+  "utils/protocol/ConnectorProtocolSession.js"(exports2, module2) {
+    var ConnectorProtocolSession = class {
+      constructor(socket) {
+        this.socket = socket;
+        this.collection = null;
+        this.batchId = null;
+        this.totalChunks = 0;
+        this.currentChunk = 0;
+        this.totalItems = 0;
+        this.items = [];
+        this.completed = false;
+      }
+      start({
+        collection,
+        batchId,
+        items,
+        totalChunks
+      }) {
+        this.collection = collection;
+        this.batchId = batchId;
+        this.items = items;
+        this.totalItems = items.length;
+        this.totalChunks = totalChunks;
+        this.currentChunk = 0;
+        this.completed = false;
+      }
+      nextChunk() {
+        this.currentChunk++;
+      }
+      finish() {
+        this.completed = true;
+      }
+    };
+    module2.exports = ConnectorProtocolSession;
+  }
+});
+
+// utils/protocol/ConnectorProtocolSender.js
+var require_ConnectorProtocolSender = __commonJS({
+  "utils/protocol/ConnectorProtocolSender.js"(exports2, module2) {
+    var crypto = require("crypto");
+    var {
+      buildChunks
+    } = require_ChunkBuilder();
+    var EVENTS = require_ProtocolEvents();
+    var ConnectorProtocolSession = require_ConnectorProtocolSession();
+    var ConnectorProtocolSender = class {
+      constructor(socket) {
+        this.socket = socket;
+        this.session = new ConnectorProtocolSession(socket);
+      }
+      async waitForReady(collection) {
+        return new Promise((resolve, reject) => {
+          const event = EVENTS.READY;
+          const onReady = (data) => {
+            this.socket.off(
+              event,
+              onReady
+            );
+            this.socket.off(
+              "disconnect",
+              onDisconnect
+            );
+            if (data.collection !== collection) {
+              return;
+            }
+            resolve(data);
+          };
+          const onDisconnect = () => {
+            this.socket.off(
+              event,
+              onReady
+            );
+            reject(
+              new Error(
+                "Socket disconnected"
+              )
+            );
+          };
+          this.socket.once(
+            event,
+            onReady
+          );
+          this.socket.once(
+            "disconnect",
+            onDisconnect
+          );
+        });
+      }
+      async waitForReceived(collection, batchId, chunkIndex) {
+        return new Promise((resolve, reject) => {
+          const event = EVENTS.RECEIVED;
+          const onReceived = (data) => {
+            if (!data) {
+              return;
+            }
+            if (data.collection !== collection) {
+              return;
+            }
+            if (data.batchId !== batchId || data.chunkIndex !== chunkIndex) {
+              return;
+            }
+            this.socket.off(
+              event,
+              onReceived
+            );
+            this.socket.off(
+              "disconnect",
+              onDisconnect
+            );
+            resolve();
+          };
+          const onDisconnect = () => {
+            this.socket.off(
+              event,
+              onReceived
+            );
+            reject(
+              new Error(
+                "Socket disconnected"
+              )
+            );
+          };
+          this.socket.once(
+            event,
+            onReceived
+          );
+          this.socket.once(
+            "disconnect",
+            onDisconnect
+          );
+        });
+      }
+      async waitForCompleted(collection, batchId) {
+        return new Promise((resolve, reject) => {
+          const event = EVENTS.COMPLETED;
+          const onCompleted = (data) => {
+            if (!data) {
+              return;
+            }
+            if (data.collection !== collection) {
+              return;
+            }
+            if (data.batchId !== batchId) {
+              return;
+            }
+            this.socket.off(
+              event,
+              onCompleted
+            );
+            this.socket.off(
+              "disconnect",
+              onDisconnect
+            );
+            if (data.success === false) {
+              return reject(
+                new Error(
+                  data.error
+                )
+              );
+            }
+            resolve();
+          };
+          const onDisconnect = () => {
+            this.socket.off(
+              event,
+              onCompleted
+            );
+            reject(
+              new Error(
+                "Socket disconnected"
+              )
+            );
+          };
+          this.socket.once(
+            event,
+            onCompleted
+          );
+          this.socket.once(
+            "disconnect",
+            onDisconnect
+          );
+        });
+      }
+      createSession(collection, items, maxChunkSize) {
+        const batchId = crypto.randomUUID();
+        const chunks = buildChunks(
+          items,
+          maxChunkSize
+        );
+        this.session.start({
+          collection,
+          batchId,
+          items,
+          totalChunks: chunks.length
+        });
+        return {
+          batchId,
+          chunks
+        };
+      }
+      async sendCollection(collection, items, maxChunkSize) {
+        await this.waitForReady(
+          collection
+        );
+        const {
+          batchId,
+          chunks
+        } = this.createSession(
+          collection,
+          items,
+          maxChunkSize
+        );
+        console.log(
+          `Starting ${collection}`
+        );
+        console.log(
+          `Chunks : ${chunks.length}`
+        );
+        if (chunks.length === 0) {
+          console.log(
+            "ZERO CHUNK COLLECTION"
+          );
+        }
+        for (const chunk of chunks) {
+          this.socket.emit(
+            EVENTS.CHUNK,
+            {
+              collection,
+              batchId,
+              chunkIndex: chunk.chunkIndex,
+              totalChunks: chunk.totalChunks,
+              payloadSize: chunk.payloadSize,
+              data: chunk.data
+            }
+          );
+          await this.waitForReceived(
+            collection,
+            batchId,
+            chunk.chunkIndex
+          );
+          this.session.nextChunk();
+        }
+        console.log(
+          "Sending COMPLETE",
+          collection
+        );
+        this.socket.emit(
+          EVENTS.COMPLETE,
+          {
+            collection,
+            batchId,
+            totalChunks: chunks.length,
+            totalItems: items.length
+          }
+        );
+        await this.waitForCompleted(
+          collection,
+          batchId
+        );
+        console.log(
+          "COMPLETED ACK",
+          collection
+        );
+        this.session.finish();
+        console.log(
+          `${collection} completed`
+        );
+        return true;
+      }
+    };
+    module2.exports = ConnectorProtocolSender;
+  }
+});
+
+// utils/protocol/ConnectorProtocolController.js
+var require_ConnectorProtocolController = __commonJS({
+  "utils/protocol/ConnectorProtocolController.js"(exports2, module2) {
+    var ConnectorProtocolSender = require_ConnectorProtocolSender();
+    var {
+      DEFAULT_MAX_CHUNK_SIZE
+    } = require_ChunkBuilder();
+    var ConnectorProtocolController = class {
+      constructor(socket) {
+        this.sender = new ConnectorProtocolSender(
+          socket
+        );
+      }
+      async sendCollection(event, rows) {
+        console.log(
+          `================================`
+        );
+        console.log(
+          `${event} : ${rows.length}`
+        );
+        if (rows.length === 0) {
+          console.log(
+            `Empty collection : ${event}`
+          );
+          await this.sender.sendCollection(
+            event,
+            [],
+            DEFAULT_MAX_CHUNK_SIZE
+          );
+          console.log(
+            `Finished ${event}`
+          );
+          return;
+        }
+        await this.sender.sendCollection(
+          event,
+          rows,
+          DEFAULT_MAX_CHUNK_SIZE
+        );
+        console.log(
+          `Finished ${event}`
+        );
+      }
+      async sendMasters(result) {
+        await this.sendCollection(
+          "getMastersGroups",
+          result.groups || []
+        );
+        await this.sendCollection(
+          "getMastersUnits",
+          result.units || []
+        );
+        console.log("================================");
+        console.log("SEND MASTER LEDGERS");
+        console.log("result.ledgers :", result.ledgers?.length);
+        console.log("first ledger :", result.ledgers?.[0]);
+        console.log("================================");
+        await this.sendCollection(
+          "getMastersLedgers",
+          result.ledgers || []
+        );
+        await this.sendCollection(
+          "getMastersStockGroups",
+          result.stockGroups || []
+        );
+        await this.sendCollection(
+          "getMastersStocks",
+          result.stocks || []
+        );
+        await this.sendCollection(
+          "getMastersGodowns",
+          result.godowns || []
+        );
+        await this.sendCollection(
+          "getMastersCostCentres",
+          result.costCentres || []
+        );
+        await this.sendCollection(
+          "getMasters",
+          result.vouchers || []
+        );
+      }
+    };
+    module2.exports = ConnectorProtocolController;
+  }
+});
+
+// utils/requestCollector.js
+var require_requestCollector = __commonJS({
+  "utils/requestCollector.js"(exports2, module2) {
+    var batches = /* @__PURE__ */ new Map();
+    function addChunk(data) {
+      if (!data?.batchId) {
+        throw new Error(
+          "Chunk missing batchId"
+        );
+      }
+      if (!Number.isInteger(data.chunkIndex) || data.chunkIndex < 1) {
+        throw new Error(
+          `Invalid chunkIndex: ${data.chunkIndex}`
+        );
+      }
+      if (!Number.isInteger(data.totalChunks) || data.totalChunks < 1) {
+        throw new Error(
+          `Invalid totalChunks: ${data.totalChunks}`
+        );
+      }
+      if (data.chunkIndex > data.totalChunks) {
+        throw new Error(
+          `Chunk index ${data.chunkIndex} exceeds totalChunks ${data.totalChunks}`
+        );
+      }
+      if (!Array.isArray(data.data)) {
+        throw new Error(
+          "Chunk data must be an array"
+        );
+      }
+      let batch = batches.get(data.batchId);
+      if (!batch) {
+        batch = {
+          chunks: [],
+          totalChunks: data.totalChunks,
+          receivedChunks: 0
+        };
+        batches.set(
+          data.batchId,
+          batch
+        );
+      } else if (batch.totalChunks !== data.totalChunks) {
+        throw new Error(
+          `totalChunks mismatch for batch ${data.batchId}`
+        );
+      }
+      if (!batch.chunks[data.chunkIndex - 1]) {
+        batch.receivedChunks++;
+      }
+      batch.chunks[data.chunkIndex - 1] = data.data;
+    }
+    function isComplete(batchId) {
+      const batch = batches.get(batchId);
+      if (!batch) {
+        return false;
+      }
+      return batch.receivedChunks === batch.totalChunks;
+    }
+    function complete(batchId) {
+      const batch = batches.get(batchId);
+      if (!batch) {
+        throw new Error("Batch not found");
+      }
+      const items = batch.chunks.flat();
+      batches.delete(batchId);
+      return items;
+    }
+    module2.exports = {
+      addChunk,
+      isComplete,
+      complete
+    };
+  }
+});
+
+// src/tally/companyRequest.js
+var require_companyRequest = __commonJS({
+  "src/tally/companyRequest.js"(exports2, module2) {
+    function buildCompanyRequest(company) {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Object</TYPE>
+        <SUBTYPE>Company</SUBTYPE>
+        <ID TYPE="Name">${company}</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            </STATICVARIABLES>
+
+            <FETCHLIST>
+
+                <FETCH>NAME</FETCH>
+                <FETCH>BOOKSFROM</FETCH>
+                <FETCH>STARTINGFROM</FETCH>
+                <FETCH>FINANCIALYEARFROM</FETCH>
+                <FETCH>GUID</FETCH>
+
+            </FETCHLIST>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildCompanyRequest
+    };
+  }
+});
+
+// src/tally/companyParser.js
+var require_companyParser = __commonJS({
+  "src/tally/companyParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseCompanyResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const company = json?.ENVELOPE?.BODY?.DATA?.TALLYMESSAGE?.COMPANY;
+      return {
+        guid: getValue(company?.GUID),
+        companyName: getValue(company?.NAME),
+        booksBeginningFrom: getValue(company?.BOOKSFROM),
+        financialYearBeginning: getValue(company?.FINANCIALYEARFROM),
+        startingFrom: getValue(company?.STARTINGFROM),
+        raw: company
+      };
+    }
+    module2.exports = {
+      parseCompanyResponse
+    };
+  }
+});
+
+// src/tally/companyImportService.js
+var require_companyImportService = __commonJS({
+  "src/tally/companyImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildCompanyRequest
+    } = require_companyRequest();
+    var {
+      parseCompanyResponse
+    } = require_companyParser();
+    async function importCompany({
+      company
+    }) {
+      await selectCompany(company);
+      const requestXml = buildCompanyRequest(company);
+      const responseXml = await sendToTally(requestXml);
+      return parseCompanyResponse(responseXml);
+    }
+    module2.exports = {
+      importCompany
+    };
+  }
+});
+
+// src/tally/groupRequest.js
+var require_groupRequest = __commonJS({
+  "src/tally/groupRequest.js"(exports2, module2) {
+    function buildGroupRequest({
+      masterIds = []
+    }) {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Group Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Group Collection">
+
+                        <TYPE>Group</TYPE>
+
+                        <FILTER>MasterIdFilter</FILTER>
+
+                      <FETCH>
+
+                        NAME,
+                        PARENT,
+                        GUID,
+                        MASTERID,
+                        ALTERID,
+                        RESERVEDNAME,
+                        ISREVENUE,
+                        ISDEEMEDPOSITIVE,
+                        PARENTGUID,
+                        PARENTMASTERID,
+                        PARENTALTERID,
+
+                        ISSUBLEDGER,
+                        ISBILLWISEON,
+                        TRACKNEGATIVEBALANCES,
+                        ISCONDENSED
+
+                    </FETCH>
+
+                    </COLLECTION>
+                    <SYSTEM TYPE="Formulae" NAME="MasterIdFilter">
+                        ${masterIds.map((id) => `$MASTERID = ${id}`).join(" OR ")}
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildGroupRequest
+    };
+  }
+});
+
+// src/tally/groupParser.js
+var require_groupParser = __commonJS({
+  "src/tally/groupParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    var fs = require("fs");
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseGroupResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const groups = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP || [];
+      const groupList = Array.isArray(groups) ? groups : [groups];
+      return groupList.map((group) => ({
+        guid: getValue(group.GUID),
+        masterId: getValue(group.MASTERID) || null,
+        alterId: getValue(group.ALTERID) || null,
+        parentGuid: getValue(group.PARENTGUID) || null,
+        parentMasterId: getValue(group.PARENTMASTERID) || null,
+        parentAlterId: getValue(group.PARENTALTERID) || null,
+        name: getValue(group.NAME),
+        parent: getValue(group.PARENT),
+        reservedName: getValue(group.RESERVEDNAME),
+        isRevenue: String(getValue(group.ISREVENUE)).toUpperCase() === "YES",
+        isDeemedPositive: String(getValue(group.ISDEEMEDPOSITIVE)).toUpperCase() === "YES",
+        isSubledger: String(getValue(group.ISSUBLEDGER)).toUpperCase() === "YES",
+        isBillwiseOn: String(getValue(group.ISBILLWISEON)).toUpperCase() === "YES",
+        trackNegativeBalances: String(getValue(group.TRACKNEGATIVEBALANCES)).toUpperCase() === "YES",
+        isCondensed: String(getValue(group.ISCONDENSED)).toUpperCase() === "YES",
+        raw: group
+      }));
+    }
+    module2.exports = {
+      parseGroupResponse
+    };
+  }
+});
+
+// src/tally/groupImportService.js
+var require_groupImportService = __commonJS({
+  "src/tally/groupImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildGroupRequest
+    } = require_groupRequest();
+    var {
+      parseGroupResponse
+    } = require_groupParser();
+    async function importGroups({
+      company,
+      masterIds = []
+    }) {
+      await selectCompany(company);
+      const requestXml = buildGroupRequest({
+        masterIds
+      });
+      const responseXml = await sendToTally(requestXml);
+      const groups = parseGroupResponse(responseXml);
+      return groups;
+    }
+    module2.exports = {
+      importGroups
+    };
+  }
+});
+
+// src/tally/unitRequest.js
+var require_unitRequest = __commonJS({
+  "src/tally/unitRequest.js"(exports2, module2) {
+    function buildUnitRequest() {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Unit Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Unit Collection">
+
+    <TYPE>Unit</TYPE>
+
+    <COMPUTE>UNITGUID : $GUID</COMPUTE>
+    <COMPUTE>UNITMASTERID : $MASTERID</COMPUTE>
+    <COMPUTE>UNITALTERID : $ALTERID</COMPUTE>
+
+    <FETCH>
+
+        UNITGUID,
+        UNITMASTERID,
+        UNITALTERID,
+
+        NAME,
+        FORMALNAME,
+        DECIMALPLACES,
+        RESERVEDNAME
+
+    </FETCH>
+
+</COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildUnitRequest
+    };
+  }
+});
+
+// src/tally/unitParser.js
+var require_unitParser = __commonJS({
+  "src/tally/unitParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseUnitResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const units = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.UNIT || [];
+      const unitList = Array.isArray(units) ? units : [units];
+      return unitList.map((unit) => ({
+        //   guid: getValue(unit.GUID),
+        //  masterid: getValue(unit.MASTERID),
+        //  alterid: getValue(unit.ALTERID),
+        name: getValue(unit.NAME),
+        formalName: getValue(unit.FORMALNAME),
+        decimalPlaces: getValue(unit.DECIMALPLACES),
+        reservedName: getValue(unit.RESERVEDNAME),
+        raw: unit
+      }));
+    }
+    module2.exports = {
+      parseUnitResponse
+    };
+  }
+});
+
+// src/tally/unitObjectRequest.js
+var require_unitObjectRequest = __commonJS({
+  "src/tally/unitObjectRequest.js"(exports2, module2) {
+    function buildUnitObjectRequest(name) {
+      return `
+<ENVELOPE>
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Object</TYPE>
+        <SUBTYPE>Unit</SUBTYPE>
+        <ID TYPE="Name">${name}</ID>
+    </HEADER>
+
+    <BODY>
+        <DESC>
+            <STATICVARIABLES>
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            </STATICVARIABLES>
+
+            <FETCHLIST>
+                <FETCH>GUID</FETCH>
+                <FETCH>ALTERID</FETCH>
+                <FETCH>MASTERID</FETCH>
+                <FETCH>NAME</FETCH>
+            </FETCHLIST>
+        </DESC>
+    </BODY>
+</ENVELOPE>
+`;
+    }
+    module2.exports = { buildUnitObjectRequest };
+  }
+});
+
+// src/tally/parseUnitObjectResponse.js
+var require_parseUnitObjectResponse = __commonJS({
+  "src/tally/parseUnitObjectResponse.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string") return node.trim();
+      if (typeof node === "number") return node;
+      if (typeof node === "boolean") return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseUnitObjectResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const unit = json?.ENVELOPE?.BODY?.DATA?.TALLYMESSAGE?.UNIT;
+      if (!unit) return null;
+      return {
+        guid: getValue(unit.GUID),
+        masterid: getValue(unit.MASTERID),
+        alterid: getValue(unit.ALTERID),
+        name: getValue(unit.NAME),
+        formalName: getValue(unit.FORMALNAME),
+        decimalPlaces: getValue(unit.DECIMALPLACES),
+        reservedName: getValue(unit.RESERVEDNAME),
+        raw: unit
+      };
+    }
+    module2.exports = {
+      parseUnitObjectResponse
+    };
+  }
+});
+
+// src/tally/unitImportService.js
+var require_unitImportService = __commonJS({
+  "src/tally/unitImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildUnitRequest
+    } = require_unitRequest();
+    var {
+      parseUnitResponse
+    } = require_unitParser();
+    var {
+      buildUnitObjectRequest
+    } = require_unitObjectRequest();
+    var {
+      parseUnitObjectResponse
+    } = require_parseUnitObjectResponse();
+    async function importUnits({
+      company
+    }) {
+      await selectCompany(company);
+      const requestXml = buildUnitRequest();
+      const responseXml = await sendToTally(requestXml);
+      const units = parseUnitResponse(responseXml);
+      const finalUnits = [];
+      for (const unit of units) {
+        const objectRequest = buildUnitObjectRequest(unit.name);
+        const objectResponse = await sendToTally(objectRequest);
+        const fullUnit = parseUnitObjectResponse(objectResponse);
+        if (fullUnit) {
+          finalUnits.push(fullUnit);
+        } else {
+          console.warn(
+            `Unit object not found: ${unit.name}`
+          );
+        }
+      }
+      return finalUnits;
+    }
+    module2.exports = {
+      importUnits
+    };
+  }
+});
+
+// src/tally/voucherRequest.js
+var require_voucherRequest = __commonJS({
+  "src/tally/voucherRequest.js"(exports2, module2) {
+    function buildVoucherRequest({
+      company,
+      fromDate,
+      toDate,
+      lastAlterId = null
+    }) {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyVoucherCollection</ID>
+
+
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+                <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+
+               ${toDate ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>` : ""}
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherCollection">
+
+                        <TYPE>Voucher</TYPE>
+                        ${lastAlterId !== null ? `<FILTER>VoucherAlterIdFilter</FILTER>` : ""}
+
+                        <FETCH>
+
+                            GUID,
+
+                            MASTERID,
+
+                            ALTERID,
+
+                            DATE,
+
+                            EFFECTIVEDATE,
+
+                            VOUCHERTYPENAME,
+
+                            VOUCHERNUMBER,
+
+                            REFERENCE,
+
+                            REFERENCEDATE,
+
+                            PARTYLEDGERNAME,
+
+                            NARRATION,
+
+                            PARTYGSTIN,
+
+                            PLACEOFSUPPLY,
+
+                            BASICBUYERNAME,
+
+                            BASICBUYERADDRESS,
+
+                            GSTREGISTRATIONTYPE,
+
+                            PERSISTEDVIEW,
+
+                            ISINVOICE,
+
+                            ISOPTIONAL,
+
+                            ISCANCELLED,
+
+                            ALLLEDGERENTRIES,
+
+                            ALLINVENTORYENTRIES,
+                            
+                            INVENTORYENTRIESIN,
+                            INVENTORYENTRIESOUT,
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                    ${lastAlterId !== null ? `
+<SYSTEM TYPE="Formulae" NAME="VoucherAlterIdFilter">
+    $ALTERID &gt; ${lastAlterId}
+</SYSTEM>
+` : ""}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    function buildVoucherRequestByGuid({
+      company,
+      voucherGuid
+    }) {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <FILTER>VoucherGuidFilter</FILTER>
+
+        <ID>BilleyVoucherCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherCollection">
+
+                        <TYPE>Voucher</TYPE>
+
+                        <FETCH>
+
+                            GUID,
+
+                            MASTERID,
+
+                            ALTERID,
+
+                            DATE,
+
+                            EFFECTIVEDATE,
+
+                            VOUCHERTYPENAME,
+
+                            VOUCHERNUMBER,
+
+                            REFERENCE,
+
+                            REFERENCEDATE,
+
+                            PARTYLEDGERNAME,
+
+                            NARRATION,
+
+                            PARTYGSTIN,
+
+                            PLACEOFSUPPLY,
+
+                            BASICBUYERNAME,
+
+                            BASICBUYERADDRESS,
+
+                            GSTREGISTRATIONTYPE,
+
+                            PERSISTEDVIEW,
+
+                            ISINVOICE,
+
+                            ISOPTIONAL,
+
+                            ISCANCELLED,
+
+                            ALLLEDGERENTRIES,
+
+                            ALLINVENTORYENTRIES,
+                            
+                            INVENTORYENTRIESIN,
+                            INVENTORYENTRIESOUT
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
+    $$IsEqual:$GUID:"${voucherGuid}"
+</SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildVoucherRequest,
+      buildVoucherRequestByGuid
+    };
+  }
+});
+
+// src/tally/voucherGuidRequest.js
+var require_voucherGuidRequest = __commonJS({
+  "src/tally/voucherGuidRequest.js"(exports2, module2) {
+    function buildVoucherGuidRequest({
+      company,
+      fromDate,
+      toDate
+    }) {
+      return `
+<HEADER>
+
+    <VERSION>1</VERSION>
+
+    <TALLYREQUEST>Export</TALLYREQUEST>
+
+    <TYPE>Collection</TYPE>
+
+    <ID>BilleyVoucherCollection</ID>
+
+</HEADER>
+
+<BODY>
+
+    <DESC>
+
+        <STATICVARIABLES>
+
+            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            ${fromDate ? `<SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>` : ""}
+
+            ${toDate ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>` : ""}
+
+        </STATICVARIABLES>
+
+        <TDL>
+
+            <TDLMESSAGE>
+
+                <COLLECTION NAME="BilleyVoucherCollection">
+
+                    <TYPE>Voucher</TYPE>
+
+                    <FETCH>
+
+                        GUID,
+
+                        ALTERID
+
+                    </FETCH>
+
+                </COLLECTION>
+
+            </TDLMESSAGE>
+
+        </TDL>
+
+    </DESC>
+
+</BODY>
+`;
+    }
+    module2.exports = {
+      buildVoucherGuidRequest
+    };
+  }
+});
+
+// src/tally/voucherHeader.js
+var require_voucherHeader = __commonJS({
+  "src/tally/voucherHeader.js"(exports2, module2) {
+    function getValue(v) {
+      if (v == null) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "number") return v;
+      if (typeof v === "object") {
+        if ("#text" in v) return v["#text"];
+        if ("TEXT" in v) return v.TEXT;
+      }
+      return "";
+    }
+    function parseVoucherHeader(v) {
+      return {
+        guid: getValue(v.GUID),
+        masterid: getValue(v.MASTERID),
+        alterid: getValue(v.ALTERID),
+        // voucherType: getValue(v.VOUCHERTYPENAME),
+        voucherTypeName: getValue(v.VOUCHERTYPENAME),
+        voucherNumber: getValue(v.VOUCHERNUMBER),
+        voucherDate: getValue(v.DATE),
+        effectiveDate: getValue(v.EFFECTIVEDATE),
+        reference: getValue(v.REFERENCE),
+        referenceDate: getValue(v.REFERENCEDATE),
+        partyLedger: getValue(v.PARTYLEDGERNAME),
+        narration: getValue(v.NARRATION),
+        gstin: getValue(v.PARTYGSTIN),
+        placeOfSupply: getValue(v.PLACEOFSUPPLY),
+        buyerName: getValue(v.BASICBUYERNAME),
+        buyerAddress: getValue(v.BASICBUYERADDRESS),
+        gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
+        persistedView: getValue(v.PERSISTEDVIEW),
+        isInvoice: getValue(v.ISINVOICE),
+        isOptional: getValue(v.ISOPTIONAL),
+        isCancelled: getValue(v.ISCANCELLED)
+      };
+    }
+    module2.exports = {
+      parseVoucherHeader
+    };
+  }
+});
+
+// src/tally/voucherLedgers.js
+var require_voucherLedgers = __commonJS({
+  "src/tally/voucherLedgers.js"(exports2, module2) {
+    var fs = require("fs");
+    function toArray(value) {
+      if (!value) return [];
+      return Array.isArray(value) ? value : [value];
+    }
+    function getValue(v) {
+      if (v == null) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "number") return v;
+      if (typeof v === "object") {
+        if ("#text" in v) return v["#text"];
+        if ("TEXT" in v) return v.TEXT;
+      }
+      return "";
+    }
+    function getNumber(v) {
+      const n = Number(getValue(v));
+      return isNaN(n) ? 0 : n;
+    }
+    function parseBillAllocations(row) {
+      return toArray(row["BILLALLOCATIONS.LIST"]).map((bill) => ({
+        billName: getValue(bill.NAME),
+        billType: getValue(bill.BILLTYPE),
+        amount: getNumber(bill.AMOUNT),
+        dueDate: getValue(bill.DUEDATE),
+        creditPeriod: bill.BILLCREDITPERIOD?.P || getValue(bill.BILLCREDITPERIOD) || null,
+        creditDays: 0
+      }));
+    }
+    function parseCostCentreAllocations(row) {
+      return toArray(row["CATEGORYALLOCATIONS.LIST"]).flatMap(
+        (category) => toArray(category["COSTCENTREALLOCATIONS.LIST"]).map((cc) => ({
+          category: getValue(category.CATEGORY),
+          costCentre: getValue(cc.NAME),
+          amount: getNumber(cc.AMOUNT)
+        }))
+      );
+    }
+    function parseVoucherLedgers(voucher, lookups) {
+      const rows = toArray(voucher["ALLLEDGERENTRIES.LIST"]).length > 0 ? toArray(voucher["ALLLEDGERENTRIES.LIST"]) : toArray(voucher["LEDGERENTRIES.LIST"]);
+      const ledgerLookup = lookups?.ledgerLookup;
+      const groupLookup = lookups?.groupLookup;
+      return rows.map((row) => {
+        const ledger = ledgerLookup?.get(
+          getValue(row.LEDGERNAME).trim().toUpperCase()
+        );
+/*
+        fs.appendFileSync(
+          "./logs/voucher-ledger-debug.jsonl",
+          JSON.stringify({
+            stage: "LEDGER_LOOKUP_DEBUG",
+            ledgerName: getValue(row.LEDGERNAME),
+            lookupKey: getValue(row.LEDGERNAME).trim().toUpperCase(),
+            lookupSize: ledgerLookup?.size || 0,
+            found: !!ledger,
+            foundLedger: ledger || null
+          }) + "\n"
+        );
+        */
+
+        const ledgerParent = ledger ? groupLookup?.get(
+          (ledger.parent || "").trim().toUpperCase()
+        ) : null;
+        const amount = getNumber(row.AMOUNT);
+        const isDeemedPositive = getValue(row.ISDEEMEDPOSITIVE);
+        return {
+          ledgerName: ledger?.name || getValue(row.LEDGERNAME),
+          ledgerGuid: ledger?.guid || null,
+          ledgerMasterId: ledger?.masterId || getValue(row.LEDGERMASTERID),
+          ledgerAlterId: ledger?.alterId || null,
+          ledgerParentName: ledgerParent?.name || ledger?.parent || null,
+          ledgerParentGuid: ledgerParent?.guid || null,
+          ledgerParentMasterId: ledgerParent?.masterId || null,
+          ledgerParentAlterId: ledgerParent?.alterId || null,
+          amount,
+          debit: isDeemedPositive === "Yes" ? Math.abs(amount) : 0,
+          credit: isDeemedPositive === "No" ? Math.abs(amount) : 0,
+          isDeemedPositive,
+          isPartyLedger: getValue(row.ISPARTYLEDGER),
+          isLastDeemedPositive: getValue(row.ISLASTDEEMEDPOSITIVE),
+          removeZeroEntries: getValue(row.REMOVEZEROENTRIES),
+          billAllocations: parseBillAllocations(row),
+          costCentreAllocations: parseCostCentreAllocations(row),
+          raw: row
+        };
+      });
+    }
+    module2.exports = {
+      parseVoucherLedgers
+    };
+  }
+});
+
+// src/tally/voucherInventory.js
+var require_voucherInventory = __commonJS({
+  "src/tally/voucherInventory.js"(exports2, module2) {
+    var fs = require("fs");
+    function getValue(value) {
+      if (value && typeof value === "object" && "#text" in value) {
+        return value["#text"];
+      }
+      return value ?? "";
+    }
+    function getStringValue(value) {
+      return String(getValue(value) ?? "");
+    }
+    function getNumber(value) {
+      const n = Number(getValue(value));
+      return isNaN(n) ? 0 : n;
+    }
+    function getQuantityValue(value) {
+      const str = String(getValue(value));
+      const match = str.match(/-?\d+(\.\d+)?/);
+      return match ? Number(match[0]) : 0;
+    }
+    function getQuantityUnit(value) {
+      const str = String(getValue(value)).trim();
+      const parts = str.split(/\s+/);
+      return parts.length >= 2 ? parts.slice(1).join(" ") : "";
+    }
+    function getRateValue(value) {
+      const str = String(getValue(value));
+      const match = str.match(/-?\d+(\.\d+)?/);
+      return match ? Number(match[0]) : 0;
+    }
+    function parseBatchAllocations(item) {
+      const batches = item["BATCHALLOCATIONS.LIST"];
+      if (!batches) {
+        return [];
+      }
+      const list = Array.isArray(batches) ? batches : [batches];
+      return list.map((batch) => ({
+        godown: getValue(batch.GODOWNNAME),
+        destinationGodown: getValue(batch.DESTINATIONGODOWNNAME),
+        batchName: getValue(batch.BATCHNAME),
+        batchId: batch.BATCHID ? getNumber(batch.BATCHID) : null,
+        actualQty: getValue(batch.ACTUALQTY),
+        billedQty: getValue(batch.BILLEDQTY),
+        rate: getValue(batch.BATCHRATE),
+        rateValue: getRateValue(batch.BATCHRATE),
+        amount: Number(getValue(batch.AMOUNT) || 0),
+        additionalAmount: getNumber(batch.ADDLAMOUNT),
+        discount: getNumber(batch.BATCHDISCOUNT)
+      }));
+    }
+    function parseRateDetails(item) {
+      const rates = item["RATEDETAILS.LIST"];
+      if (!rates) {
+        return [];
+      }
+      const list = Array.isArray(rates) ? rates : [rates];
+      return list.map((rate) => ({
+        dutyHead: getValue(rate.GSTRATEDUTYHEAD),
+        valuationType: getValue(rate.GSTRATEVALUATIONTYPE),
+        rate: Number(getValue(rate.GSTRATE) || 0),
+        perUnit: Number(getValue(rate.GSTRATEPERUNIT) || 0)
+      }));
+    }
+    function parseTaxBreakup(voucher, item, lookups, voucherLedgers) {
+      let taxableAmount = Math.abs(getNumber(item.AMOUNT));
+      const taxLedgers = (voucherLedgers || []).map(
+        (a) => lookups?.ledgerMasterLookup?.get(
+          String(
+            a.ledgerMasterid || a.ledgerMasterId || ""
+          )
+        )
+      ).filter(
+        (l) => l && l.gstDutyType === "GST" && l.gstTaxType
+      );
+      const voucherType = (voucher.__header?.voucherType || "").toUpperCase();
+      const hasTaxLedger = taxLedgers.length > 0;
+      const taxTypes = taxLedgers.map(
+        (l) => l.gstTaxType
+      );
+      const gstRates = parseRateDetails(item);
+      const cgstRate = gstRates.find((r) => r.dutyHead === "CGST")?.rate ?? 0;
+      const sgstRate = gstRates.find((r) => r.dutyHead === "SGST/UTGST")?.rate ?? 0;
+      const igstRate = gstRates.find((r) => r.dutyHead === "IGST")?.rate ?? 0;
+      let cgstAmount = 0;
+      let sgstAmount = 0;
+      let igstAmount = 0;
+      if (voucherType.includes("CREDIT NOTE") && !hasTaxLedger) {
+        return {
+          taxableAmount,
+          cgstRate,
+          sgstRate,
+          igstRate,
+          cgstAmount: 0,
+          sgstAmount: 0,
+          igstAmount: 0
+        };
+      }
+      const hasIGST = taxTypes.includes("IGST");
+      const hasCGST = taxTypes.includes("CGST");
+      const hasSGST = taxTypes.includes("SGST/UTGST");
+      const isCreditNote = voucherType.includes("CREDIT NOTE");
+      if (!hasTaxLedger && !isCreditNote) {
+        if (cgstRate > 0 && sgstRate > 0) {
+          cgstAmount = +(taxableAmount * cgstRate / 100).toFixed(2);
+          sgstAmount = +(taxableAmount * sgstRate / 100).toFixed(2);
+          igstAmount = 0;
+        } else if (igstRate > 0) {
+          cgstAmount = 0;
+          sgstAmount = 0;
+          igstAmount = +(taxableAmount * igstRate / 100).toFixed(2);
+        }
+      } else if (hasIGST) {
+        cgstAmount = 0;
+        sgstAmount = 0;
+        igstAmount = +(taxableAmount * igstRate / 100).toFixed(2);
+      } else if (hasCGST || hasSGST) {
+        cgstAmount = +(taxableAmount * cgstRate / 100).toFixed(2);
+        sgstAmount = +(taxableAmount * sgstRate / 100).toFixed(2);
+        igstAmount = 0;
+      } else {
+        cgstAmount = 0;
+        sgstAmount = 0;
+        igstAmount = 0;
+      }
+      return {
+        taxableAmount,
+        cgstRate,
+        sgstRate,
+        igstRate,
+        cgstAmount,
+        sgstAmount,
+        igstAmount
+      };
+    }
+    function parseAccountingAllocations(item) {
+      const allocations = item["ACCOUNTINGALLOCATIONS.LIST"];
+      if (!allocations) {
+        return [];
+      }
+      const list = Array.isArray(allocations) ? allocations : [allocations];
+      return list.map((a) => ({
+        ledgerName: getValue(a.LEDGERNAME),
+        ledgerMasterId: getValue(a.LEDGERMASTERID),
+        amount: getNumber(a.AMOUNT)
+      }));
+    }
+    function parseCostCentreAllocations(item) {
+      const categories = item["CATEGORYALLOCATIONS.LIST"];
+      if (!categories) {
+        return [];
+      }
+      const list = Array.isArray(categories) ? categories : [categories];
+      return list.flatMap((category) => {
+        const centres = category["COSTCENTREALLOCATIONS.LIST"];
+        if (!centres) {
+          return [];
+        }
+        const ccList = Array.isArray(centres) ? centres : [centres];
+        return ccList.map((cc) => ({
+          category: getValue(category.CATEGORY),
+          costCentre: getValue(cc.NAME),
+          amount: getNumber(cc.AMOUNT)
+        }));
+      });
+    }
+    function parseVoucherInventory(voucher, lookups, voucherLedgers) {
+      const header = voucher.__header || {};
+      global.lookupDebug ??= [];
+      global.lookupDebug = [];
+      const ledgerLookup = lookups?.ledgerLookup;
+      const stockLookup = lookups?.stockLookup;
+      const partyLookup = lookups?.partyLookup;
+      const groupLookup = lookups?.groupLookup;
+      const inventory = voucher["ALLINVENTORYENTRIES.LIST"];
+      const inventoryIn = voucher["INVENTORYENTRIESIN.LIST"];
+      const inventoryOut = voucher["INVENTORYENTRIESOUT.LIST"];
+      const items = [];
+      function addInventoryItems(source, movementType, inventoryNode) {
+        if (!source) return;
+        const list = Array.isArray(source) ? source : [source];
+        items.push(
+          ...list.map((row) => ({
+            ...row,
+            __movementType: movementType,
+            __inventoryNode: inventoryNode
+          }))
+        );
+      }
+      addInventoryItems(
+        inventory,
+        null,
+        "ALLINVENTORYENTRIES.LIST"
+      );
+      addInventoryItems(
+        inventoryIn,
+        "IN",
+        "INVENTORYENTRIESIN.LIST"
+      );
+      addInventoryItems(
+        inventoryOut,
+        "OUT",
+        "INVENTORYENTRIESOUT.LIST"
+      );
+      if (items.length === 0) {
+        return [];
+      }
+      return items.map((item) => {
+        const movementType = item.__movementType;
+        const inventoryNode = item.__inventoryNode;
+        const batches = parseBatchAllocations(item);
+        const accounting = parseAccountingAllocations(item);
+        const tax = parseTaxBreakup(
+          voucher,
+          item,
+          lookups,
+          voucherLedgers
+        );
+        const lookupKey = getStringValue(header.partyLedger).trim().toUpperCase();
+        const stockKey = getValue(item.STOCKITEMMASTERID);
+        let stock = stockLookup?.get(stockKey);
+        if (!stock) {
+          stock = [...stockLookup.values()].find(
+            (s) => getStringValue(s.name).trim().toUpperCase() === getStringValue(item.STOCKITEMNAME).trim().toUpperCase()
+          );
+        }
+        const party = partyLookup?.get(lookupKey);
+        global.lookupDebug.push({
+          type: "party",
+          lookupKey: getStringValue(
+            header.partyLedger
+          ).toUpperCase(),
+          originalParty: header.partyLedger,
+          lookupsExists: !!lookups,
+          partyLookupExists: !!partyLookup,
+          partyLookupSize: partyLookup?.size,
+          hasKey: partyLookup?.has(
+            getStringValue(
+              header.partyLedger
+            ).toUpperCase()
+          ),
+          foundParty: party || null
+        });
+        const ledger = ledgerLookup?.get(
+          getStringValue(
+            accounting[0]?.ledgerName
+          ).toUpperCase()
+        );
+        global.lookupDebug.push({
+          type: "ledger",
+          lookupKey: getStringValue(
+            accounting[0]?.ledgerName
+          ).toUpperCase(),
+          originalLedger: accounting[0]?.ledgerName,
+          foundLedger: ledger || null
+        });
+        const ledgerParent = ledger ? groupLookup?.get(
+          getStringValue(ledger.parent).trim().toUpperCase()
+        ) : null;
+        const partyParent = party ? groupLookup?.get(
+          getStringValue(party.parent).trim().toUpperCase()
+        ) : null;
+        const {
+          __movementType,
+          __inventoryNode,
+          ...rawItem
+        } = item;
+        return {
+          voucherGuid: header.guid,
+          voucherMasterId: header.masterid,
+          voucherAlterId: header.alterid,
+          voucherTypeName: header.voucherTypeName,
+          voucherDate: header.voucherDate,
+          voucherType: header.voucherType,
+          transactionType: header.isInvoice,
+          stockItem: getValue(item.STOCKITEMNAME),
+          movementType,
+          inventoryNode,
+          stockMasterId: getValue(item.STOCKITEMMASTERID),
+          stockGuid: stock?.guid || null,
+          stockMasterIdResolved: stock?.masterId || null,
+          stockAlterId: stock?.alterId || null,
+          actualQty: getValue(item.ACTUALQTY),
+          actualQtyValue: getQuantityValue(item.ACTUALQTY),
+          billedQty: getValue(item.BILLEDQTY),
+          billedQtyValue: getQuantityValue(item.BILLEDQTY),
+          unit: getValue(item.BASEUNITS) || getQuantityUnit(item.ACTUALQTY) || getQuantityUnit(item.BILLEDQTY),
+          rate: getValue(item.RATE),
+          rateValue: getRateValue(item.RATE),
+          amount: getNumber(item.AMOUNT),
+          hsnCode: getValue(item.GSTHSNNAME),
+          discount: getNumber(item.DISCOUNT),
+          godown: getValue(item.GODOWNNAME) || batches[0]?.godown || null,
+          batchName: batches[0]?.batchName || null,
+          batchId: batches[0]?.batchId || null,
+          batchRate: batches[0]?.rate || null,
+          batchRateValue: batches[0]?.rateValue || null,
+          batchAmount: batches[0]?.amount ?? null,
+          additionalAmount: batches[0]?.additionalAmount ?? null,
+          destinationGodown: batches[0]?.destinationGodown || null,
+          batches,
+          accounting,
+          ledgerName: ledger?.name || accounting[0]?.ledgerName || null,
+          ledgerGuid: ledger?.guid || null,
+          ledgerMasterId: ledger?.masterId || null,
+          ledgerAlterId: ledger?.alterId || null,
+          ledgerParentName: ledger?.parent || null,
+          ledgerParentGuid: ledgerParent?.guid || null,
+          ledgerParentMasterId: ledgerParent?.masterId || null,
+          ledgerParentAlterId: ledgerParent?.alterId || null,
+          partyName: party?.name || header.partyLedger || null,
+          partyGuid: party?.guid || null,
+          partyMasterId: party?.masterId || null,
+          partyAlterId: party?.alterId || null,
+          partyParentName: partyParent?.name || party?.parent || null,
+          partyParentGuid: partyParent?.guid || null,
+          partyParentMasterId: partyParent?.masterId || null,
+          partyParentAlterId: partyParent?.alterId || null,
+          gstRates: parseRateDetails(item),
+          taxableAmount: tax.taxableAmount,
+          cgstRate: tax.cgstRate,
+          sgstRate: tax.sgstRate,
+          igstRate: tax.igstRate,
+          cgstAmount: tax.cgstAmount,
+          sgstAmount: tax.sgstAmount,
+          igstAmount: tax.igstAmount,
+          costCentreAllocations: parseCostCentreAllocations(item),
+          raw: rawItem
+        };
+      });
+    }
+    module2.exports = {
+      parseVoucherInventory,
+      parseBatchAllocations,
+      parseAccountingAllocations,
+      parseRateDetails,
+      parseCostCentreAllocations
+    };
+  }
+});
+
+// src/tally/voucherParser.js
+var require_voucherParser = __commonJS({
+  "src/tally/voucherParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    var fs = require("fs");
+    var { parseVoucherHeader } = require_voucherHeader();
+    var { parseVoucherLedgers } = require_voucherLedgers();
+    var { parseVoucherInventory } = require_voucherInventory();
+    var parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "",
+      parseTagValue: true,
+      trimValues: true
+    });
+    function toArray(value) {
+      if (!value) return [];
+      return Array.isArray(value) ? value : [value];
+    }
+    function parseVoucherGuidResponse(xml) {
+      const json = parser.parse(xml);
+      const vouchers = toArray(
+        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
+      );
+      return vouchers.map((v) => ({
+        guid: v.GUID || null,
+        alterid: Number(
+          v.ALTERID?.["#text"] ?? v.ALTERID ?? 0
+        )
+      }));
+    }
+    function parseVoucherResponse(xml, lookups) {
+      const json = parser.parse(xml);
+      const vouchers = toArray(
+        json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
+      );
+      return vouchers.map((v) => {
+        const header = parseVoucherHeader(v);
+        v.__header = header;
+        const ledgers = parseVoucherLedgers(
+          v,
+          lookups
+        );
+        const parsedVoucher = {
+          header,
+          ledgers,
+          inventory: parseVoucherInventory(
+            v,
+            lookups,
+            ledgers
+          )
+        };
+        if (process.env.INTEGRITY_DEBUG === "true") {
+          parsedVoucher.raw = v;
+        }
+        const audit = [];
+        function mark(rawTag, parsedLocation) {
+          audit.push({
+            rawTag,
+            parsed: parsedLocation || "\u274C NOT PARSED"
+          });
+        }
+        const rawKeys = Object.keys(v || {}).sort();
+        const headerMap = {
+          GUID: "header.guid",
+          MASTERID: "header.masterid",
+          ALTERID: "header.alterid",
+          DATE: "header.voucherDate",
+          EFFECTIVEDATE: "header.effectiveDate",
+          VOUCHERTYPENAME: "header.voucherTypeName",
+          VOUCHERNUMBER: "header.voucherNumber",
+          REFERENCE: "header.reference",
+          REFERENCEDATE: "header.referenceDate",
+          PARTYLEDGERNAME: "header.partyLedger",
+          NARRATION: "header.narration",
+          PARTYGSTIN: "header.gstin",
+          PLACEOFSUPPLY: "header.placeOfSupply",
+          BASICBUYERNAME: "header.buyerName",
+          BASICBUYERADDRESS: "header.buyerAddress",
+          GSTREGISTRATIONTYPE: "header.gstRegistrationType",
+          PERSISTEDVIEW: "header.persistedView",
+          ISINVOICE: "header.isInvoice",
+          ISOPTIONAL: "header.isOptional",
+          ISCANCELLED: "header.isCancelled",
+          "ALLLEDGERENTRIES.LIST": "ledgers[]",
+          "ALLINVENTORYENTRIES.LIST": "inventory[]",
+          "INVENTORYENTRIESIN.LIST": "inventory[]",
+          "INVENTORYENTRIESOUT.LIST": "inventory[]"
+        };
+        for (const key of rawKeys) {
+          mark(
+            key,
+            headerMap[key]
+          );
+        }
+        return parsedVoucher;
+      });
+    }
+    module2.exports = {
+      parseVoucherResponse,
+      parseVoucherGuidResponse
+    };
+  }
+});
+
+// src/tally/voucherImportService.js
+var require_voucherImportService = __commonJS({
+  "src/tally/voucherImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany,
+      fetchVoucherIds,
+      fetchTallyCollection
+    } = require_tallyService();
+    var {
+      buildVoucherRequest,
+      buildVoucherRequestByGuid
+    } = require_voucherRequest();
+    var {
+      buildVoucherGuidRequest
+    } = require_voucherGuidRequest();
+    var {
+      parseVoucherResponse,
+      parseVoucherGuidResponse
+    } = require_voucherParser();
+    async function importVoucherGuids({
+      company,
+      fromDate,
+      toDate
+    }) {
+      if (!company) {
+        throw new Error(
+          "company missing in importVoucherGuids"
+        );
+      }
+      if (!fromDate) {
+        throw new Error(
+          "fromDate missing in importVoucherGuids"
+        );
+      }
+      if (!toDate) {
+        throw new Error(
+          "toDate missing in importVoucherGuids"
+        );
+      }
+      await selectCompany(company);
+      const allRecords = await fetchVoucherIds({
+        company,
+        fromDate,
+        toDate
+      });
+      console.log(
+        "Total Voucher Records:",
+        allRecords.length
+      );
+      const uniqueByGuid = /* @__PURE__ */ new Map();
+      for (const record of allRecords) {
+        if (!record.guid) {
+          continue;
+        }
+        uniqueByGuid.set(
+          record.guid,
+          record
+        );
+      }
+      const finalRecords = Array.from(
+        uniqueByGuid.values()
+      );
+      console.log(
+        "======================================"
+      );
+      const LEVEL1_BATCH_SIZE = 500;
+      const level1Results = [];
+      for (let i = 0; i < finalRecords.length; i += LEVEL1_BATCH_SIZE) {
+        const batch = finalRecords.slice(
+          i,
+          i + LEVEL1_BATCH_SIZE
+        );
+        console.log(
+          `Voucher Level-1 Batch ${Math.floor(i / LEVEL1_BATCH_SIZE) + 1} : ${batch.length}`
+        );
+        const masterIds = batch.map(
+          (row) => Number(row.masterid)
+        ).filter(
+          Number.isFinite
+        );
+        if (!masterIds.length) {
+          throw new Error(
+            `Voucher Level-1 Batch ${Math.floor(i / LEVEL1_BATCH_SIZE) + 1} contains no valid MASTERIDs`
+          );
+        }
+        const result = await fetchTallyCollection({
+          company,
+          collectionName: "BilleyVoucherCollection",
+          collectionType: "Voucher",
+          fetchFields: [
+            "GUID",
+            "MASTERID",
+            "ALTERID",
+            "DATE",
+            "EFFECTIVEDATE",
+            "VOUCHERTYPENAME",
+            "VOUCHERNUMBER",
+            "REFERENCE",
+            "REFERENCEDATE",
+            "PARTYLEDGERNAME",
+            "NARRATION",
+            "ISINVOICE",
+            "ISOPTIONAL",
+            "ISCANCELLED"
+          ],
+          masterIds,
+          fromDate,
+          toDate
+        });
+        level1Results.push(
+          result
+        );
+      }
+      console.log(
+        "FULL VOUCHER GUID DISCOVERY"
+      );
+      console.log(
+        "Date Range:",
+        fromDate,
+        "\u2192",
+        toDate
+      );
+      console.log(
+        "Total Records:",
+        finalRecords.length
+      );
+      console.log(
+        "Unique GUIDs:",
+        finalRecords.length
+      );
+      console.log(
+        "======================================"
+      );
+      return finalRecords;
+    }
+    async function importVoucherByGuid({
+      company,
+      voucherGuid,
+      lookups
+    }) {
+      await selectCompany(company);
+      const requestXml = buildVoucherRequestByGuid({
+        company,
+        voucherGuid
+      });
+      const responseXml = await sendToTally(requestXml);
+      if (!responseXml) {
+        throw new Error("Empty response received from Tally.");
+      }
+      const vouchers = parseVoucherResponse(
+        responseXml,
+        lookups
+      );
+      return vouchers[0] || null;
+    }
+    async function importVouchers({
+      company,
+      fromDate,
+      toDate,
+      lastAlterId = null,
+      lookups
+    }) {
+      console.log("STEP 1 : Before selectCompany");
+      await selectCompany(company);
+      console.log("STEP 2 : After selectCompany");
+      const requestXml = buildVoucherRequest({
+        company,
+        fromDate,
+        toDate,
+        lastAlterId
+      });
+      console.log("STEP 3 : XML Built");
+      const responseXml = await sendToTally(requestXml);
+      console.log("STEP 4 : Response Received");
+      if (!responseXml) {
+        throw new Error("Empty response received from Tally.");
+      }
+      console.log(
+        "Response XML Size :",
+        Buffer.byteLength(responseXml || "", "utf8"),
+        "bytes"
+      );
+      console.log("STEP 5 : Before parseVoucherResponse");
+      const parseStart = Date.now();
+      let vouchers;
+      try {
+        vouchers = parseVoucherResponse(
+          responseXml,
+          lookups
+        );
+      } catch (err) {
+        console.error("\u274C parseVoucherResponse FAILED");
+        console.error(err.stack);
+        throw err;
+      }
+      console.log(
+        "Parse Time :",
+        Date.now() - parseStart,
+        "ms"
+      );
+      console.log("STEP 6 : After parseVoucherResponse");
+      console.log("Voucher Count :", vouchers.length);
+      console.log("STEP 7 : Before return");
+      console.log("STEP 8 : Returning importVouchers");
+      console.log("Summary Count :", vouchers.length);
+      console.log("====================================");
+      return {
+        summary: {
+          totalVouchers: vouchers.length,
+          fromDate,
+          toDate,
+          company
+        },
+        vouchers
+      };
+    }
+    module2.exports = {
+      importVouchers,
+      importVoucherByGuid,
+      importVoucherGuids
+    };
+  }
+});
+
+// src/tally/voucherBulkGuidRequest.js
+var require_voucherBulkGuidRequest = __commonJS({
+  "src/tally/voucherBulkGuidRequest.js"(exports2, module2) {
+    function buildVoucherBulkGuidRequest({
+      company,
+      voucherGuids
+    }) {
+      const filter = voucherGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
+      return `
+<ENVELOPE>
+ 
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+         
+
+        <ID>BilleyVoucherCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherCollection">
+
+                      <FILTER>VoucherGuidFilter</FILTER>
+
+                        <TYPE>Voucher</TYPE>
+
+                        <FETCH>
+
+                            GUID,
+
+                            MASTERID,
+
+                            ALTERID,
+
+                            DATE,
+
+                            EFFECTIVEDATE,
+
+                            VOUCHERTYPENAME,
+
+                            VOUCHERNUMBER,
+
+                            REFERENCE,
+
+                            REFERENCEDATE,
+
+                            PARTYLEDGERNAME,
+
+                            NARRATION,
+
+                            PARTYGSTIN,
+
+                            PLACEOFSUPPLY,
+
+                            BASICBUYERNAME,
+
+                            BASICBUYERADDRESS,
+
+                            GSTREGISTRATIONTYPE,
+
+                            PERSISTEDVIEW,
+
+                            ISINVOICE,
+
+                            ISOPTIONAL,
+
+                            ISCANCELLED,
+
+                            ALLLEDGERENTRIES,
+
+                            ALLINVENTORYENTRIES,
+
+                            INVENTORYENTRIESIN,
+
+                            INVENTORYENTRIESOUT
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
+                        ${filter}
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildVoucherBulkGuidRequest
+    };
+  }
+});
+
+// src/tally/lookupCache.js
+var require_lookupCache = __commonJS({
+  "src/tally/lookupCache.js"(exports2, module2) {
+    var cache = /* @__PURE__ */ new Map();
+    function setLookups(company, lookups) {
+      cache.set(company.trim().toUpperCase(), lookups);
+    }
+    function getLookups(company) {
+      return cache.get(company.trim().toUpperCase());
+    }
+    function clearLookups(company) {
+      cache.delete(company.trim().toUpperCase());
+    }
+    module2.exports = {
+      setLookups,
+      getLookups,
+      clearLookups
+    };
+  }
+});
+
+// utils/chunkExecutor.js
+var require_chunkExecutor = __commonJS({
+  "utils/chunkExecutor.js"(exports2, module2) {
+    async function executeChunks({
+      chunks,
+      onChunk
+    }) {
+      if (!Array.isArray(chunks)) {
+        throw new Error("chunks must be an array");
+      }
+      if (typeof onChunk !== "function") {
+        throw new Error("onChunk must be a function");
+      }
+      const results = [];
+      for (const chunk of chunks) {
+        const result = await onChunk(chunk);
+        results.push(result);
+      }
+      return results;
+    }
+    module2.exports = {
+      executeChunks
+    };
+  }
+});
+
+// src/tally/voucherImportServiceBulkGuid.js
+var require_voucherImportServiceBulkGuid = __commonJS({
+  "src/tally/voucherImportServiceBulkGuid.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildVoucherBulkGuidRequest
+    } = require_voucherBulkGuidRequest();
+    var {
+      parseVoucherResponse
+    } = require_voucherParser();
+    var {
+      getLookups
+    } = require_lookupCache();
+    var {
+      executeChunks
+    } = require_chunkExecutor();
+    var VOUCHER_GUID_BATCH_SIZE = 100;
+    var VOUCHER_XML_MAX_SIZE = 300 * 1024;
+    async function importVoucherBulkByGuid({
+      company,
+      voucherGuids
+    }) {
+      await selectCompany(company);
+      const lookups = getLookups(company);
+      if (!lookups) {
+        throw new Error(
+          "Lookup cache not found. Run importMasters() before Bulk GUID import."
+        );
+      }
+      if (!voucherGuids?.length) {
+        return [];
+      }
+      const chunks = [];
+      let currentChunk = [];
+      for (const guid of voucherGuids) {
+        if (currentChunk.length >= VOUCHER_GUID_BATCH_SIZE) {
+          chunks.push({
+            chunkIndex: chunks.length + 1,
+            data: currentChunk
+          });
+          currentChunk = [];
+        }
+        const testChunk = [
+          ...currentChunk,
+          guid
+        ];
+        const testXml = buildVoucherBulkGuidRequest({
+          company,
+          voucherGuids: testChunk
+        });
+        const testXmlSize = Buffer.byteLength(
+          testXml,
+          "utf8"
+        );
+        if (testXmlSize > VOUCHER_XML_MAX_SIZE && currentChunk.length > 0) {
+          chunks.push({
+            chunkIndex: chunks.length + 1,
+            data: currentChunk
+          });
+          currentChunk = [guid];
+          continue;
+        }
+        if (testXmlSize > VOUCHER_XML_MAX_SIZE && currentChunk.length === 0) {
+          throw new Error(
+            `Single Voucher GUID request exceeds 300 KB: ${guid}`
+          );
+        }
+        currentChunk.push(guid);
+      }
+      if (currentChunk.length > 0) {
+        chunks.push({
+          chunkIndex: chunks.length + 1,
+          data: currentChunk
+        });
+      }
+      console.log(
+        "===================================="
+      );
+      console.log(
+        "VOUCHER BULK GUID CHUNKS"
+      );
+      console.log(
+        "Total GUIDs:",
+        voucherGuids.length
+      );
+      console.log(
+        "Total Chunks:",
+        chunks.length
+      );
+      console.log(
+        "Max GUIDs / Chunk:",
+        VOUCHER_GUID_BATCH_SIZE
+      );
+      console.log(
+        "Max XML Size:",
+        VOUCHER_XML_MAX_SIZE,
+        "bytes"
+      );
+      console.log(
+        "===================================="
+      );
+      const allVouchers = [];
+      const totalChunks = chunks.length;
+      for (const chunk of chunks) {
+        chunk.totalChunks = totalChunks;
+      }
+      await executeChunks({
+        chunks,
+        onChunk: async (chunk) => {
+          const requestXml = buildVoucherBulkGuidRequest({
+            company,
+            voucherGuids: chunk.data
+          });
+          const responseXml = await sendToTally(requestXml);
+          if (!responseXml) {
+            throw new Error(
+              "Empty response received from Tally."
+            );
+          }
+          const vouchers = parseVoucherResponse(
+            responseXml,
+            lookups
+          );
+          console.log(
+            "BULK CHUNK:",
+            chunk.chunkIndex,
+            "/",
+            chunk.totalChunks,
+            "| GUIDs:",
+            chunk.data.length,
+            "| Response Bytes:",
+            Buffer.byteLength(
+              String(responseXml || ""),
+              "utf8"
+            ),
+            "| Vouchers:",
+            vouchers.length
+          );
+          allVouchers.push(...vouchers);
+          return {
+            chunkIndex: chunk.chunkIndex,
+            totalChunks: chunk.totalChunks,
+            vouchers: vouchers.length
+          };
+        }
+      });
+      return allVouchers;
+    }
+    module2.exports = {
+      importVoucherBulkByGuid
+    };
+  }
+});
+
+// src/tally/ledgerRequest.js
+var require_ledgerRequest = __commonJS({
+  "src/tally/ledgerRequest.js"(exports2, module2) {
+    function buildLedgerRequest({
+      booksBeginningFrom,
+      lastLedgerAlterId = null,
+      masterIds = []
+    }) {
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Ledger Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+          <STATICVARIABLES>
+
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+  <SVFROMDATE TYPE="Date">${booksBeginningFrom}</SVFROMDATE>
+<SVTODATE TYPE="Date">${booksBeginningFrom}</SVTODATE>
+
+</STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Ledger Collection">
+
+                        <TYPE>Ledger</TYPE>
+
+                     ${masterIds.length ? `<FILTER>LedgerMasterIdFilter</FILTER>` : lastLedgerAlterId !== null ? `<FILTER>LedgerAlterIdFilter</FILTER>` : ""}
+                       <FETCH>
+
+                            NAME,
+                            GUID,
+                            MASTERID,
+                            ALTERID,
+
+                            PARENT,
+                            RESERVEDNAME,
+
+                            GSTAPPLICABLE,
+                            GSTREGISTRATIONTYPE,
+                            GSTIN,
+
+                            MAILINGNAME,
+                            ADDRESS,
+                            STATENAME,
+                            COUNTRY,
+                            PINCODE,
+
+                            LEDGERMOBILE,
+                            EMAIL,
+                            CONTACTPERSON,
+
+                            OPENINGBALANCE,
+                            OPENINGBALANCEON,
+
+                            ISBILLWISEON,
+                            ISREVENUE,
+                            ISDEEMEDPOSITIVE,
+                            LEDGSTREGDETAILS.LIST,
+                            LEDMAILINGDETAILS.LIST,
+                            CONTACTDETAILS.LIST,
+                            TYPEOFDUTYTAX,
+                            TAXTYPE,
+                            GSTDUTYHEAD,
+                            RATEOFTAXCALCULATION,
+                            GSTRATE,
+                           PARENTGUID,
+                            PARENTMASTERID,
+                            PARENTALTERID
+
+                        </FETCH>
+
+                        <COMPUTE>
+                            ORIGINALOPENINGBALANCE : $_OpeningBalance
+                        </COMPUTE>
+
+                    </COLLECTION>
+
+                   ${masterIds.length ? `
+                        <SYSTEM TYPE="Formulae" NAME="LedgerMasterIdFilter">
+                            ${masterIds.map((id) => `$MASTERID = ${id}`).join(" OR ")}
+                        </SYSTEM>
+                        ` : lastLedgerAlterId !== null ? `
+                            <SYSTEM TYPE="Formulae" NAME="LedgerAlterIdFilter">
+                                $ALTERID > ${lastLedgerAlterId}
+                            </SYSTEM>
+                            ` : ""}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      console.log("================================");
+      console.log("booksBeginningFrom:", booksBeginningFrom);
+      console.log("================================");
+      return xml;
+    }
+    module2.exports = {
+      buildLedgerRequest
+    };
+  }
+});
+
+// src/tally/ledgerParser.js
+var require_ledgerParser = __commonJS({
+  "src/tally/ledgerParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseLedgerResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const ledgers = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.LEDGER || [];
+      const ledgerList = Array.isArray(ledgers) ? ledgers : [ledgers];
+      const sudhir = ledgerList.find(
+        (x) => getValue(x.NAME) === "Sudhir Traders"
+      );
+      if (sudhir) {
+        console.log("================================");
+        console.log("SUDHIR TRADERS RAW XML");
+        console.log("NAME :", getValue(sudhir.NAME));
+        console.log("OPENINGBALANCE RAW :", JSON.stringify(sudhir.OPENINGBALANCE, null, 2));
+        console.log("OPENINGBALANCEON RAW :", JSON.stringify(sudhir.OPENINGBALANCEON, null, 2));
+        console.log("LEDGER KEYS :", Object.keys(sudhir));
+        console.log(
+          "ORIGINALOPENINGBALANCE RAW :",
+          JSON.stringify(sudhir.ORIGINALOPENINGBALANCE, null, 2)
+        );
+        console.log("ALTERID :", getValue(sudhir.ALTERID));
+        console.log("================================");
+      }
+      return ledgerList.map((ledger) => {
+        const gstDetails = Array.isArray(ledger["LEDGSTREGDETAILS.LIST"]) ? ledger["LEDGSTREGDETAILS.LIST"][ledger["LEDGSTREGDETAILS.LIST"].length - 1] : ledger["LEDGSTREGDETAILS.LIST"];
+        const mailingDetails = Array.isArray(ledger["LEDMAILINGDETAILS.LIST"]) ? ledger["LEDMAILINGDETAILS.LIST"][ledger["LEDMAILINGDETAILS.LIST"].length - 1] : ledger["LEDMAILINGDETAILS.LIST"];
+        const contactDetails = Array.isArray(ledger["CONTACTDETAILS.LIST"]) ? ledger["CONTACTDETAILS.LIST"][0] : ledger["CONTACTDETAILS.LIST"];
+        if (getValue(ledger.PARENT) === "Duties & Taxes") {
+          console.log("================================");
+          console.log(getValue(ledger.NAME));
+          console.log("TYPEOFDUTYTAX :", ledger.TYPEOFDUTYTAX);
+          console.log(JSON.stringify(ledger, null, 2));
+          console.log("TAXTYPE :", ledger.TAXTYPE);
+          console.log("GSTDUTYHEAD :", ledger.GSTDUTYHEAD);
+          console.log(
+            "RATEOFTAXCALCULATION :",
+            ledger.RATEOFTAXCALCULATION
+          );
+          console.log("GSTRATE :", ledger.GSTRATE);
+          console.log("================================");
+        }
+        global.parentDebug ??= [];
+        global.parentDebug.push({
+          ledger: getValue(ledger.NAME),
+          parent: getValue(ledger.PARENT),
+          parentGuid: getValue(ledger.PARENTGUID),
+          parentMasterId: getValue(ledger.PARENTMASTERID),
+          parentAlterId: getValue(ledger.PARENTALTERID)
+        });
+        const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
+        return {
+          guid: getValue(ledger.GUID),
+          masterId: getValue(ledger.MASTERID),
+          alterId: getValue(ledger.ALTERID),
+          name: getValue(ledger.NAME),
+          parent: getValue(ledger.PARENT),
+          parentGroupGuid: getValue(ledger.PARENTGUID),
+          parentGroupMasterId: getValue(ledger.PARENTMASTERID),
+          parentGroupAlterId: getValue(ledger.PARENTALTERID),
+          reservedName: getValue(ledger.RESERVEDNAME),
+          gstApplicable: getValue(ledger.GSTAPPLICABLE),
+          gstRegistrationType: getValue(gstDetails?.GSTREGISTRATIONTYPE),
+          gstin: getValue(gstDetails?.GSTIN),
+          mailingName: getValue(
+            mailingDetails?.MAILINGNAME || ledger.MAILINGNAME
+          ),
+          address: Array.isArray(mailingDetails?.["ADDRESS.LIST"]?.ADDRESS) ? mailingDetails["ADDRESS.LIST"].ADDRESS.map(getValue).join(", ") : getValue(
+            mailingDetails?.["ADDRESS.LIST"]?.ADDRESS || ledger["ADDRESS.LIST"]?.ADDRESS
+          ),
+          stateName: getValue(mailingDetails?.STATE),
+          country: getValue(mailingDetails?.COUNTRY),
+          pinCode: getValue(
+            mailingDetails?.PINCODE || ledger.PINCODE
+          ),
+          phone: getValue(
+            ledger.LEDGERMOBILE || contactDetails?.PHONENUMBER
+          ),
+          email: getValue(
+            ledger.EMAIL || contactDetails?.EMAIL
+          ),
+          contactPerson: getValue(
+            ledger.CONTACTPERSON || contactDetails?.NAME
+          ),
+          openingBalance,
+          openingBalanceAmount: Math.abs(openingBalance),
+          openingBalanceType: openingBalance < 0 ? "DR" : openingBalance > 0 ? "CR" : "",
+          isBillWise: String(getValue(ledger.ISBILLWISEON)).toUpperCase() === "YES",
+          isRevenue: String(getValue(ledger.ISREVENUE)).toUpperCase() === "YES",
+          isDeemedPositive: String(getValue(ledger.ISDEEMEDPOSITIVE)).toUpperCase() === "YES",
+          isParty: !!(getValue(ledger.PARENT) && getValue(ledger.PARENT) !== "Sales Accounts" && getValue(ledger.PARENT) !== "Purchase Accounts" && getValue(ledger.PARENT) !== "Duties & Taxes"),
+          gstDutyType: getValue(ledger.TAXTYPE),
+          gstTaxType: getValue(ledger.GSTDUTYHEAD),
+          gstRate: Number(
+            getValue(ledger.RATEOFTAXCALCULATION) || 0
+          ),
+          raw: ledger
+        };
+      });
+    }
+    module2.exports = {
+      parseLedgerResponse
+    };
+  }
+});
+
+// src/tally/ledgerImportService.js
+var require_ledgerImportService = __commonJS({
+  "src/tally/ledgerImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildLedgerRequest
+    } = require_ledgerRequest();
+    var {
+      parseLedgerResponse
+    } = require_ledgerParser();
+    var {
+      getLookups
+    } = require_lookupCache();
+    async function importLedgers({
+      company,
+      booksBeginningFrom,
+      lastLedgerAlterId = null,
+      masterIds = []
+    }) {
+      console.log("Ledger booksBeginningFrom:", booksBeginningFrom);
+      await selectCompany(company);
+      const requestXml = buildLedgerRequest({
+        booksBeginningFrom,
+        lastLedgerAlterId,
+        masterIds
+      });
+      const responseXml = await sendToTally(requestXml);
+      const ledgers = parseLedgerResponse(
+        responseXml
+      );
+      const lookups = getLookups(
+        company
+      ) || {};
+      const groupLookup = lookups.groupLookup || /* @__PURE__ */ new Map();
+      for (const ledger of ledgers) {
+        const parent = groupLookup.get(
+          String(
+            ledger.parent || ""
+          ).trim().toUpperCase()
+        );
+        if (!parent) {
+          continue;
+        }
+        ledger.parentGroupGuid = parent.guid;
+        ledger.parentGroupMasterId = parent.masterId;
+        ledger.parentGroupAlterId = parent.alterId;
+      }
+      return ledgers;
+    }
+    module2.exports = {
+      importLedgers
+    };
+  }
+});
+
+// src/tally/ledgerBulkGuidRequest.js
+var require_ledgerBulkGuidRequest = __commonJS({
+  "src/tally/ledgerBulkGuidRequest.js"(exports2, module2) {
+    function buildLedgerBulkGuidRequest({
+      company,
+      ledgerGuids
+    }) {
+      const filter = ledgerGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
+      return `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyLedgerCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyLedgerCollection">
+
+                    <TYPE>Ledger</TYPE>
+
+                    <FILTER>LedgerGuidFilter</FILTER>
+
+                <COMPUTE>LEDGERGUID : $GUID</COMPUTE>
+                <COMPUTE>LEDGERMASTERID : $MASTERID</COMPUTE>
+                <COMPUTE>LEDGERALTERID : $ALTERID</COMPUTE>
+
+                         <FETCH>
+
+                        NAME,
+                        GUID,
+                        MASTERID,
+                        ALTERID,
+
+                        PARENT,
+                        RESERVEDNAME,
+
+                        GSTAPPLICABLE,
+                        GSTREGISTRATIONTYPE,
+                        GSTIN,
+
+                        MAILINGNAME,
+                        ADDRESS,
+                        STATENAME,
+                        COUNTRY,
+                        PINCODE,
+
+                        LEDGERMOBILE,
+                        EMAIL,
+                        CONTACTPERSON,
+
+                        OPENINGBALANCE,
+                        OPENINGBALANCEON,
+
+                        ISBILLWISEON,
+                        ISREVENUE,
+                        ISDEEMEDPOSITIVE,
+                        LEDGSTREGDETAILS.LIST,
+                        LEDMAILINGDETAILS.LIST,
+                        CONTACTDETAILS.LIST,
+                        TYPEOFDUTYTAX,
+                        TAXTYPE,
+                        RATEOFTAXCALCULATION,
+                        GSTRATE,
+                        GSTDUTYHEAD,
+                        PARENTGUID,
+                        PARENTMASTERID,
+                        PARENTALTERID
+
+                    </FETCH>
+
+                    </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="LedgerGuidFilter">
+                        ${filter}
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildLedgerBulkGuidRequest
+    };
+  }
+});
+
+// src/tally/ledgerImportServiceBulkGuid.js
+var require_ledgerImportServiceBulkGuid = __commonJS({
+  "src/tally/ledgerImportServiceBulkGuid.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildLedgerBulkGuidRequest
+    } = require_ledgerBulkGuidRequest();
+    var {
+      parseLedgerResponse
+    } = require_ledgerParser();
+    var {
+      getLookups
+    } = require_lookupCache();
+    var {
+      buildChunks
+    } = require_ChunkBuilder();
+    var {
+      executeChunks
+    } = require_chunkExecutor();
+    var BULK_GUID_CHUNK_SIZE = 300 * 1024;
+    var LEDGER_GUID_BATCH_SIZE = 50;
+    async function importLedgerBulkByGuid({
+      company,
+      ledgerGuids
+    }) {
+      await selectCompany(company);
+      if (!ledgerGuids?.length) {
+        return [];
+      }
+      const level1Batches = [];
+      for (let i = 0; i < ledgerGuids.length; i += LEDGER_GUID_BATCH_SIZE) {
+        level1Batches.push(
+          ledgerGuids.slice(
+            i,
+            i + LEDGER_GUID_BATCH_SIZE
+          )
+        );
+      }
+      const allLedgers = [];
+      const lookups = getLookups(
+        company
+      ) || {};
+      const groupLookup = lookups.groupLookup || /* @__PURE__ */ new Map();
+      for (let batchIndex = 0; batchIndex < level1Batches.length; batchIndex++) {
+        const level1Batch = level1Batches[batchIndex];
+        const chunks = buildChunks(
+          level1Batch,
+          BULK_GUID_CHUNK_SIZE
+        );
+        await executeChunks({
+          chunks,
+          onChunk: async (chunk) => {
+            const requestXml = buildLedgerBulkGuidRequest({
+              company,
+              ledgerGuids: chunk.data
+            });
+            const responseXml = await sendToTally(requestXml);
+            if (!responseXml) {
+              throw new Error(
+                "Empty response received from Tally."
+              );
+            }
+            const ledgers = parseLedgerResponse(
+              responseXml
+            );
+            for (const ledger of ledgers) {
+              const parent = groupLookup.get(
+                String(
+                  ledger.parent || ""
+                ).trim().toUpperCase()
+              );
+              if (!parent) {
+                continue;
+              }
+              ledger.parentGroupGuid = parent.guid;
+              ledger.parentGroupMasterId = parent.masterId;
+              ledger.parentGroupAlterId = parent.alterId;
+            }
+            allLedgers.push(...ledgers);
+            return {
+              chunkIndex: chunk.chunkIndex,
+              totalChunks: chunk.totalChunks,
+              ledgers: ledgers.length
+            };
+          }
+        });
+      }
+      return allLedgers;
+    }
+    module2.exports = {
+      importLedgerBulkByGuid
+    };
+  }
+});
+
+// src/tally/stockGroupRequest.js
+var require_stockGroupRequest = __commonJS({
+  "src/tally/stockGroupRequest.js"(exports2, module2) {
+    function buildStockGroupRequest() {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Stock Group Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Stock Group Collection">
+
+                        <TYPE>Stock Group</TYPE>
+
+                        <COMPUTE>GROUPGUID : $GUID</COMPUTE>
+                        <COMPUTE>GROUPMASTERID : $MASTERID</COMPUTE>
+                        <COMPUTE>GROUPALTERID : $ALTERID</COMPUTE>
+
+                        <FETCH>
+
+                            GROUPGUID,
+                            GROUPMASTERID,
+                            GROUPALTERID,
+
+                            NAME,
+                            PARENT,
+                            RESERVEDNAME
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildStockGroupRequest
+    };
+  }
+});
+
+// src/tally/stockGroupParser.js
+var require_stockGroupParser = __commonJS({
+  "src/tally/stockGroupParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseStockGroupResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const groups = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKGROUP || [];
+      const groupList = Array.isArray(groups) ? groups : groups ? [groups] : [];
+      return groupList.map((group) => ({
+        name: getValue(group.NAME),
+        parent: getValue(group.PARENT),
+        guid: getValue(group.GROUPGUID),
+        masterId: getValue(group.GROUPMASTERID),
+        alterId: getValue(group.GROUPALTERID),
+        reservedName: getValue(group.RESERVEDNAME),
+        raw: group
+      }));
+    }
+    module2.exports = {
+      parseStockGroupResponse
+    };
+  }
+});
+
+// src/tally/stockGroupImportService.js
+var require_stockGroupImportService = __commonJS({
+  "src/tally/stockGroupImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildStockGroupRequest
+    } = require_stockGroupRequest();
+    var {
+      parseStockGroupResponse
+    } = require_stockGroupParser();
+    async function importStockGroups({
+      company
+    }) {
+      await selectCompany(company);
+      const requestXml = buildStockGroupRequest();
+      const responseXml = await sendToTally(requestXml);
+      return parseStockGroupResponse(responseXml);
+    }
+    module2.exports = {
+      importStockGroups
+    };
+  }
+});
+
+// src/tally/stockRequest.js
+var require_stockRequest = __commonJS({
+  "src/tally/stockRequest.js"(exports2, module2) {
+    function buildStockRequest({
+      company,
+      lastStockAlterId = null
+    }) {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Stock Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+</STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Stock Collection">
+
+    <TYPE>Stock Item</TYPE>
+
+    ${lastStockAlterId !== null ? `<FILTER>StockAlterIdFilter</FILTER>` : ""}
+
+    <COMPUTE>STOCKGUID : $GUID</COMPUTE>
+    <COMPUTE>STOCKMASTERID : $MASTERID</COMPUTE>
+    <COMPUTE>STOCKALTERID : $ALTERID</COMPUTE>
+
+    <FETCH>
+
+        STOCKGUID,
+        STOCKMASTERID,
+        STOCKALTERID,
+
+        NAME,
+        PARENT,
+        BASEUNITS,
+        GSTAPPLICABLE,
+        GSTTYPEOFSUPPLY,
+        HSNDETAILS.LIST,
+        GSTDETAILS.LIST,
+        PARENTGUID,
+        PARENTMASTERID,
+        PARENTALTERID
+
+    </FETCH>
+
+</COLLECTION>
+
+${lastStockAlterId !== null ? `
+<SYSTEM TYPE="Formulae" NAME="StockAlterIdFilter">
+    $ALTERID &gt; ${lastStockAlterId}
+</SYSTEM>
+` : ""}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildStockRequest
+    };
+  }
+});
+
+// src/tally/stockParser.js
+var require_stockParser = __commonJS({
+  "src/tally/stockParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function first(item) {
+      if (!item) return null;
+      return Array.isArray(item) ? item[0] : item;
+    }
+    function formatDate(value) {
+      if (!value) return "";
+      const s = String(value);
+      if (s.length !== 8) return s;
+      return `${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}`;
+    }
+    function parseStockResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const stocks = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKITEM || [];
+      const stockList = Array.isArray(stocks) ? stocks : stocks ? [stocks] : [];
+      return stockList.map((stock) => {
+        const hsnDetails = first(stock["HSNDETAILS.LIST"]);
+        const gstDetails = first(stock["GSTDETAILS.LIST"]);
+        const state = first(gstDetails?.["STATEWISEDETAILS.LIST"]);
+        const rates = state?.["RATEDETAILS.LIST"] || [];
+        const taxability = getValue(gstDetails?.TAXABILITY);
+        const hsnCode = getValue(hsnDetails?.HSNCODE);
+        const applicableFrom = formatDate(getValue(hsnDetails?.APPLICABLEFROM));
+        const stateName = getValue(state?.STATENAME);
+        let cgst = "";
+        let sgst = "";
+        let igst = "";
+        let gstRate = "";
+        const rateList = Array.isArray(rates) ? rates : rates ? [rates] : [];
+        for (const r of rateList) {
+          const head = getValue(r?.GSTRATEDUTYHEAD);
+          const rate = getValue(r?.GSTRATE);
+          if (head === "CGST")
+            cgst = rate;
+          else if (head === "SGST" || head === "SGST/UTGST")
+            sgst = rate;
+          else if (head === "IGST")
+            igst = rate;
+          gstRate = igst;
+        }
+        return {
+          name: getValue(stock.NAME),
+          parent: getValue(stock.PARENT),
+          baseUnit: getValue(stock.BASEUNITS),
+          gstApplicable: getValue(stock.GSTAPPLICABLE),
+          typeOfSupply: getValue(stock.GSTTYPEOFSUPPLY),
+          guid: getValue(stock.STOCKGUID),
+          masterId: getValue(stock.STOCKMASTERID),
+          alterId: getValue(stock.STOCKALTERID),
+          taxability,
+          stateName,
+          applicableFrom,
+          hsnCode,
+          cgst,
+          sgst,
+          igst,
+          gstRate,
+          raw: stock
+        };
+      });
+    }
+    module2.exports = {
+      parseStockResponse
+    };
+  }
+});
+
+// src/tally/stockImportService.js
+var require_stockImportService = __commonJS({
+  "src/tally/stockImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildStockRequest
+    } = require_stockRequest();
+    var {
+      parseStockResponse
+    } = require_stockParser();
+    var {
+      getLookups
+    } = require_lookupCache();
+    async function importStocks({
+      company,
+      lastStockAlterId = null
+    }) {
+      await selectCompany(company);
+      const requestXml = buildStockRequest({
+        company,
+        lastStockAlterId
+      });
+      console.log("=================================");
+      console.log("Stock Request XML");
+      console.log(requestXml);
+      console.log("=================================");
+      const responseXml = await sendToTally(requestXml);
+      const stocks = parseStockResponse(responseXml);
+      const lookups = getLookups(company) || {};
+      const stockLookup = lookups.stockLookup || /* @__PURE__ */ new Map();
+      for (const stock of stocks) {
+        const parent = stockLookup.get(
+          String(stock.parent || "").trim().toUpperCase()
+        );
+        if (!parent) {
+          continue;
+        }
+        stock.parentGroupGuid = parent.guid;
+        stock.parentGroupMasterId = parent.masterId;
+        stock.parentGroupAlterId = parent.alterId;
+      }
+      return stocks;
+    }
+    module2.exports = {
+      importStocks
+    };
+  }
+});
+
+// src/tally/stockBulkGuidRequest.js
+var require_stockBulkGuidRequest = __commonJS({
+  "src/tally/stockBulkGuidRequest.js"(exports2, module2) {
+    function buildStockBulkGuidRequest({
+      company,
+      stockGuids
+    }) {
+      const filter = stockGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
+      return `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyStockCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyStockCollection">
+
+    <TYPE>Stock Item</TYPE>
+
+    <FILTER>StockGuidFilter</FILTER>
+
+    <COMPUTE>STOCKGUID : $GUID</COMPUTE>
+    <COMPUTE>STOCKMASTERID : $MASTERID</COMPUTE>
+    <COMPUTE>STOCKALTERID : $ALTERID</COMPUTE>
+
+                      <FETCH>
+
+    STOCKGUID,
+    STOCKMASTERID,
+    STOCKALTERID,
+
+    NAME,
+    PARENT,
+    BASEUNITS,
+    GSTAPPLICABLE,
+    GSTTYPEOFSUPPLY,
+    HSNDETAILS.LIST,
+    GSTDETAILS.LIST,
+
+    PARENTGUID,
+    PARENTMASTERID,
+    PARENTALTERID
+
+</FETCH>
+
+                    </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="StockGuidFilter">
+                        ${filter}
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildStockBulkGuidRequest
+    };
+  }
+});
+
+// src/tally/stockImportServiceBulkGuid.js
+var require_stockImportServiceBulkGuid = __commonJS({
+  "src/tally/stockImportServiceBulkGuid.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildStockBulkGuidRequest
+    } = require_stockBulkGuidRequest();
+    var {
+      parseStockResponse
+    } = require_stockParser();
+    var {
+      getLookups
+    } = require_lookupCache();
+    var {
+      buildChunks
+    } = require_ChunkBuilder();
+    var {
+      executeChunks
+    } = require_chunkExecutor();
+    var BULK_GUID_CHUNK_SIZE = 300 * 1024;
+    var STOCK_GUID_BATCH_SIZE = 50;
+    async function importStockBulkByGuid({
+      company,
+      stockGuids
+    }) {
+      await selectCompany(company);
+      if (!stockGuids?.length) {
+        return [];
+      }
+      const level1Batches = [];
+      for (let i = 0; i < stockGuids.length; i += STOCK_GUID_BATCH_SIZE) {
+        level1Batches.push(
+          stockGuids.slice(
+            i,
+            i + STOCK_GUID_BATCH_SIZE
+          )
+        );
+      }
+      const allStocks = [];
+      const lookups = getLookups(
+        company
+      ) || {};
+      const stockLookup = lookups.stockLookup || /* @__PURE__ */ new Map();
+      for (let batchIndex = 0; batchIndex < level1Batches.length; batchIndex++) {
+        const level1Batch = level1Batches[batchIndex];
+        const chunks = buildChunks(
+          level1Batch,
+          BULK_GUID_CHUNK_SIZE
+        );
+        await executeChunks({
+          chunks,
+          onChunk: async (chunk) => {
+            const requestXml = buildStockBulkGuidRequest({
+              company,
+              stockGuids: chunk.data
+            });
+            const responseXml = await sendToTally(requestXml);
+            if (!responseXml) {
+              throw new Error(
+                "Empty response received from Tally."
+              );
+            }
+            const stocks = parseStockResponse(
+              responseXml
+            );
+            for (const stock of stocks) {
+              const parent = stockLookup.get(
+                String(
+                  stock.parent || ""
+                ).trim().toUpperCase()
+              );
+              if (!parent) {
+                continue;
+              }
+              stock.parentGroupGuid = parent.guid;
+              stock.parentGroupMasterId = parent.masterId;
+              stock.parentGroupAlterId = parent.alterId;
+            }
+            allStocks.push(...stocks);
+            return {
+              chunkIndex: chunk.chunkIndex,
+              totalChunks: chunk.totalChunks,
+              stocks: stocks.length
+            };
+          }
+        });
+      }
+      return allStocks;
+    }
+    module2.exports = {
+      importStockBulkByGuid
+    };
+  }
+});
+
+// src/tally/godownRequest.js
+var require_godownRequest = __commonJS({
+  "src/tally/godownRequest.js"(exports2, module2) {
+    function buildGodownRequest() {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Godown Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Godown Collection">
+
+                        <TYPE>Godown</TYPE>
+
+                      <FETCH>
+    GUID,
+    MASTERID,
+    ALTERID,
+    NAME,
+    PARENT
+</FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildGodownRequest
+    };
+  }
+});
+
+// src/tally/godownParser.js
+var require_godownParser = __commonJS({
+  "src/tally/godownParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseGodownResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const godowns = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GODOWN || [];
+      const godownList = Array.isArray(godowns) ? godowns : godowns ? [godowns] : [];
+      return godownList.map((godown) => ({
+        guid: getValue(godown.GUID),
+        masterid: Number(getValue(godown.MASTERID)) || 0,
+        alterid: Number(getValue(godown.ALTERID)) || 0,
+        name: getValue(godown.NAME),
+        parent: getValue(godown.PARENT),
+        raw: godown
+      }));
+    }
+    module2.exports = {
+      parseGodownResponse
+    };
+  }
+});
+
+// src/tally/godownImportService.js
+var require_godownImportService = __commonJS({
+  "src/tally/godownImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildGodownRequest
+    } = require_godownRequest();
+    var {
+      parseGodownResponse
+    } = require_godownParser();
+    async function importGodowns({ company }) {
+      await selectCompany(company);
+      const requestXml = buildGodownRequest();
+      const responseXml = await sendToTally(requestXml);
+      return parseGodownResponse(responseXml);
+    }
+    module2.exports = {
+      importGodowns
+    };
+  }
+});
+
+// src/tally/costCentreRequest.js
+var require_costCentreRequest = __commonJS({
+  "src/tally/costCentreRequest.js"(exports2, module2) {
+    function buildCostCentreRequest() {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Cost Centre Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Cost Centre Collection">
+
+                        <TYPE>CostCentre</TYPE>
+<FETCH>
+
+    GUID,
+    MASTERID,
+    ALTERID,
+
+    NAME,
+    PARENT,
+    CATEGORY,
+    RESERVEDNAME
+
+</FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildCostCentreRequest
+    };
+  }
+});
+
+// src/tally/costCentreParser.js
+var require_costCentreParser = __commonJS({
+  "src/tally/costCentreParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "boolean")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseCostCentreResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const centres = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.COSTCENTRE || [];
+      const list = Array.isArray(centres) ? centres : centres ? [centres] : [];
+      return list.map((cc) => ({
+        guid: getValue(cc.GUID),
+        masterid: Number(getValue(cc.MASTERID)) || 0,
+        alterid: Number(getValue(cc.ALTERID)) || 0,
+        name: getValue(cc.NAME),
+        parent: getValue(cc.PARENT),
+        category: getValue(cc.CATEGORY),
+        reservedName: getValue(cc.RESERVEDNAME),
+        raw: cc
+      }));
+    }
+    module2.exports = {
+      parseCostCentreResponse
+    };
+  }
+});
+
+// src/tally/costCentreImportService.js
+var require_costCentreImportService = __commonJS({
+  "src/tally/costCentreImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildCostCentreRequest
+    } = require_costCentreRequest();
+    var {
+      parseCostCentreResponse
+    } = require_costCentreParser();
+    async function importCostCentres({
+      company
+    }) {
+      await selectCompany(company);
+      const requestXml = buildCostCentreRequest();
+      const responseXml = await sendToTally(requestXml);
+      return parseCostCentreResponse(responseXml);
+    }
+    module2.exports = {
+      importCostCentres
+    };
+  }
+});
+
+// src/tally/tallyLookups.js
+var require_tallyLookups = __commonJS({
+  "src/tally/tallyLookups.js"(exports2, module2) {
+    function buildTallyLookups({
+      groups = [],
+      ledgers = [],
+      stocks = []
+    }) {
+      const ledgerLookup = new Map(
+        ledgers.map((l) => [
+          (l.name || "").trim().toUpperCase(),
+          l
+        ])
+      );
+      const ledgerMasterLookup = new Map(
+        ledgers.map((l) => [
+          String(l.masterId || ""),
+          l
+        ])
+      );
+      const partyLookup = new Map(
+        ledgers.filter((l) => l.isParty).map((l) => [
+          (l.name || "").trim().toUpperCase(),
+          l
+        ])
+      );
+      const groupLookup = new Map(
+        groups.map((g) => [
+          (g.name || "").trim().toUpperCase(),
+          g
+        ])
+      );
+      const stockLookup = new Map(
+        stocks.map((s) => [
+          (s.name || "").trim().toUpperCase(),
+          s
+        ])
+      );
+      return {
+        ledgerLookup,
+        ledgerMasterLookup,
+        stockLookup,
+        partyLookup,
+        groupLookup
+      };
+    }
+    module2.exports = {
+      buildTallyLookups
+    };
+  }
+});
+
+// src/tally/importMasters.js
+var require_importMasters = __commonJS({
+  "src/tally/importMasters.js"(exports2, module2) {
+    var fs = require("fs");
+    var {
+      importCompany
+    } = require_companyImportService();
+    var {
+      importGroups
+    } = require_groupImportService();
+    var {
+      fetchMasterIdsInBatches
+    } = require_tallyService();
+    var {
+      importUnits
+    } = require_unitImportService();
+    var {
+      importVouchers
+    } = require_voucherImportService();
+    var {
+      importVoucherBulkByGuid
+    } = require_voucherImportServiceBulkGuid();
+    var {
+      importLedgers
+    } = require_ledgerImportService();
+    var {
+      importLedgerBulkByGuid
+    } = require_ledgerImportServiceBulkGuid();
+    var {
+      importStockGroups
+    } = require_stockGroupImportService();
+    var {
+      importStocks
+    } = require_stockImportService();
+    var {
+      importStockBulkByGuid
+    } = require_stockImportServiceBulkGuid();
+    var {
+      importGodowns
+    } = require_godownImportService();
+    var {
+      importCostCentres
+    } = require_costCentreImportService();
+    var {
+      importVoucherGuids
+    } = require_voucherImportService();
+    var {
+      buildTallyLookups
+    } = require_tallyLookups();
+    var {
+      setLookups
+    } = require_lookupCache();
+    async function importMasters({
+      company,
+      lastAlterId = null,
+      lastStockAlterId = null,
+      lastLedgerAlterId = null
+    }) {
+      console.log("======================================");
+      console.log("Starting Tally Master Import");
+      console.log("Company :", company);
+      console.log("======================================");
+      console.log("Importing Company...");
+      const companyInfo = await importCompany({
+        company
+      });
+      console.log("After importCompany");
+      console.log(
+        `\u2713 Company Imported : ${companyInfo.companyName}`
+      );
+      if (!companyInfo.booksBeginningFrom) {
+        throw new Error(
+          `Books Beginning From not found for company: ${company}`
+        );
+      }
+      console.log("Importing Groups...");
+      const masterBatches = await fetchMasterIdsInBatches({
+        company,
+        batchSize: 50
+      });
+      const groups = [];
+      for (const batch of masterBatches) {
+        const batchGroups = await importGroups({
+          company,
+          masterIds: batch
+        });
+        groups.push(
+          ...batchGroups
+        );
+      }
+      console.log(
+        `\u2713 Groups Imported : ${groups.length}`
+      );
+      console.log("######## AFTER GROUPS ########");
+      const masterLookups = buildTallyLookups({
+        groups,
+        ledgers: [],
+        stocks: []
+      });
+      setLookups(
+        company,
+        masterLookups
+      );
+      console.log("Importing Units...");
+      const units = await importUnits({
+        company
+      });
+      console.log(`\u2713 Units Imported : ${units.length}`);
+      console.log("Importing Ledgers...");
+      const changedLedgers = await importLedgers({
+        company,
+        booksBeginningFrom: companyInfo.booksBeginningFrom,
+        lastLedgerAlterId
+      });
+      console.log(
+        `\u2713 Changed Ledgers Detected : ${changedLedgers.length}`
+      );
+      const changedLedgerGuids = changedLedgers.map((ledger) => ledger.guid).filter(Boolean);
+      console.log(
+        `\u2713 Changed Ledger GUIDs : ${changedLedgerGuids.length}`
+      );
+      const ledgers = await importLedgerBulkByGuid({
+        company,
+        ledgerGuids: changedLedgerGuids
+      });
+      console.log(
+        `\u2713 Changed Ledgers Imported : ${ledgers.length}`
+      );
+      const allLedgers = await importLedgers({
+        company,
+        booksBeginningFrom: companyInfo.booksBeginningFrom,
+        lastLedgerAlterId: null
+      });
+      console.log(`\u2713 Full Ledger Lookup Imported : ${allLedgers.length}`);
+      console.log("######## AFTER ALL LEDGERS ########");
+      console.log(
+        "ledgerLookupDebug.json generated"
+      );
+      console.log("Importing Stock Groups...");
+      const stockGroups = await importStockGroups({
+        company
+      });
+      console.log(`\u2713 Stock Groups Imported : ${stockGroups.length}`);
+      const stockLookups = buildTallyLookups({
+        groups,
+        ledgers: [],
+        stocks: stockGroups
+      });
+      setLookups(
+        company,
+        stockLookups
+      );
+      console.log("Importing Stocks...");
+      const changedStocks = await importStocks({
+        company,
+        lastStockAlterId
+      });
+      console.log(
+        `\u2713 Changed Stocks Detected : ${changedStocks.length}`
+      );
+      const changedStockGuids = changedStocks.map((stock) => stock.guid).filter(Boolean);
+      console.log(
+        `\u2713 Changed Stock GUIDs : ${changedStockGuids.length}`
+      );
+      const stocks = await importStockBulkByGuid({
+        company,
+        stockGuids: changedStockGuids
+      });
+      console.log(
+        `\u2713 Changed Stocks Imported : ${stocks.length}`
+      );
+      const allStocks = await importStocks({
+        company,
+        lastStockAlterId: null
+      });
+      console.log(`\u2713 All Stocks Imported : ${allStocks.length}`);
+      console.log("######## AFTER ALL STOCKS ########");
+      const lookups = buildTallyLookups({
+        groups,
+        ledgers: allLedgers,
+        stocks: allStocks
+      });
+      setLookups(company, lookups);
+      console.log("Ledger Lookup :", lookups.ledgerLookup.size);
+      console.log("Stock Lookup :", lookups.stockLookup.size);
+      console.log(
+        "Purchase Local :",
+        lookups.ledgerLookup.get("PURCHASE LOCAL")
+      );
+      console.log(
+        "Purchase IGST :",
+        lookups.ledgerLookup.get("PURCHASE IGST")
+      );
+      console.log("Importing Godowns...");
+      const godowns = await importGodowns({
+        company
+      });
+      console.log(`\u2713 Godowns Imported : ${godowns.length}`);
+      console.log("Importing Cost Centres...");
+      const costCentres = await importCostCentres({
+        company
+      });
+      console.log(`\u2713 Cost Centres Imported : ${costCentres.length}`);
+      console.log("######## AFTER COST CENTRES ########");
+      console.log("Importing Vouchers...");
+      console.log("Importing Full Voucher GUIDs...");
+      const voucherRecords = await importVoucherGuids({
+        company,
+        fromDate: companyInfo.booksBeginningFrom,
+        toDate: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "")
+      });
+      const voucherGuids = voucherRecords.map((row) => row.guid).filter(Boolean);
+      console.log(
+        "Voucher GUID sample:",
+        voucherGuids.slice(0, 3)
+      );
+      const vouchers = await importVoucherBulkByGuid({
+        company,
+        voucherGuids
+      });
+      console.log(
+        `\u2713 Changed Vouchers Imported : ${vouchers.length}`
+      );
+      console.log(
+        "######## AFTER VOUCHER BULK GUIDS ########"
+      );
+      console.log("======================================");
+      console.log("Master Import Completed");
+      console.log("======================================");
+      console.log("######## IMPORT MASTERS FINISHED ########");
+      return {
+        summary: {
+          company,
+          companyName: companyInfo.companyName,
+          booksBeginningFrom: companyInfo.booksBeginningFrom,
+          imported_at: (/* @__PURE__ */ new Date()).toISOString(),
+          groups: groups.length,
+          units: units.length,
+          ledgers: allLedgers.length,
+          stockGroups: stockGroups.length,
+          stocks: stocks.length,
+          allStocks: allStocks.length,
+          godowns: godowns.length,
+          costCentres: costCentres.length,
+          vouchers: vouchers.length,
+          //voucherGuids: voucherGuids.length,
+          totalMasters: groups.length + units.length + allLedgers.length + stockGroups.length + stocks.length + godowns.length + costCentres.length + vouchers.length
+        },
+        groups,
+        units,
+        ledgers,
+        allLedgers,
+        stockGroups,
+        stocks,
+        allStocks,
+        godowns,
+        costCentres,
+        vouchers
+        //voucherGuids
+      };
+    }
+    module2.exports = {
+      importMasters
+    };
+  }
+});
+
+// src/tally/groupGuidRequest.js
+var require_groupGuidRequest = __commonJS({
+  "src/tally/groupGuidRequest.js"(exports2, module2) {
+    function buildGroupGuidRequest() {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Group GUID Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Group GUID Collection">
+
+                        <TYPE>Group</TYPE>
+
+                        <FETCH>
+
+                            GUID,
+                            MASTERID,
+                            ALTERID
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildGroupGuidRequest
+    };
+  }
+});
+
+// src/tally/groupGuidParser.js
+var require_groupGuidParser = __commonJS({
+  "src/tally/groupGuidParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseGroupGuidResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const groups = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP || [];
+      const groupList = Array.isArray(groups) ? groups : [groups];
+      return groupList.map((group) => ({
+        guid: getValue(group.GUID),
+        masterId: getValue(group.MASTERID) || null,
+        alterId: getValue(group.ALTERID) || null
+      }));
+    }
+    module2.exports = {
+      parseGroupGuidResponse
+    };
+  }
+});
+
+// src/tally/groupGuidImportService.js
+var require_groupGuidImportService = __commonJS({
+  "src/tally/groupGuidImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildGroupGuidRequest
+    } = require_groupGuidRequest();
+    var {
+      parseGroupGuidResponse
+    } = require_groupGuidParser();
+    async function importGroupGuids({
+      company
+    }) {
+      await selectCompany(company);
+      const requestXml = buildGroupGuidRequest();
+      const responseXml = await sendToTally(requestXml);
+      const groupGuids = parseGroupGuidResponse(responseXml);
+      return groupGuids;
+    }
+    module2.exports = {
+      importGroupGuids
+    };
+  }
+});
+
+// src/tally/ledgerGuidRequest.js
+var require_ledgerGuidRequest = __commonJS({
+  "src/tally/ledgerGuidRequest.js"(exports2, module2) {
+    function buildLedgerGuidRequest() {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Ledger GUID Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Ledger GUID Collection">
+
+                        <TYPE>Ledger</TYPE>
+
+                        <FETCH>
+
+                            GUID,
+                            MASTERID,
+                            ALTERID
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildLedgerGuidRequest
+    };
+  }
+});
+
+// src/tally/ledgerGuidParser.js
+var require_ledgerGuidParser = __commonJS({
+  "src/tally/ledgerGuidParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null)
+        return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return node;
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseLedgerGuidResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const ledgers = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.LEDGER || [];
+      const ledgerList = Array.isArray(ledgers) ? ledgers : [ledgers];
+      return ledgerList.map((ledger) => ({
+        guid: getValue(ledger.GUID),
+        masterId: getValue(ledger.MASTERID) || null,
+        alterId: getValue(ledger.ALTERID) || null
+      }));
+    }
+    module2.exports = {
+      parseLedgerGuidResponse
+    };
+  }
+});
+
+// src/tally/ledgerGuidImportService.js
+var require_ledgerGuidImportService = __commonJS({
+  "src/tally/ledgerGuidImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildLedgerGuidRequest
+    } = require_ledgerGuidRequest();
+    var {
+      parseLedgerGuidResponse
+    } = require_ledgerGuidParser();
+    async function importLedgerGuids({
+      company
+    }) {
+      await selectCompany(company);
+      const requestXml = buildLedgerGuidRequest();
+      const responseXml = await sendToTally(requestXml);
+      console.log(
+        "LEDGER GUID XML RESPONSE"
+      );
+      console.log(
+        responseXml
+      );
+      const ledgerGuids = parseLedgerGuidResponse(responseXml);
+      return ledgerGuids;
+    }
+    module2.exports = {
+      importLedgerGuids
+    };
+  }
+});
+
+// src/tally/stockGroupGuidRequest.js
+var require_stockGroupGuidRequest = __commonJS({
+  "src/tally/stockGroupGuidRequest.js"(exports2, module2) {
+    function buildStockGroupGuidRequest() {
+      return `
+<ENVELOPE>
+
+<HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>Export</TALLYREQUEST>
+    <TYPE>Collection</TYPE>
+    <ID>Billey Stock Group GUID Collection</ID>
+</HEADER>
+
+
+<BODY>
+
+<DESC>
+
+<STATICVARIABLES>
+
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+</STATICVARIABLES>
+
+
+<TDL>
+
+<TDLMESSAGE>
+
+
+<COLLECTION NAME="Billey Stock Group GUID Collection">
+
+
+    <TYPE>Stock Group</TYPE>
+
+
+    <FETCH>
+
+        GUID,
+        MASTERID,
+        ALTERID
+
+    </FETCH>
+
+
+</COLLECTION>
+
+
+</TDLMESSAGE>
+
+</TDL>
+
+
+</DESC>
+
+</BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildStockGroupGuidRequest
+    };
+  }
+});
+
+// src/tally/stockGroupGuidParser.js
+var require_stockGroupGuidParser = __commonJS({
+  "src/tally/stockGroupGuidParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null)
+        return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return String(node);
+      if (typeof node === "object" && "#text" in node) {
+        return String(
+          node["#text"]
+        ).trim();
+      }
+      return "";
+    }
+    function parseStockGroupGuidResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const groups = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKGROUP || json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKGROUPS || [];
+      const groupList = Array.isArray(groups) ? groups : [groups];
+      return groupList.map((group) => ({
+        guid: getValue(
+          group.GROUPGUID || group.GUID
+        ),
+        masterId: getValue(
+          group.GROUPMASTERID || group.MASTERID
+        ),
+        alterId: getValue(
+          group.GROUPALTERID || group.ALTERID
+        )
+      }));
+    }
+    module2.exports = {
+      parseStockGroupGuidResponse
+    };
+  }
+});
+
+// src/tally/stockGroupGuidImportService.js
+var require_stockGroupGuidImportService = __commonJS({
+  "src/tally/stockGroupGuidImportService.js"(exports2, module2) {
+    var { sendToTally, selectCompany } = require_tallyService();
+    var { buildStockGroupGuidRequest } = require_stockGroupGuidRequest();
+    var { parseStockGroupGuidResponse } = require_stockGroupGuidParser();
+    async function importStockGroupGuids({ company }) {
+      await selectCompany(company);
+      return parseStockGroupGuidResponse(await sendToTally(buildStockGroupGuidRequest()));
+    }
+    module2.exports = { importStockGroupGuids };
+  }
+});
+
+// src/tally/stockGuidRequest.js
+var require_stockGuidRequest = __commonJS({
+  "src/tally/stockGuidRequest.js"(exports2, module2) {
+    function buildStockGuidRequest() {
+      return `<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Billey Stock GUID Collection</ID></HEADER><BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="Billey Stock GUID Collection"><TYPE>Stock Item</TYPE><COMPUTE>STOCKGUID : $GUID</COMPUTE><COMPUTE>STOCKMASTERID : $MASTERID</COMPUTE><COMPUTE>STOCKALTERID : $ALTERID</COMPUTE><FETCH>STOCKGUID,STOCKMASTERID,STOCKALTERID</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>`;
+    }
+    module2.exports = { buildStockGuidRequest };
+  }
+});
+
+// src/tally/stockGuidParser.js
+var require_stockGuidParser = __commonJS({
+  "src/tally/stockGuidParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function parseStockGuidResponse(xml) {
+      const j = new XMLParser({ parseTagValue: true, trimValues: true }).parse(xml);
+      const a = j?.ENVELOPE?.BODY?.DATA?.COLLECTION?.STOCKITEM || [];
+      return (Array.isArray(a) ? a : [a]).map((x) => ({ guid: x.STOCKGUID || "", masterId: x.STOCKMASTERID || "", alterId: x.STOCKALTERID || "" }));
+    }
+    module2.exports = { parseStockGuidResponse };
+  }
+});
+
+// src/tally/stockGuidImportService.js
+var require_stockGuidImportService = __commonJS({
+  "src/tally/stockGuidImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildStockGuidRequest
+    } = require_stockGuidRequest();
+    var {
+      parseStockGuidResponse
+    } = require_stockGuidParser();
+    async function importStockGuids({
+      company
+    }) {
+      await selectCompany(company);
+      return parseStockGuidResponse(
+        await sendToTally(
+          buildStockGuidRequest()
+        )
+      );
+    }
+    module2.exports = {
+      importStockGuids
+    };
+  }
+});
+
+// src/tally/unitGuidRequest.js
+var require_unitGuidRequest = __commonJS({
+  "src/tally/unitGuidRequest.js"(exports2, module2) {
+    function buildUnitGuidRequest() {
+      return `
+<ENVELOPE>
+
+<HEADER>
+<VERSION>1</VERSION>
+<TALLYREQUEST>Export</TALLYREQUEST>
+<TYPE>Collection</TYPE>
+<ID>Billey Unit GUID Collection</ID>
+</HEADER>
+
+<BODY>
+
+<DESC>
+
+<STATICVARIABLES>
+<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+</STATICVARIABLES>
+
+<TDL>
+
+<TDLMESSAGE>
+
+<COLLECTION NAME="Billey Unit GUID Collection">
+
+<TYPE>Unit</TYPE>
+
+<FETCH>
+GUID,
+MASTERID,
+ALTERID
+</FETCH>
+
+</COLLECTION>
+
+</TDLMESSAGE>
+
+</TDL>
+
+</DESC>
+
+</BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildUnitGuidRequest
+    };
+  }
+});
+
+// src/tally/unitGuidParser.js
+var require_unitGuidParser = __commonJS({
+  "src/tally/unitGuidParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return String(node);
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseUnitGuidResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const units = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.UNIT || [];
+      const list = Array.isArray(units) ? units : [units];
+      return list.map((unit) => ({
+        guid: getValue(unit.GUID || unit.UNITGUID),
+        masterId: getValue(unit.MASTERID || unit.UNITMASTERID),
+        alterId: getValue(unit.ALTERID || unit.UNITALTERID)
+      }));
+    }
+    module2.exports = {
+      parseUnitGuidResponse
+    };
+  }
+});
+
+// src/tally/unitGuidImportService.js
+var require_unitGuidImportService = __commonJS({
+  "src/tally/unitGuidImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildUnitGuidRequest
+    } = require_unitGuidRequest();
+    var {
+      parseUnitGuidResponse
+    } = require_unitGuidParser();
+    async function importUnitGuids({ company }) {
+      await selectCompany(company);
+      const requestXml = buildUnitGuidRequest();
+      const responseXml = await sendToTally(requestXml);
+      return parseUnitGuidResponse(responseXml);
+    }
+    module2.exports = {
+      importUnitGuids
+    };
+  }
+});
+
+// src/tally/godownGuidRequest.js
+var require_godownGuidRequest = __commonJS({
+  "src/tally/godownGuidRequest.js"(exports2, module2) {
+    function buildGodownGuidRequest() {
+      return `<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Billey Godown GUID Collection</ID></HEADER><BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="Billey Godown GUID Collection"><TYPE>Godown</TYPE><FETCH>GUID,MASTERID,ALTERID</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>`;
+    }
+    module2.exports = { buildGodownGuidRequest };
+  }
+});
+
+// src/tally/godownGuidParser.js
+var require_godownGuidParser = __commonJS({
+  "src/tally/godownGuidParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string") return node.trim();
+      if (typeof node === "number") return String(node);
+      if (typeof node === "object" && "#text" in node) return String(node["#text"]).trim();
+      return "";
+    }
+    function parseGodownGuidResponse(xml) {
+      const json = new XMLParser({ ignoreAttributes: false, parseTagValue: true, trimValues: true }).parse(xml);
+      const godowns = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GODOWN || [];
+      const list = Array.isArray(godowns) ? godowns : [godowns];
+      return list.map((g) => ({ guid: getValue(g.GUID), masterId: getValue(g.MASTERID), alterId: getValue(g.ALTERID) }));
+    }
+    module2.exports = { parseGodownGuidResponse };
+  }
+});
+
+// src/tally/godownGuidImportService.js
+var require_godownGuidImportService = __commonJS({
+  "src/tally/godownGuidImportService.js"(exports2, module2) {
+    var { sendToTally, selectCompany } = require_tallyService();
+    var { buildGodownGuidRequest } = require_godownGuidRequest();
+    var { parseGodownGuidResponse } = require_godownGuidParser();
+    async function importGodownGuids({ company }) {
+      await selectCompany(company);
+      return parseGodownGuidResponse(await sendToTally(buildGodownGuidRequest()));
+    }
+    module2.exports = { importGodownGuids };
+  }
+});
+
+// src/tally/costCentreGuidRequest.js
+var require_costCentreGuidRequest = __commonJS({
+  "src/tally/costCentreGuidRequest.js"(exports2, module2) {
+    function buildCostCentreGuidRequest() {
+      return `
+<ENVELOPE>
+
+<HEADER>
+<VERSION>1</VERSION>
+<TALLYREQUEST>Export</TALLYREQUEST>
+<TYPE>Collection</TYPE>
+<ID>Billey Cost Centre GUID Collection</ID>
+</HEADER>
+
+<BODY>
+<DESC>
+
+<STATICVARIABLES>
+<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+</STATICVARIABLES>
+
+<TDL>
+<TDLMESSAGE>
+
+<COLLECTION NAME="Billey Cost Centre GUID Collection">
+
+<TYPE>CostCentre</TYPE>
+
+<FETCH>
+GUID,
+MASTERID,
+ALTERID
+</FETCH>
+
+</COLLECTION>
+
+</TDLMESSAGE>
+</TDL>
+
+</DESC>
+</BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildCostCentreGuidRequest
+    };
+  }
+});
+
+// src/tally/costCentreGuidParser.js
+var require_costCentreGuidParser = __commonJS({
+  "src/tally/costCentreGuidParser.js"(exports2, module2) {
+    var { XMLParser } = require_fxp();
+    function getValue(node) {
+      if (node == null) return "";
+      if (typeof node === "string")
+        return node.trim();
+      if (typeof node === "number")
+        return String(node);
+      if (typeof node === "object" && "#text" in node)
+        return String(node["#text"]).trim();
+      return "";
+    }
+    function parseCostCentreGuidResponse(xml) {
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        parseTagValue: true,
+        trimValues: true
+      });
+      const json = parser.parse(xml);
+      const centres = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.COSTCENTRE || [];
+      const list = Array.isArray(centres) ? centres : [centres];
+      return list.map((cc) => ({
+        guid: getValue(cc.GUID),
+        masterId: getValue(cc.MASTERID),
+        alterId: getValue(cc.ALTERID)
+      }));
+    }
+    module2.exports = {
+      parseCostCentreGuidResponse
+    };
+  }
+});
+
+// src/tally/costCentreGuidImportService.js
+var require_costCentreGuidImportService = __commonJS({
+  "src/tally/costCentreGuidImportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildCostCentreGuidRequest
+    } = require_costCentreGuidRequest();
+    var {
+      parseCostCentreGuidResponse
+    } = require_costCentreGuidParser();
+    async function importCostCentreGuids({ company }) {
+      await selectCompany(company);
+      const requestXml = buildCostCentreGuidRequest();
+      const responseXml = await sendToTally(requestXml);
+      return parseCostCentreGuidResponse(responseXml);
+    }
+    module2.exports = {
+      importCostCentreGuids
+    };
+  }
+});
+
+// src/tally/reportService.js
+var require_reportService = __commonJS({
+  "src/tally/reportService.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var { XMLParser } = require_fxp();
+    var fs = require("fs");
+    var parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "",
+      parseTagValue: true,
+      trimValues: true
+    });
+    async function getTrialBalance({
+      company,
+      asOnDate
+    }) {
+      await selectCompany(company);
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Data</TYPE>
+
+        <ID>Trial Balance</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+    <SVTODATE>${asOnDate}</SVTODATE>
+
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+</STATICVARIABLES>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      const result = await sendToTally(xml);
+      const json = parser.parse(result);
+      const names = json.ENVELOPE?.DSPACCNAME || [];
+      const infos = json.ENVELOPE?.DSPACCINFO || [];
+      const trialBalance = names.map((item, index) => ({
+        ledger: item.DSPDISPNAME || "",
+        debit: Math.abs(
+          Number(
+            infos[index]?.DSPCLDRAMT?.DSPCLDRAMTA || 0
+          )
+        ),
+        credit: Math.abs(
+          Number(
+            infos[index]?.DSPCLCRAMT?.DSPCLCRAMTA || 0
+          )
+        )
+      }));
+      return json;
+    }
+    async function getProfitAndLoss(company) {
+      throw new Error("Not implemented");
+    }
+    async function getBalanceSheet(company) {
+      throw new Error("Not implemented");
+    }
+    async function getLedgerReport(company, ledgerName) {
+      throw new Error("Not implemented");
+    }
+    async function getStockSummary(company) {
+      throw new Error("Not implemented");
+    }
+    module2.exports = {
+      getTrialBalance,
+      getProfitAndLoss,
+      getBalanceSheet,
+      getLedgerReport,
+      getStockSummary
     };
   }
 });
@@ -50445,8 +56736,57 @@ var require_client = __commonJS({
     var {
       sendToTally,
       getTallyCompanies,
-      getTallyMappingData
+      getTallyMappingData,
+      getSalesVouchers
     } = require_tallyService();
+    var {
+      sendChunkedResponse
+    } = require_sendChunkedResponse();
+    var ConnectorProtocolController = require_ConnectorProtocolController();
+    var {
+      addChunk,
+      isComplete,
+      complete
+    } = require_requestCollector();
+    var {
+      importMasters
+    } = require_importMasters();
+    var {
+      importVoucherGuids
+    } = require_voucherImportService();
+    var {
+      importGroupGuids
+    } = require_groupGuidImportService();
+    var {
+      importLedgerGuids
+    } = require_ledgerGuidImportService();
+    var {
+      importStockGroupGuids
+    } = require_stockGroupGuidImportService();
+    var {
+      importLedgerBulkByGuid
+    } = require_ledgerImportServiceBulkGuid();
+    var {
+      importStockGuids
+    } = require_stockGuidImportService();
+    var {
+      importUnitGuids
+    } = require_unitGuidImportService();
+    var {
+      importGodownGuids
+    } = require_godownGuidImportService();
+    var {
+      importCostCentreGuids
+    } = require_costCentreGuidImportService();
+    var {
+      importVoucherBulkByGuid
+    } = require_voucherImportServiceBulkGuid();
+    var {
+      importStockBulkByGuid
+    } = require_stockImportServiceBulkGuid();
+    var {
+      getTrialBalance
+    } = require_reportService();
     var socket = null;
     function connectServer() {
       console.log("Connecting to Billey Server...");
@@ -50456,6 +56796,9 @@ var require_client = __commonJS({
         reconnectionAttempts: Infinity,
         reconnectionDelay: 5e3
       });
+      const protocolController = new ConnectorProtocolController(
+        socket
+      );
       socket.on("connect", () => {
         console.log("=================================");
         console.log("\u2705 Connected to Billey Server");
@@ -50473,9 +56816,10 @@ var require_client = __commonJS({
         });
         socket.emit("testExport");
       });
-      socket.on("disconnect", () => {
+      socket.on("disconnect", (reason) => {
         console.log("=================================");
         console.log("\u274C Disconnected from Billey Server");
+        console.log("Reason :", reason);
         console.log("=================================");
       });
       socket.on("export", async (data) => {
@@ -50578,6 +56922,778 @@ var require_client = __commonJS({
           result
         );
       });
+      socket.on("getSalesVouchers", async (data) => {
+        try {
+          const result = await getSalesVouchers(data.company);
+          socket.emit(
+            "getSalesVouchersResult",
+            result
+          );
+        } catch (err) {
+          console.error("GET SALES VOUCHERS ERROR");
+          console.error(err);
+          socket.emit(
+            "getSalesVouchersResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      function sendProgress(stage) {
+        socket.emit("getMastersProgress", {
+          stage,
+          timestamp: Date.now()
+        });
+      }
+      socket.on("getMasters", async (data) => {
+        try {
+          const result = await importMasters({
+            company: data.company,
+            lastAlterId: data.lastAlterId,
+            lastStockAlterId: data.lastStockAlterId,
+            lastLedgerAlterId: data.lastLedgerAlterId
+          });
+          const collections = {
+            groups: result.groups,
+            units: result.units,
+            ledgers: result.ledgers,
+            stockGroups: result.stockGroups,
+            stocks: result.stocks,
+            godowns: result.godowns,
+            costCentres: result.costCentres,
+            vouchers: result.vouchers
+          };
+          console.log("========== RECORD COUNT ==========");
+          for (const [name, value] of Object.entries(collections)) {
+            console.log(
+              `${name}:`,
+              Array.isArray(value) ? value.length : 0
+            );
+          }
+          console.log("========== PAYLOAD ANALYSIS ==========");
+          for (const [name, value] of Object.entries(collections)) {
+            const size = Buffer.byteLength(
+              JSON.stringify(value || [])
+            );
+            console.log(
+              `${name}: ${size} bytes (${(size / 1024).toFixed(2)} KB)`
+            );
+          }
+          if (result.vouchers && result.vouchers.length > 0) {
+            const voucher = result.vouchers[0];
+            console.log("========== FIRST VOUCHER KEYS ==========");
+            console.log(Object.keys(voucher));
+            console.log("========== FIRST VOUCHER FIELD SIZE ==========");
+            for (const [key, value] of Object.entries(voucher)) {
+              const size = Buffer.byteLength(
+                JSON.stringify(value ?? null)
+              );
+              console.log(
+                `${key}: ${(size / 1024).toFixed(2)} KB`
+              );
+            }
+          }
+          const masterPayload = {
+            success: true,
+            summary: result.summary,
+            voucherCount: (result.vouchers || []).length,
+            voucherGuidCount: (result.voucherGuids || []).length
+          };
+          console.log(
+            "Master Payload Size :",
+            (Buffer.byteLength(
+              JSON.stringify(masterPayload)
+            ) / 1024).toFixed(2),
+            "KB"
+          );
+          socket.emit(
+            "getMastersResult",
+            masterPayload
+          );
+          console.log(
+            "\u2705 Master payload sent"
+          );
+          await protocolController.sendMasters(
+            result
+          );
+        } catch (err) {
+          console.error("GET MASTERS ERROR");
+          console.error(err);
+          socket.emit(
+            "getMastersResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersVoucherGuids", async (data) => {
+        try {
+          console.log("GUID REQUEST DATES:", {
+            fromDate: data.fromDate,
+            toDate: data.toDate
+          });
+          const voucherGuids = await importVoucherGuids({
+            company: data.company,
+            fromDate: data.fromDate,
+            toDate: data.toDate
+          });
+          socket.emit(
+            "getMastersVoucherGuidsResult",
+            {
+              success: true,
+              collectionName: "voucherGuids",
+              voucherGuidCount: voucherGuids.length
+            }
+          );
+          if (voucherGuids.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "getMastersVoucherGuids",
+              voucherGuids
+            );
+            console.log(
+              "\u2705 Voucher GUID chunks sent"
+            );
+          } else {
+            console.log(
+              "No voucher GUIDs found"
+            );
+            await sendChunkedResponse(
+              socket,
+              "getMastersVoucherGuids",
+              []
+            );
+            console.log(
+              "\u2705 Empty Voucher GUID collection completed"
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          socket.emit(
+            "getMastersVoucherGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersGroupGuids", async (data) => {
+        try {
+          const groupGuids = await importGroupGuids({
+            company: data.company
+          });
+          socket.emit(
+            "getMastersGroupGuidsResult",
+            {
+              success: true,
+              collectionName: "groupGuids",
+              groupGuidCount: groupGuids.length
+            }
+          );
+          if (groupGuids.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "getMastersGroupGuids",
+              groupGuids
+            );
+            console.log(
+              "\u2705 Group GUID chunks sent"
+            );
+          } else {
+            console.log(
+              "No Group GUIDs found"
+            );
+            await sendChunkedResponse(
+              socket,
+              "getMastersGroupGuids",
+              []
+            );
+            console.log(
+              "\u2705 Empty Group GUID collection completed"
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          socket.emit(
+            "getMastersGroupGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersLedgerGuids", async (data) => {
+        try {
+          const ledgerGuids = await importLedgerGuids({
+            company: data.company
+          });
+          socket.emit(
+            "getMastersLedgerGuidsResult",
+            {
+              success: true,
+              collectionName: "ledgerGuids",
+              ledgerGuidCount: ledgerGuids.length
+            }
+          );
+          if (ledgerGuids.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "getMastersLedgerGuids",
+              ledgerGuids
+            );
+            console.log(
+              "\u2705 Ledger GUID chunks sent"
+            );
+          } else {
+            console.log(
+              "No Ledger GUIDs found"
+            );
+            await sendChunkedResponse(
+              socket,
+              "getMastersLedgerGuids",
+              []
+            );
+            console.log(
+              "\u2705 Empty Ledger GUID collection completed"
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          socket.emit(
+            "getMastersLedgerGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersStockGroupGuids", async (data) => {
+        try {
+          const stockGroupGuids = await importStockGroupGuids({
+            company: data.company
+          });
+          socket.emit(
+            "getMastersStockGroupGuidsResult",
+            {
+              success: true,
+              collectionName: "stockGroupGuids",
+              stockGroupGuidCount: stockGroupGuids.length
+            }
+          );
+          await sendChunkedResponse(
+            socket,
+            "getMastersStockGroupGuids",
+            stockGroupGuids
+          );
+        } catch (err) {
+          socket.emit(
+            "getMastersStockGroupGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersStockGuids", async (data) => {
+        try {
+          const stockGuids = await importStockGuids({
+            company: data.company
+          });
+          socket.emit(
+            "getMastersStockGuidsResult",
+            {
+              success: true,
+              collectionName: "stockGuids",
+              stockGuidCount: stockGuids.length
+            }
+          );
+          await sendChunkedResponse(
+            socket,
+            "getMastersStockGuids",
+            stockGuids
+          );
+        } catch (err) {
+          socket.emit(
+            "getMastersStockGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersUnitGuids", async (data) => {
+        try {
+          const unitGuids = await importUnitGuids({
+            company: data.company
+          });
+          socket.emit(
+            "getMastersUnitGuidsResult",
+            {
+              success: true,
+              collectionName: "unitGuids",
+              unitGuidCount: unitGuids.length
+            }
+          );
+          await sendChunkedResponse(
+            socket,
+            "getMastersUnitGuids",
+            unitGuids
+          );
+        } catch (err) {
+          socket.emit(
+            "getMastersUnitGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersGodownGuids", async (data) => {
+        try {
+          const godownGuids = await importGodownGuids({
+            company: data.company
+          });
+          socket.emit(
+            "getMastersGodownGuidsResult",
+            {
+              success: true,
+              collectionName: "godownGuids",
+              godownGuidCount: godownGuids.length
+            }
+          );
+          await sendChunkedResponse(
+            socket,
+            "getMastersGodownGuids",
+            godownGuids
+          );
+        } catch (err) {
+          socket.emit(
+            "getMastersGodownGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getMastersCostCentreGuids", async (data) => {
+        try {
+          const costCentreGuids = await importCostCentreGuids({
+            company: data.company
+          });
+          socket.emit(
+            "getMastersCostCentreGuidsResult",
+            {
+              success: true,
+              collectionName: "costCentreGuids",
+              costCentreGuidCount: costCentreGuids.length
+            }
+          );
+          await sendChunkedResponse(
+            socket,
+            "getMastersCostCentreGuids",
+            costCentreGuids
+          );
+        } catch (err) {
+          socket.emit(
+            "getMastersCostCentreGuidsResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("voucherByGuidChunk", (data) => {
+        try {
+          addChunk(data);
+          socket.emit("voucherByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: true
+          });
+          console.log(
+            `Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
+          );
+        } catch (err) {
+          socket.emit("voucherByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: false,
+            error: err.message
+          });
+        }
+      });
+      socket.on("stockByGuidChunk", (data) => {
+        try {
+          addChunk(data);
+          socket.emit("stockByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: true
+          });
+          console.log(
+            `Stock Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
+          );
+        } catch (err) {
+          socket.emit("stockByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: false,
+            error: err.message
+          });
+        }
+      });
+      socket.on("stockByGuidComplete", async (data) => {
+        try {
+          if (!isComplete(data.batchId)) {
+            throw new Error(
+              "Missing stock request chunks"
+            );
+          }
+          const stockGuids = complete(data.batchId);
+          socket.emit(
+            "stockByGuidCompleteAck",
+            {
+              batchId: data.batchId,
+              success: true
+            }
+          );
+          console.log(
+            "Merged Stock GUIDs :",
+            stockGuids.length
+          );
+          const stocks = await importStockBulkByGuid({
+            company: data.company,
+            stockGuids
+          });
+          socket.emit(
+            "stockByGuidResult",
+            {
+              success: true,
+              collectionName: "stocks",
+              stockCount: stocks.length
+            }
+          );
+          if (stocks.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "stockByGuid",
+              stocks
+            );
+            console.log(
+              "\u2705 Missing Stock chunks sent"
+            );
+          } else {
+            await sendChunkedResponse(
+              socket,
+              "stockByGuid",
+              []
+            );
+            console.log(
+              "\u2705 Empty Stock collection completed"
+            );
+          }
+        } catch (err) {
+          console.error(
+            "STOCK BY GUID ERROR",
+            err
+          );
+          socket.emit(
+            "stockByGuidResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("ledgerByGuidChunk", (data) => {
+        try {
+          addChunk(data);
+          socket.emit("ledgerByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: true
+          });
+        } catch (err) {
+          socket.emit("ledgerByGuidChunkAck", {
+            batchId: data.batchId,
+            chunkIndex: data.chunkIndex,
+            success: false,
+            error: err.message
+          });
+        }
+      });
+      socket.on("ledgerByGuidComplete", async (data) => {
+        try {
+          if (!isComplete(data.batchId)) {
+            throw new Error(
+              "Missing ledger request chunks"
+            );
+          }
+          const ledgerGuids = complete(data.batchId);
+          socket.emit(
+            "ledgerByGuidCompleteAck",
+            {
+              batchId: data.batchId,
+              success: true
+            }
+          );
+          console.log(
+            "Merged Ledger GUIDs :",
+            ledgerGuids.length
+          );
+          const ledgers = await importLedgerBulkByGuid({
+            company: data.company,
+            ledgerGuids
+          });
+          socket.emit(
+            "ledgerByGuidResult",
+            {
+              success: true,
+              collectionName: "ledgers",
+              ledgerCount: ledgers.length
+            }
+          );
+          if (ledgers.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "ledgerByGuid",
+              ledgers
+            );
+            console.log(
+              "\u2705 Missing Ledger chunks sent"
+            );
+          } else {
+            await sendChunkedResponse(
+              socket,
+              "ledgerByGuid",
+              []
+            );
+            console.log(
+              "\u2705 Empty Ledger collection completed"
+            );
+          }
+        } catch (err) {
+          console.error(
+            "LEDGER BY GUID ERROR",
+            err
+          );
+          socket.emit(
+            "ledgerByGuidResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("voucherByGuidComplete", async (data) => {
+        try {
+          if (!isComplete(data.batchId)) {
+            throw new Error(
+              "Missing request chunks"
+            );
+          }
+          const voucherGuids = complete(data.batchId);
+          socket.emit(
+            "voucherByGuidCompleteAck",
+            {
+              batchId: data.batchId,
+              success: true
+            }
+          );
+          console.log(
+            "Merged GUIDs :",
+            voucherGuids.length
+          );
+          const vouchers = await importVoucherBulkByGuid({
+            company: data.company,
+            voucherGuids
+          });
+          socket.emit(
+            "voucherByGuidResult",
+            {
+              success: true,
+              collectionName: "vouchers",
+              voucherCount: vouchers.length
+            }
+          );
+          if (vouchers.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "voucherByGuid",
+              vouchers
+            );
+          } else {
+            await sendChunkedResponse(
+              socket,
+              "voucherByGuid",
+              []
+            );
+          }
+          console.log("\u2705 Request Chunking Working");
+        } catch (err) {
+          console.error(err);
+        }
+      });
+      socket.on("voucherByGuid", async (data) => {
+        try {
+          const vouchers = await importVoucherBulkByGuid({
+            company: data.company,
+            voucherGuids: data.voucherGuids
+          });
+          socket.emit(
+            "voucherByGuidResult",
+            {
+              success: true,
+              collectionName: "vouchers",
+              voucherCount: vouchers.length
+            }
+          );
+          if (vouchers.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "voucherByGuid",
+              vouchers
+            );
+            console.log(
+              "\u2705 Missing Voucher chunks sent"
+            );
+          } else {
+            await sendChunkedResponse(
+              socket,
+              "voucherByGuid",
+              []
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          socket.emit(
+            "voucherByGuidResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("stockByGuid", async (data) => {
+        try {
+          const stocks = await importStockBulkByGuid({
+            company: data.company,
+            stockGuids: data.stockGuids
+          });
+          socket.emit(
+            "stockByGuidResult",
+            {
+              success: true,
+              collectionName: "stocks",
+              stockCount: stocks.length
+            }
+          );
+          if (stocks.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "stockByGuid",
+              stocks
+            );
+            console.log(
+              "\u2705 Missing Stock chunks sent"
+            );
+          } else {
+            await sendChunkedResponse(
+              socket,
+              "stockByGuid",
+              []
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          socket.emit(
+            "stockByGuidResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("ledgerByGuid", async (data) => {
+        try {
+          const ledgers = await importLedgerBulkByGuid({
+            company: data.company,
+            ledgerGuids: data.ledgerGuids
+          });
+          socket.emit(
+            "ledgerByGuidResult",
+            {
+              success: true,
+              collectionName: "ledgers",
+              ledgerCount: ledgers.length
+            }
+          );
+          if (ledgers.length > 0) {
+            await sendChunkedResponse(
+              socket,
+              "ledgerByGuid",
+              ledgers
+            );
+          } else {
+            await sendChunkedResponse(
+              socket,
+              "ledgerByGuid",
+              []
+            );
+            console.log(
+              "\u2705 Empty Ledger collection completed"
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          socket.emit(
+            "ledgerByGuidResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getTrialBalance", async (data) => {
+        try {
+          const result = await getTrialBalance({
+            company: data.company,
+            asOnDate: data.asOnDate
+          });
+          socket.emit(
+            "getTrialBalanceResult",
+            {
+              success: true,
+              data: result
+            }
+          );
+        } catch (err) {
+          socket.emit(
+            "getTrialBalanceResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
       socket.on("connect_error", (err) => {
         console.log("=================================");
         console.log("\u274C Connection Failed");
@@ -50624,6 +57740,26 @@ var require_src3 = __commonJS({
           success: false,
           error: err.response?.data || err.message
         });
+      }
+    });
+    var {
+      buildVoucherRequestByGuid
+    } = require_voucherRequest();
+    var {
+      sendToTally
+    } = require_tallyService();
+    app.get("/testGuid", async (req, res) => {
+      try {
+        const xml = buildVoucherRequestByGuid({
+          company: req.query.company,
+          voucherGuid: req.query.guid
+        });
+        const response = await sendToTally(xml);
+        console.log(response.substring(0, 5e3));
+        res.send("Check console");
+      } catch (err) {
+        console.error(err);
+        res.status(500).send(err.message);
       }
     });
     app.get("/getTallyMappingData", async (req, res) => {

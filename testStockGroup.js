@@ -8,13 +8,14 @@ const {
 
 (async () => {
 
+    const company =
+        "Guru Kirpa Trading";
+
     try {
 
         const stockGroupGuids =
             await importStockGroupGuids({
-
-                company: "Sunil Ent(Client)"
-
+                company
             });
 
 
@@ -37,7 +38,7 @@ const {
             fs.mkdirSync(
                 logDir,
                 {
-                    recursive:true
+                    recursive: true
                 }
             );
 
@@ -51,14 +52,30 @@ const {
             );
 
 
-       
+        fs.writeFileSync(
+
+            filePath,
+
+            JSON.stringify(
+                {
+                    company,
+                    totalStockGroupGuids:
+                        stockGroupGuids.length,
+                    stockGroupGuids
+                },
+                null,
+                2
+            ),
+
+            "utf8"
+
+        );
 
 
         console.log(
             "Stock Group GUID JSON Generated:",
             filePath
         );
-
 
     }
     catch(error) {

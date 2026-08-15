@@ -1,4 +1,4 @@
-function buildStockGroupRequest() {
+function buildStockGroupRequest(company) {
 
     return `
 <ENVELOPE>
@@ -15,7 +15,15 @@ function buildStockGroupRequest() {
         <DESC>
 
             <STATICVARIABLES>
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
             </STATICVARIABLES>
 
             <TDL>
@@ -26,9 +34,17 @@ function buildStockGroupRequest() {
 
                         <TYPE>Stock Group</TYPE>
 
-                        <COMPUTE>GROUPGUID : $GUID</COMPUTE>
-                        <COMPUTE>GROUPMASTERID : $MASTERID</COMPUTE>
-                        <COMPUTE>GROUPALTERID : $ALTERID</COMPUTE>
+                        <COMPUTE>
+                            GROUPGUID : $GUID
+                        </COMPUTE>
+
+                        <COMPUTE>
+                            GROUPMASTERID : $MASTERID
+                        </COMPUTE>
+
+                        <COMPUTE>
+                            GROUPALTERID : $ALTERID
+                        </COMPUTE>
 
                         <FETCH>
 
@@ -54,7 +70,6 @@ function buildStockGroupRequest() {
 
 </ENVELOPE>
 `;
-
 }
 
 module.exports = {

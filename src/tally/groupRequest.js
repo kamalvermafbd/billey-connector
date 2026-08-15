@@ -1,4 +1,5 @@
 function buildGroupRequest({
+    company,
     masterIds = []
 }) {
     return `
@@ -15,9 +16,15 @@ function buildGroupRequest({
 
         <DESC>
 
-            <STATICVARIABLES>
+             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 

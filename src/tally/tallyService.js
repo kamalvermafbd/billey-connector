@@ -1367,16 +1367,35 @@ async function fetchTallyCollectionByVoucherId({
     return result;
 }
 */
-
 async function fetchTallyCollectionByVoucherId({
     company,
     voucherId,
     fetchFields = []
 }) {
 
-    if (!voucherId) {
+    if (!company) {
+        throw new Error(
+            "company missing in fetchTallyCollectionByVoucherId"
+        );
+    }
+
+    if (
+        voucherId === undefined ||
+        voucherId === null ||
+        voucherId === ""
+    ) {
         throw new Error(
             "voucherId missing in fetchTallyCollectionByVoucherId"
+        );
+    }
+
+    if (
+        !Number.isFinite(
+            Number(voucherId)
+        )
+    ) {
+        throw new Error(
+            "voucherId must be a number"
         );
     }
 
@@ -1400,6 +1419,23 @@ async function fetchTallyCollectionByVoucherId({
                 "ISCANCELLED"
             ];
 
+    /*
+     * IMPORTANT:
+     *
+     * Caller ko date dene ki zarurat nahi.
+     *
+     * Tally ke Voucher collection ko old vouchers
+     * resolve karne ke liye date context chahiye.
+     *
+     * Isliye date context yahin internally diya ja raha hai.
+     */
+
+    const fromDate =
+        "19000101";
+
+    const toDate =
+        "20991231";
+
     return await fetchTallyCollection({
 
         company,
@@ -1417,13 +1453,14 @@ async function fetchTallyCollectionByVoucherId({
             "BilleyVoucherIdFilter",
 
         filterFormula:
-            `$MASTERID = ${Number(voucherId)}`
+            `$MASTERID = ${Number(voucherId)}`,
+
+        fromDate,
+
+        toDate
+
     });
 }
-
-
-
-
 
 
 

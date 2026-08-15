@@ -1,4 +1,4 @@
-function buildStockGroupGuidRequest() {
+function buildStockGroupGuidRequest(company) {
 
     return `
 <ENVELOPE>
@@ -10,45 +10,41 @@ function buildStockGroupGuidRequest() {
     <ID>Billey Stock Group GUID Collection</ID>
 </HEADER>
 
-
 <BODY>
 
 <DESC>
 
 <STATICVARIABLES>
 
-    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+    <SVCURRENTCOMPANY>
+        ${company}
+    </SVCURRENTCOMPANY>
+
+    <SVEXPORTFORMAT>
+        $$SysName:XML
+    </SVEXPORTFORMAT>
 
 </STATICVARIABLES>
-
 
 <TDL>
 
 <TDLMESSAGE>
 
-
 <COLLECTION NAME="Billey Stock Group GUID Collection">
-
 
     <TYPE>Stock Group</TYPE>
 
-
     <FETCH>
-
         GUID,
         MASTERID,
         ALTERID
-
     </FETCH>
 
-
 </COLLECTION>
-
 
 </TDLMESSAGE>
 
 </TDL>
-
 
 </DESC>
 
@@ -56,9 +52,7 @@ function buildStockGroupGuidRequest() {
 
 </ENVELOPE>
 `;
-
 }
-
 
 module.exports = {
     buildStockGroupGuidRequest

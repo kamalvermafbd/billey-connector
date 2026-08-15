@@ -11,19 +11,29 @@ const {
     parseCostCentreResponse
 } = require("./costCentreParser");
 
+
 async function importCostCentres({
     company
 }) {
 
     await selectCompany(company);
 
-    const requestXml = buildCostCentreRequest();
+    const requestXml =
+        buildCostCentreRequest(
+            company
+        );
 
-    const responseXml = await sendToTally(requestXml);
+    const responseXml =
+        await sendToTally(
+            requestXml
+        );
 
-    return parseCostCentreResponse(responseXml);
+    return parseCostCentreResponse(
+        responseXml
+    );
 
 }
+
 
 module.exports = {
     importCostCentres
