@@ -35,8 +35,6 @@ async function importVoucherBulkByGuid({
 
     await selectCompany(company);
 
-  
-
     const lookups = getLookups(company);
 
 if (!lookups) {
@@ -74,14 +72,11 @@ for (const guid of voucherGuids) {
         guid
     ];
 
-    const testXml =
-        buildVoucherBulkGuidRequest({
-
-            company,
-
-            voucherGuids: testChunk
-
-        });
+   const testXml =
+    buildVoucherBulkGuidRequest({
+        company,
+        voucherGuids: testChunk
+    });
 
     const testXmlSize =
         Buffer.byteLength(
@@ -205,16 +200,10 @@ await executeChunks({
     onChunk: async (chunk) => {
 
         const requestXml =
-            buildVoucherBulkGuidRequest({
-
-                company,
-
-                voucherGuids: chunk.data
-
-            });
-
-
-        
+    buildVoucherBulkGuidRequest({
+        company,
+        voucherGuids: chunk.data
+    });
         
         const responseXml =
             await sendToTally(requestXml);

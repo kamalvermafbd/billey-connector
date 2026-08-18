@@ -1,7 +1,7 @@
 function buildVoucherRequest({
     company,
-    fromDate,
-    toDate,
+    fromDate = "19000101",
+    toDate = "20991231",
     lastAlterId = null
 }) {
 
@@ -150,13 +150,13 @@ function buildVoucherRequestByGuid({
 
         <DESC>
 
-            <STATICVARIABLES>
+         <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-            </STATICVARIABLES>
+        </STATICVARIABLES>
 
             <TDL>
 

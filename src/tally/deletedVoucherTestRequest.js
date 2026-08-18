@@ -1,8 +1,10 @@
-    function buildVoucherGuidRequest({
-        company
-    }) {
+function buildDeletedVoucherTestRequest({
+    company
+}) {
 
-        return `
+    return `
+<ENVELOPE>
+
     <HEADER>
 
         <VERSION>1</VERSION>
@@ -11,7 +13,7 @@
 
         <TYPE>Collection</TYPE>
 
-        <ID>BilleyVoucherCollection</ID>
+        <ID>DeletedVoucherTestCollection</ID>
 
     </HEADER>
 
@@ -25,27 +27,24 @@
 
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-             <SVFROMDATE TYPE="Date">19000101</SVFROMDATE>
-
-<SVTODATE TYPE="Date">20991231</SVTODATE>
-
-<SVCURRENTDATE TYPE="Date">20991231</SVCURRENTDATE>
-
             </STATICVARIABLES>
 
             <TDL>
 
                 <TDLMESSAGE>
 
-                    <COLLECTION NAME="BilleyVoucherCollection">
+                    <COLLECTION NAME="DeletedVoucherTestCollection">
 
                         <TYPE>Voucher</TYPE>
+
+                         <INCLUDEDELETED>Yes</INCLUDEDELETED>
 
                         <FETCH>
 
                             GUID,
-
-                            ALTERID
+                            MASTERID,
+                            ALTERID,
+                            ISDELETED
 
                         </FETCH>
 
@@ -58,9 +57,11 @@
         </DESC>
 
     </BODY>
-    `;
-    }
 
-    module.exports = {
-        buildVoucherGuidRequest
-    };
+</ENVELOPE>
+`;
+}
+
+module.exports = {
+    buildDeletedVoucherTestRequest
+};

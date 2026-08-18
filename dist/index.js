@@ -57036,11 +57036,26 @@ var require_client = __commonJS({
             fromDate: data.fromDate,
             toDate: data.toDate
           });
+
+
           const voucherGuids = await importVoucherGuids({
             company: data.company,
             fromDate: data.fromDate,
             toDate: data.toDate
           });
+
+          console.log("=== CONNECTOR VOUCHER GUID RESULT ===", {
+    count: voucherGuids?.length || 0,
+    targetGuidPresent:
+        (voucherGuids || []).some(
+            x =>
+                (typeof x === "string"
+                    ? x
+                    : x?.guid) ===
+                "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00002b6a"
+        )
+});
+
           socket.emit(
             "getMastersVoucherGuidsResult",
             {

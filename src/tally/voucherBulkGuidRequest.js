@@ -1,8 +1,7 @@
 function buildVoucherBulkGuidRequest({
     company,
     voucherGuids
-}) {
-
+}){
     const filter = voucherGuids
         .map(guid => `$$IsEqual:$GUID:"${guid}"`)
         .join(" OR ");
@@ -30,9 +29,9 @@ function buildVoucherBulkGuidRequest({
 
             <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 

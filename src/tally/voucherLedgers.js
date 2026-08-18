@@ -103,7 +103,7 @@ const groupLookup = lookups?.groupLookup;
                         .trim()
                         .toUpperCase()
                 );
-
+/*
                 fs.appendFileSync(
     "./logs/voucher-ledger-debug.jsonl",
     JSON.stringify({
@@ -129,6 +129,7 @@ const groupLookup = lookups?.groupLookup;
 
             }) + "\n"
         );
+        */
 
             const ledgerParent =
                 ledger

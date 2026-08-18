@@ -22,7 +22,11 @@ const {
 async function importVoucherGuids({
     company,
     fromDate,
-    toDate
+    toDate,
+    booksBeginningFrom,
+    lastAlterId,
+    syncMode,
+    syncPeriod
 }) {
 
     if (!company) {
@@ -38,11 +42,24 @@ async function importVoucherGuids({
     }
 
     if (!toDate) {
-        throw new Error(
-            "toDate missing in importVoucherGuids"
-        );
-    }
+    throw new Error(
+        "toDate missing in importVoucherGuids"
+    );
+}
 
+if (!booksBeginningFrom) {
+    throw new Error(
+        "booksBeginningFrom missing in importVoucherGuids"
+    );
+}
+
+/*
+if (!Number.isFinite(Number(lastAlterId))) {
+    throw new Error(
+        "lastAlterId missing or invalid in importVoucherGuids"
+    );
+}
+*/
     await selectCompany(company);
 
     // ============================================
@@ -55,9 +72,13 @@ async function importVoucherGuids({
     await fetchVoucherIds({
         company,
         fromDate,
-        toDate
+        toDate,
+        booksBeginningFrom,
+        lastAlterId,
+        syncMode
     });
 
+    
 console.log(
     "Total Voucher Records:",
     allRecords.length
@@ -165,9 +186,11 @@ for (
 
             masterIds,
 
-            fromDate,
-            toDate
         });
+
+  console.log(
+    "LEVEL-1 DATE FILTER: NONE"
+);
 
     level1Results.push(
         result
@@ -207,13 +230,12 @@ async function importVoucherByGuid({
     voucherGuid,
     lookups
 }) {
-
     await selectCompany(company);
 
-    const requestXml = buildVoucherRequestByGuid({
-        company,
-        voucherGuid
-    });
+   const requestXml = buildVoucherRequestByGuid({
+    company,
+    voucherGuid
+});
 
     const responseXml = await sendToTally(requestXml);
 

@@ -21,14 +21,15 @@ const {
 const {
     importVouchers
 } = require("./voucherImportService");
-
+/*
 const {
     importVoucherBulkByGuid
 } = require("./voucherImportServiceBulkGuid");
-
+*/
 const {
     importLedgers
 } = require("./ledgerImportService");
+
 
 const {
 importLedgerBulkByGuid
@@ -81,7 +82,8 @@ async function importMasters({
     company,
     lastAlterId = null,
     lastStockAlterId = null,
-    lastLedgerAlterId = null
+    lastLedgerAlterId = null,
+    
 }) {
 
     console.log("======================================");
@@ -403,17 +405,16 @@ const voucherGuids =
 console.log(
     `✓ Total Voucher GUIDs Discovered : ${voucherGuids.length}`
 );
-*/
+
 
 const voucherRecords =
     await importVoucherGuids({
         company,
-        fromDate: companyInfo.booksBeginningFrom,
-        toDate:
-            new Date()
-                .toISOString()
-                .slice(0, 10)
-                .replace(/-/g, "")
+        fromDate: voucherSyncFromDate,
+        toDate: voucherSyncToDate,
+        booksBeginningFrom:
+            companyInfo.booksBeginningFrom,
+        lastAlterId
     });
 
 const voucherGuids =
@@ -426,7 +427,7 @@ const voucherGuids =
     voucherGuids.slice(0, 3)
 );
 
-
+*/
 // ============================================
 // STEP 1: ALTERID se changed Vouchers lao
 // GUID already response mein available hai
@@ -462,7 +463,7 @@ const changedVoucherGuids =
 console.log(
     `✓ Changed Voucher GUIDs : ${changedVoucherGuids.length}`
 );
-*/
+
 
 // ============================================
 // STEP 3: Existing Bulk GUID Pipeline
@@ -473,11 +474,13 @@ console.log(
 const vouchers =
     await importVoucherBulkByGuid({
         company,
-        voucherGuids
+                voucherGuids,
+        booksBeginningFrom:
+            companyInfo.booksBeginningFrom
     });
-
+*/
 console.log(
-    `✓ Changed Vouchers Imported : ${vouchers.length}`
+    "Voucher GUID discovery and voucher import handled by getMasters flow."
 );
 
 console.log(
@@ -522,7 +525,7 @@ return {
 
     godowns: godowns.length,
     costCentres: costCentres.length,
-    vouchers: vouchers.length,
+   // vouchers: vouchers.length,
     //voucherGuids: voucherGuids.length,
 
     totalMasters:
@@ -532,8 +535,8 @@ return {
     stockGroups.length +
     stocks.length +
     godowns.length +
-    costCentres.length +
-    vouchers.length
+    costCentres.length 
+   // vouchers.length
    
 
 },
@@ -554,7 +557,7 @@ return {
 
     godowns,
     costCentres,
-    vouchers,
+    //vouchers,
     //voucherGuids
     
 

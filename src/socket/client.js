@@ -633,7 +633,11 @@ socket.on("getMastersVoucherGuids", async (data) => {
         await importVoucherGuids({
             company: data.company,
             fromDate: data.fromDate,
-            toDate: data.toDate
+            toDate: data.toDate,
+            booksBeginningFrom: data.booksBeginningFrom,
+            lastAlterId: data.lastAlterId,
+            syncMode: data.syncMode,
+            syncPeriod: data.syncPeriod
         });
         socket.emit(
             "getMastersVoucherGuidsResult",
@@ -1336,11 +1340,11 @@ socket.on("voucherByGuidComplete", async (data) => {
 
         const vouchers = await importVoucherBulkByGuid({
 
-    company: data.company,
+            company: data.company,
 
-    voucherGuids
+            voucherGuids
 
-});
+        });
 
 socket.emit(
     "voucherByGuidResult",
@@ -1389,8 +1393,8 @@ socket.on("voucherByGuid", async (data) => {
 
     try {
 
-        const vouchers =
-    await importVoucherBulkByGuid({
+       const vouchers =
+            await importVoucherBulkByGuid({
 
                 company: data.company,
 

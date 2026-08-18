@@ -290,13 +290,25 @@ async function fetchTallyCollectionByMasterId({
 
             <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>
-                    ${company}
-                </SVCURRENTCOMPANY>
+               <SVCURRENTCOMPANY>
+    ${company}
+</SVCURRENTCOMPANY>
 
-                <SVEXPORTFORMAT>
-                    $$SysName:XML
-                </SVEXPORTFORMAT>
+<SVFROMDATE TYPE="Date">
+    19000101
+</SVFROMDATE>
+
+<SVTODATE TYPE="Date">
+    20991231
+</SVTODATE>
+
+<SVCURRENTDATE TYPE="Date">
+    20991231
+</SVCURRENTDATE>
+
+<SVEXPORTFORMAT>
+    $$SysName:XML
+</SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -574,22 +586,38 @@ async function fetchMastersInBatches({
 }
 
 
-
 async function fetchVouchersInBatches({
     company,
     fromDate,
     toDate,
+    booksBeginningFrom,
+    lastAlterId,
+    syncMode,
     batchSize = 50
 }) {
 
-    const batches =
-        await fetchVoucherIdsInBatches({
-            company,
-            fromDate,
-            toDate,
-            batchSize
-        });
+   const batches =
+    await fetchVoucherIdsInBatches({
+        company,
+        fromDate,
+        toDate,
+        booksBeginningFrom,
+        lastAlterId,
+        syncMode,
+        batchSize
+    });
 
+        const collectionFromDate =
+        syncMode === "ALTERID"
+            ? null
+            : fromDate;
+
+    const collectionToDate =
+        syncMode === "ALTERID"
+            ? null
+            : toDate;
+
+    
     const allResults = [];
 
     for (const batch of batches) {
@@ -638,8 +666,8 @@ async function fetchVouchersInBatches({
 
                 masterIds,
 
-                fromDate,
-                toDate
+                fromDate: collectionFromDate,
+                toDate: collectionToDate
             });
 
         allResults.push(result);
@@ -647,7 +675,7 @@ async function fetchVouchersInBatches({
 
     return allResults;
 }
-
+/*
 async function fetchVoucherIds({
     company,
     fromDate,
@@ -706,15 +734,15 @@ async function fetchVoucherIds({
                 </SVCURRENTCOMPANY>
 
                 <SVFROMDATE TYPE="Date">
-                    ${fromDate}
+                    19000101
                 </SVFROMDATE>
 
                 <SVTODATE TYPE="Date">
-                    ${toDate}
+                    20991231
                 </SVTODATE>
 
                 <SVCURRENTDATE TYPE="Date">
-                    ${toDate}
+                    20991231
                 </SVCURRENTDATE>
 
                 <SVEXPORTFORMAT>
@@ -727,48 +755,48 @@ async function fetchVoucherIds({
 
                 <TDLMESSAGE>
 
-                    <COLLECTION NAME="BilleyVoucherIdCollection">
+                <COLLECTION NAME="BilleyVoucherIdCollection">
 
-                        <TYPE>Voucher</TYPE>
+    <TYPE>Voucher</TYPE>
 
-                        ${
-                            useMasterIdRange
-                                ? `
-                        <FILTER>
-                            BilleyVoucherMasterIdRangeFilter
-                        </FILTER>
-                        `
-                                : ""
-                        }
+    <FILTER>
+        BilleyVoucherSyncFilter
+    </FILTER>
 
-                        <FETCH>
+    <FETCH>
 
-                            MASTERID,
-                            GUID,
-                            ALTERID,
-                            DATE,
-                            VOUCHERTYPENAME,
-                            VOUCHERNUMBER
+        MASTERID,
+        GUID,
+        ALTERID,
+        DATE,
+        VOUCHERTYPENAME,
+        VOUCHERNUMBER
 
-                        </FETCH>
+    </FETCH>
 
-                    </COLLECTION>
+</COLLECTION>
 
-                    ${
-                        useMasterIdRange
-                            ? `
-                    <SYSTEM
-                        TYPE="Formulae"
-                        NAME="BilleyVoucherMasterIdRangeFilter">
 
-                       $MASTERID &gt; ${Number(startMasterId)}
-                        AND
-                        $MASTERID &lt;= ${Number(endMasterId)}
+<SYSTEM
+    TYPE="Formulae"
+    NAME="BilleyVoucherSyncFilter">
 
-                    </SYSTEM>
-                    `
-                            : ""
-                    }
+    $DATE >= ${Number(fromDate)}
+    AND
+    $DATE <= ${Number(toDate)}
+
+    ${
+        useMasterIdRange
+            ? `
+            AND
+            $MASTERID > ${Number(startMasterId)}
+            AND
+            $MASTERID <= ${Number(endMasterId)}
+            `
+            : ""
+    }
+
+</SYSTEM>
 
                 </TDLMESSAGE>
 
@@ -890,21 +918,308 @@ async function fetchVoucherIds({
 
     return result;
 }
+    */
+
+async function fetchVoucherIds({
+    company,
+    fromDate,
+    toDate,
+    booksBeginningFrom,
+    lastAlterId,
+    syncMode
+}) {
+
+    if (!company) {
+        throw new Error(
+            "company missing in fetchVoucherIds"
+        );
+    }
+
+    if (!fromDate) {
+        throw new Error(
+            "fromDate missing in fetchVoucherIds"
+        );
+    }
+
+    if (!toDate) {
+        throw new Error(
+            "toDate missing in fetchVoucherIds"
+        );
+    }
+
+    if (!booksBeginningFrom) {
+    throw new Error(
+        "booksBeginningFrom missing in fetchVoucherIds"
+    );
+}
+/*
+if (!Number.isFinite(Number(lastAlterId))) {
+    throw new Error(
+        "lastAlterId missing or invalid in fetchVoucherIds"
+    );
+}
+*/
+    await selectCompany(company);
+
+    let discoveryFromDate;
+
+    if (syncMode === "PERIODIC") {
+        discoveryFromDate = fromDate;
+    } else {
+        discoveryFromDate = booksBeginningFrom;
+    }
+
+const hasAlterId =
+    lastAlterId !== null &&
+    lastAlterId !== undefined &&
+    lastAlterId !== "" &&
+    Number.isFinite(Number(lastAlterId));
+
+console.log("=== VOUCHER FILTER DEBUG ===");
+console.log("syncMode:", syncMode);
+console.log("lastAlterId:", lastAlterId);
+console.log("hasAlterId:", hasAlterId);
+console.log("discoveryFromDate:", discoveryFromDate);
+console.log("toDate:", toDate);
+
+/*
+const useDateFilter =
+    !hasAlterId;
+*/
+const useDateFilter = true;
+
+console.log("useDateFilter:", useDateFilter);
+
+    const xml = `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyVoucherIdCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+          ${useDateFilter ? `
+            <SVFROMDATE TYPE="Date">
+                ${Number(discoveryFromDate)}
+            </SVFROMDATE>
+
+            <SVTODATE TYPE="Date">
+                ${Number(toDate)}
+            </SVTODATE>
+
+            <SVCURRENTDATE TYPE="Date">
+                ${Number(toDate)}
+            </SVCURRENTDATE>
+            ` : ""}      
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                <COLLECTION NAME="BilleyVoucherIdCollection">
+
+    <TYPE>Voucher</TYPE>
+
+    <FILTER>
+    BilleyVoucherSyncFilter
+</FILTER>
+
+    <FETCH>
+
+        MASTERID,
+        GUID,
+        ALTERID,
+        DATE,
+        VOUCHERTYPENAME,
+        VOUCHERNUMBER
+
+    </FETCH>
+
+</COLLECTION>
+
+${lastAlterId !== null &&
+  lastAlterId !== undefined &&
+  lastAlterId !== "" &&
+  Number.isFinite(Number(lastAlterId))
+    ? `
+    <SYSTEM
+        TYPE="Formulae"
+        NAME="BilleyVoucherSyncFilter">
+
+        $ALTERID > ${Number(lastAlterId)}
+
+    </SYSTEM>
+    `
+    : ""
+}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+
+console.log("=== FINAL VOUCHER DISCOVERY XML ===");
+console.log(xml);
+console.log("=== END VOUCHER DISCOVERY XML ===");
+
+    console.log(
+        "======================================"
+    );
+
+    console.log(
+        "VOUCHER DISCOVERY REQUEST"
+    );
+
+    console.log(
+        "Company:",
+        company
+    );
+
+    console.log(
+        "Date:",
+        booksBeginningFrom,
+        "→",
+        toDate
+    );
+/*
+    if (useMasterIdRange) {
+
+        console.log(
+            "MASTERID RANGE:",
+            startMasterId,
+            "→",
+            endMasterId
+        );
+
+    } else {
+
+        console.log(
+            "MASTERID RANGE: FULL"
+        );
+
+    }
+*/
+    console.log(
+        "======================================"
+    );
+
+    const response =
+        await sendToTally(xml);
+
+    if (!response) {
+        throw new Error(
+            "Empty response received from Tally."
+        );
+    }
+
+    const json =
+        parser.parse(response);
+
+    const rawVouchers =
+        json
+            ?.ENVELOPE
+            ?.BODY
+            ?.DATA
+            ?.COLLECTION
+            ?.VOUCHER;
+
+    const vouchers =
+        toArray(rawVouchers);
+
+    const result =
+        vouchers
+            .map(v => ({
+
+                masterid:
+                    Number(
+                        getValue(v.MASTERID)
+                    ),
+
+                guid:
+                    getValue(v.GUID),
+
+                alterid:
+                    Number(
+                        getValue(v.ALTERID)
+                    ),
+
+                date:
+                    getValue(v.DATE),
+
+                voucherTypeName:
+                    getValue(v.VOUCHERTYPENAME),
+
+                voucherNumber:
+                    getValue(v.VOUCHERNUMBER)
+
+            }))
+            .filter(row =>
+                Number.isFinite(
+                    row.masterid
+                ) &&
+                row.guid
+            );
+
+    console.log(
+        "Vouchers Found:",
+        result.length
+    );
+
+    console.log(
+        "======================================"
+    );
+
+    return result;
+}
 
 async function fetchVoucherIdsInBatches({
     company,
     fromDate,
     toDate,
+    booksBeginningFrom,
+    lastAlterId,
+    syncMode,
     batchSize = 50
 }) {
 
     const voucherIds =
-        await fetchVoucherIds({
-            company,
-            fromDate,
-            toDate
-        });
-
+    await fetchVoucherIds({
+        company,
+        fromDate,
+        toDate,
+        booksBeginningFrom,
+        lastAlterId,
+        syncMode
+    });
     const batches = [];
 
     for (
@@ -1036,22 +1351,19 @@ async function fetchTallyCollection({
     // DATE VARIABLES
     // ========================================================
 
-    const dateXml =
-        fromDate && toDate
-            ? `
-                <SVFROMDATE TYPE="Date">
-                    ${fromDate}
-                </SVFROMDATE>
+    const dateXml = `
+    <SVFROMDATE TYPE="Date">
+        ${fromDate || "19000101"}
+    </SVFROMDATE>
 
-                <SVTODATE TYPE="Date">
-                    ${toDate}
-                </SVTODATE>
+    <SVTODATE TYPE="Date">
+        ${toDate || "20991231"}
+    </SVTODATE>
 
-                <SVCURRENTDATE TYPE="Date">
-                    ${toDate}
-                </SVCURRENTDATE>
-              `
-            : "";
+    <SVCURRENTDATE TYPE="Date">
+        ${toDate || "20991231"}
+    </SVCURRENTDATE>
+`;
 
     const xml = `
 <ENVELOPE>
@@ -1370,8 +1682,15 @@ async function fetchTallyCollectionByVoucherId({
 async function fetchTallyCollectionByVoucherId({
     company,
     voucherId,
+    booksBeginningFrom,
     fetchFields = []
 }) {
+
+    if (!booksBeginningFrom) {
+        throw new Error(
+            "booksBeginningFrom missing in fetchTallyCollectionByVoucherId"
+        );
+    }
 
     if (!company) {
         throw new Error(
@@ -1431,7 +1750,7 @@ async function fetchTallyCollectionByVoucherId({
      */
 
     const fromDate =
-        "19000101";
+        booksBeginningFrom;
 
     const toDate =
         "20991231";
