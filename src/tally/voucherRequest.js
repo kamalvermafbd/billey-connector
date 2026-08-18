@@ -34,9 +34,9 @@ function buildVoucherRequest({
 
                 <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
 
-               ${toDate
-    ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>`
-    : ""}
+                        ${toDate
+                ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>`
+                : ""}
 
             </STATICVARIABLES>
 
@@ -126,7 +126,9 @@ function buildVoucherRequest({
 
 function buildVoucherRequestByGuid({
     company,
-    voucherGuid
+    voucherGuid,
+    fromDate = "20260401",
+    toDate = "20270331"
 }) {
 
     return `
@@ -155,6 +157,10 @@ function buildVoucherRequestByGuid({
             <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
             <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+            <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+
+            <SVTODATE TYPE="Date">${toDate}</SVTODATE>
 
         </STATICVARIABLES>
 

@@ -1324,6 +1324,10 @@ socket.on("voucherByGuidComplete", async (data) => {
         const voucherGuids =
             complete(data.batchId);
 
+        console.log(
+    "BULK GUID INPUT:",
+    voucherGuids
+);
 
         socket.emit(
             "voucherByGuidCompleteAck",

@@ -26,6 +26,14 @@ function parseVoucherGuidResponse(xml) {
 
     const json = parser.parse(xml);
 
+    console.log("=== PARSER DEBUG ===");
+console.dir(json?.ENVELOPE?.BODY, { depth: 6 });
+console.log(
+    "COLLECTION:",
+    json?.ENVELOPE?.BODY?.DATA?.COLLECTION
+);
+console.log("====================");
+
     require("fs").writeFileSync(
     "./logs/one-voucher-response.json",
     JSON.stringify(json, null, 2),
@@ -36,7 +44,10 @@ function parseVoucherGuidResponse(xml) {
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
     );
 
-   
+   console.log(
+    "PARSER VOUCHER COUNT:",
+    vouchers.length
+);
 
     return vouchers.map(v => ({
 

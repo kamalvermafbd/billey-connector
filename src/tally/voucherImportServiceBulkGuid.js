@@ -14,6 +14,9 @@ const {
 const {
     getLookups
 } = require("./lookupCache");
+
+const fs = require("fs");
+
 /*
 const {
     buildChunks
@@ -33,7 +36,17 @@ async function importVoucherBulkByGuid({
     voucherGuids
 }){
 
+    voucherGuids = (voucherGuids || [])
+    .map(item =>
+        typeof item === "string"
+            ? item
+            : item?.guid
+    )
+    .filter(Boolean);
+
     await selectCompany(company);
+
+
 
     const lookups = getLookups(company);
 
@@ -207,6 +220,23 @@ await executeChunks({
         
         const responseXml =
             await sendToTally(requestXml);
+
+            
+fs.writeFileSync(
+    "./logs/BULK-GUID-RAW-RESPONSE.xml",
+    String(responseXml || ""),
+    "utf8"
+);
+
+            console.log(
+    "BULK GUID RESPONSE SIZE:",
+    Buffer.byteLength(String(responseXml || ""), "utf8")
+);
+
+console.log(
+    "BULK GUID RESPONSE HAS VOUCHER:",
+    String(responseXml || "").includes("<VOUCHER>")
+);
 
         if (!responseXml) {
 
