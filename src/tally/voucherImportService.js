@@ -186,10 +186,16 @@ for (
 
             masterIds,
 
+            fromDate,
+            toDate
+
         });
 
-  console.log(
-    "LEVEL-1 DATE FILTER: NONE"
+ console.log(
+    "LEVEL-1 DATE FILTER:",
+    fromDate,
+    "→",
+    toDate
 );
 
     level1Results.push(

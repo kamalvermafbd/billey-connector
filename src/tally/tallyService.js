@@ -608,14 +608,14 @@ async function fetchVouchersInBatches({
     });
 
         const collectionFromDate =
-        syncMode === "ALTERID"
-            ? null
-            : fromDate;
+    syncMode === "ALTERID"
+        ? "19000101"
+        : fromDate;
 
-    const collectionToDate =
-        syncMode === "ALTERID"
-            ? null
-            : toDate;
+const collectionToDate =
+    syncMode === "ALTERID"
+        ? "20991231"
+        : toDate;
 
     
     const allResults = [];
@@ -947,11 +947,7 @@ async function fetchVoucherIds({
         );
     }
 
-    if (!booksBeginningFrom) {
-    throw new Error(
-        "booksBeginningFrom missing in fetchVoucherIds"
-    );
-}
+  
 /*
 if (!Number.isFinite(Number(lastAlterId))) {
     throw new Error(
@@ -975,6 +971,14 @@ const hasAlterId =
     lastAlterId !== "" &&
     Number.isFinite(Number(lastAlterId));
 
+// ======================================================
+// DATE FILTER
+// ======================================================
+// Agar ALTERID / MASTERID se fetch ho raha hai
+// to DATE LIMITATION bilkul nahi.
+// Date sirf pure date-based discovery mein lagegi.
+// ======================================================
+
 console.log("=== VOUCHER FILTER DEBUG ===");
 console.log("syncMode:", syncMode);
 console.log("lastAlterId:", lastAlterId);
@@ -986,6 +990,7 @@ console.log("toDate:", toDate);
 const useDateFilter =
     !hasAlterId;
 */
+//const useDateFilter = true;
 const useDateFilter = true;
 
 console.log("useDateFilter:", useDateFilter);
@@ -1009,31 +1014,19 @@ console.log("useDateFilter:", useDateFilter);
 
         <DESC>
 
-            <STATICVARIABLES>
+          <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>
-                    ${company}
-                </SVCURRENTCOMPANY>
+    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-          ${useDateFilter ? `
-            <SVFROMDATE TYPE="Date">
-                ${Number(discoveryFromDate)}
-            </SVFROMDATE>
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-            <SVTODATE TYPE="Date">
-                ${Number(toDate)}
-            </SVTODATE>
+   <SVFROMDATE TYPE="Date">20160401</SVFROMDATE>
 
-            <SVCURRENTDATE TYPE="Date">
-                ${Number(toDate)}
-            </SVCURRENTDATE>
-            ` : ""}      
+<SVTODATE TYPE="Date">20991231</SVTODATE>
 
-                <SVEXPORTFORMAT>
-                    $$SysName:XML
-                </SVEXPORTFORMAT>
+<SVCURRENTDATE TYPE="Date">20991231</SVCURRENTDATE>
 
-            </STATICVARIABLES>
+</STATICVARIABLES>
 
             <TDL>
 
@@ -1351,7 +1344,11 @@ async function fetchTallyCollection({
     // DATE VARIABLES
     // ========================================================
 
-    const dateXml = `
+    const hasMasterIds =
+    Array.isArray(masterIds) &&
+    masterIds.length > 0;
+
+const dateXml = `
     <SVFROMDATE TYPE="Date">
         ${fromDate || "19000101"}
     </SVFROMDATE>
@@ -1682,15 +1679,10 @@ async function fetchTallyCollectionByVoucherId({
 async function fetchTallyCollectionByVoucherId({
     company,
     voucherId,
-    booksBeginningFrom,
     fetchFields = []
 }) {
 
-    if (!booksBeginningFrom) {
-        throw new Error(
-            "booksBeginningFrom missing in fetchTallyCollectionByVoucherId"
-        );
-    }
+    
 
     if (!company) {
         throw new Error(
@@ -1749,11 +1741,7 @@ async function fetchTallyCollectionByVoucherId({
      * Isliye date context yahin internally diya ja raha hai.
      */
 
-    const fromDate =
-        booksBeginningFrom;
-
-    const toDate =
-        "20991231";
+ 
 
     return await fetchTallyCollection({
 
@@ -1774,9 +1762,8 @@ async function fetchTallyCollectionByVoucherId({
         filterFormula:
             `$MASTERID = ${Number(voucherId)}`,
 
-        fromDate,
-
-        toDate
+        fromDate: null,
+        toDate: null
 
     });
 }
