@@ -116,7 +116,7 @@ console.log(
 // LEVEL-1
 // 50 VOUCHERS PER TALLY REQUEST
 // ============================================
-
+/*
 const LEVEL1_BATCH_SIZE = 500;
 
 const level1Results = [];
@@ -202,7 +202,7 @@ for (
         result
     );
 }
-
+*/
     console.log(
         "FULL VOUCHER GUID DISCOVERY"
     );

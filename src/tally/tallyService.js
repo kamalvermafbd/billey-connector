@@ -295,7 +295,7 @@ async function fetchTallyCollectionByMasterId({
 </SVCURRENTCOMPANY>
 
 <SVFROMDATE TYPE="Date">
-    19000101
+      20160401
 </SVFROMDATE>
 
 <SVTODATE TYPE="Date">
@@ -329,8 +329,8 @@ async function fetchTallyCollectionByMasterId({
                     </COLLECTION>
 
                    <SYSTEM TYPE="Formulae" NAME="BilleyMasterIDRangeFilter">
-    $MASTERID &gt; ${startId} AND $MASTERID &lt;= ${endId}
-</SYSTEM>
+                    $MASTERID &gt; ${startId} AND $MASTERID &lt;= ${endId}
+                </SYSTEM>
 
                 </TDLMESSAGE>
 
@@ -609,7 +609,7 @@ async function fetchVouchersInBatches({
 
         const collectionFromDate =
     syncMode === "ALTERID"
-        ? "19000101"
+        ? "20160401"
         : fromDate;
 
 const collectionToDate =
@@ -958,18 +958,41 @@ if (!Number.isFinite(Number(lastAlterId))) {
     await selectCompany(company);
 
     let discoveryFromDate;
-
+/*
     if (syncMode === "PERIODIC") {
         discoveryFromDate = fromDate;
     } else {
         discoveryFromDate = booksBeginningFrom;
     }
+*/
 
-const hasAlterId =
+     if (syncMode === "PERIODIC") {
+
+        discoveryFromDate = fromDate;
+
+    } else if (syncMode === "FULL") {
+
+        discoveryFromDate = booksBeginningFrom;
+
+    } else {
+
+        // ALTERID / other incremental discovery
+        discoveryFromDate = fromDate;
+
+    }
+    /*
+    const hasAlterId =
     lastAlterId !== null &&
     lastAlterId !== undefined &&
     lastAlterId !== "" &&
     Number.isFinite(Number(lastAlterId));
+*/
+
+ const hasAlterId =
+        lastAlterId !== null &&
+        lastAlterId !== undefined &&
+        lastAlterId !== "" &&
+        Number.isFinite(Number(lastAlterId));
 
 // ======================================================
 // DATE FILTER
@@ -979,22 +1002,35 @@ const hasAlterId =
 // Date sirf pure date-based discovery mein lagegi.
 // ======================================================
 
+ const useAlterIdFilter =
+        syncMode === "ALTERID" &&
+        hasAlterId;
+const filterXml = useAlterIdFilter
+    ? `
+<FILTER>
+    BilleyVoucherSyncFilter
+</FILTER>
+`
+    : "";
+
 console.log("=== VOUCHER FILTER DEBUG ===");
 console.log("syncMode:", syncMode);
 console.log("lastAlterId:", lastAlterId);
 console.log("hasAlterId:", hasAlterId);
 console.log("discoveryFromDate:", discoveryFromDate);
 console.log("toDate:", toDate);
+console.log("useAlterIdFilter:", useAlterIdFilter);
 
 /*
+
 const useDateFilter =
     !hasAlterId;
-*/
+
 //const useDateFilter = true;
 const useDateFilter = true;
 
 console.log("useDateFilter:", useDateFilter);
-
+*/
     const xml = `
 <ENVELOPE>
 
@@ -1036,9 +1072,7 @@ console.log("useDateFilter:", useDateFilter);
 
     <TYPE>Voucher</TYPE>
 
-    <FILTER>
-    BilleyVoucherSyncFilter
-</FILTER>
+     ${filterXml}
 
     <FETCH>
 
@@ -1052,12 +1086,9 @@ console.log("useDateFilter:", useDateFilter);
     </FETCH>
 
 </COLLECTION>
-
-${lastAlterId !== null &&
-  lastAlterId !== undefined &&
-  lastAlterId !== "" &&
-  Number.isFinite(Number(lastAlterId))
-    ? `
+${
+    useAlterIdFilter
+        ? `
     <SYSTEM
         TYPE="Formulae"
         NAME="BilleyVoucherSyncFilter">
@@ -1066,7 +1097,7 @@ ${lastAlterId !== null &&
 
     </SYSTEM>
     `
-    : ""
+        : ""
 }
 
                 </TDLMESSAGE>
@@ -1083,6 +1114,17 @@ ${lastAlterId !== null &&
 console.log("=== FINAL VOUCHER DISCOVERY XML ===");
 console.log(xml);
 console.log("=== END VOUCHER DISCOVERY XML ===");
+
+fs.writeFileSync(
+    path.join(
+        __dirname,
+        "..",
+        "logs",
+        `VOUCHER-DISCOVERY-${Date.now()}.xml`
+    ),
+    xml,
+    "utf8"
+);
 
     console.log(
         "======================================"
@@ -1350,7 +1392,7 @@ async function fetchTallyCollection({
 
 const dateXml = `
     <SVFROMDATE TYPE="Date">
-        ${fromDate || "19000101"}
+      ${fromDate || "20160401"}
     </SVFROMDATE>
 
     <SVTODATE TYPE="Date">

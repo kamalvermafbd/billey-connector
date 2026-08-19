@@ -629,6 +629,18 @@ socket.on("getMastersVoucherGuids", async (data) => {
             toDate: data.toDate
         });
 
+        console.log("=== GUID REQUEST DEBUG ===");
+        
+        console.log({
+            company: data.company,
+            fromDate: data.fromDate,
+            toDate: data.toDate,
+            booksBeginningFrom: data.booksBeginningFrom,
+            lastAlterId: data.lastAlterId,
+            syncMode: data.syncMode,
+            syncPeriod: data.syncPeriod
+        });
+
        const voucherGuids =
         await importVoucherGuids({
             company: data.company,
@@ -639,6 +651,14 @@ socket.on("getMastersVoucherGuids", async (data) => {
             syncMode: data.syncMode,
             syncPeriod: data.syncPeriod
         });
+
+        console.log(
+            "VOUCHER GUIDS RECEIVED FROM TALLY:",
+            voucherGuids.length
+        );
+
+        console.log("=== END GUID REQUEST DEBUG ===");
+
         socket.emit(
             "getMastersVoucherGuidsResult",
             {

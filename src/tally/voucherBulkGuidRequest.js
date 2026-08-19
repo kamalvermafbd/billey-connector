@@ -1,8 +1,8 @@
 function buildVoucherBulkGuidRequest({
     company,
     voucherGuids,
-    fromDate = "20260401",
-    toDate = "20270331"
+    fromDate = "20160401",
+    toDate = "20991231"
 }) {
     const filter = voucherGuids
         .map(guid => `$$IsEqual:$GUID:"${guid}"`)

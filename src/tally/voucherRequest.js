@@ -1,6 +1,6 @@
 function buildVoucherRequest({
     company,
-    fromDate = "19000101",
+    fromDate = "20160401",
     toDate = "20991231",
     lastAlterId = null
 }) {
