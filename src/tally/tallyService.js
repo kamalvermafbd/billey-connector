@@ -164,12 +164,13 @@ async function sendToTally(xml) {
     //fs.writeFileSync(DEBUG_FILE, "");
 
     // XML save
-    fs.appendFileSync(
+ /*   fs.appendFileSync(
       DEBUG_FILE,
      "\n========== XML SENT ==========\n\n" +
       xml +
      "\n\n"
     );
+    */
 console.log("====================================");
 console.log(">>> Tally request started");
 console.trace("Called From");
@@ -187,12 +188,13 @@ console.log("====================================");
     );
 
     // Tally response save
-    fs.appendFileSync(
+ /*   fs.appendFileSync(
       DEBUG_FILE,
       "\n========== TALLY RESPONSE ==========\n\n" +
       response.data +
       "\n"
     );
+    */
 console.log("<<< Tally response received");
 
     return response.data;
@@ -1169,6 +1171,12 @@ fs.writeFileSync(
 
     const response =
         await sendToTally(xml);
+
+     fs.writeFileSync(
+    path.join(__dirname, "../../logs/VOUCHER_DISCOVERY_DEBUG.xml"),
+    String(response || ""),
+    "utf8"
+);
 
     if (!response) {
         throw new Error(
@@ -2391,7 +2399,7 @@ const xml = `
 `;
 
 const result = await sendToTally(xml);
-const fs = require("fs");
+
 const path = require("path");
 
 const outputFile = path.join(
