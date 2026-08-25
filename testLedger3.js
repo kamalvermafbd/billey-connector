@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
+
+
 const {
     importLedgers
 } = require("./src/tally/ledgerImportService");
@@ -46,7 +48,7 @@ const {
 
         // ============================================
         // STEP 1
-        // AlterID ke base par changed Ledgers lao
+        // AlterID se changed Ledgers lao
         // ============================================
 
         const changedLedgers =
@@ -88,16 +90,9 @@ const {
         );
 
 
-        console.log(
-            "GUIDs:",
-            changedLedgerGuids
-        );
-
-
         // ============================================
         // STEP 3
         // Existing Bulk GUID Pipeline
-        // 50 GUID Level-1
         // ============================================
 
         let importedLedgers = [];
@@ -126,6 +121,30 @@ const {
 
         // ============================================
         // STEP 4
+        // Classification Samples
+        // ============================================
+
+        console.log("================================");
+        console.log("CLASSIFICATION SAMPLE");
+        console.log("================================");
+
+        for (
+            const ledger
+            of importedLedgers.slice(0, 20)
+        ) {
+
+            console.log(
+                `${ledger.name || ""} | ` +
+                `${ledger.parent || ""} | ` +
+                `${ledger.parentGroupReservedName || ""} | ` +
+                `${ledger.nature || ""}`
+            );
+
+        }
+
+
+        // ============================================
+        // STEP 5
         // Result
         // ============================================
 
@@ -159,7 +178,15 @@ const {
 
             success:
                 changedLedgerGuids.length ===
-                importedLedgers.length
+                    importedLedgers.length &&
+                importedLedgers.every(
+                    ledger =>
+                        ledger.parentGroupGuid &&
+                        ledger.parentGroupMasterId &&
+                        ledger.parentGroupAlterId &&
+                        ledger.parentGroupReservedName &&
+                        ledger.nature
+                )
 
         };
 
@@ -180,10 +207,6 @@ const {
         console.log("================================");
         console.log(
             "LEDGER ALTERID BULK GUID TEST COMPLETED"
-        );
-
-        console.log(
-            `Baseline AlterID: ${lastLedgerAlterId}`
         );
 
         console.log(
@@ -255,9 +278,7 @@ const {
             "LEDGER ALTERID BULK GUID TEST FAILED"
         );
 
-        console.error(
-            err
-        );
+        console.error(err);
 
         console.error(
             "Result file:",

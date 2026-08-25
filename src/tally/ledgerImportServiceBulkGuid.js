@@ -1,6 +1,7 @@
 const {
     sendToTally,
-    selectCompany
+    selectCompany,
+    getGroups
 } = require("./tallyService");
 
 const {
@@ -10,11 +11,6 @@ const {
 const {
     parseLedgerResponse
 } = require("./ledgerParser");
-
-const {
-    getLookups
-} = require("./lookupCache");
-
 
 const {
     buildChunks
@@ -29,11 +25,64 @@ const BULK_GUID_CHUNK_SIZE = 300 * 1024;
 
 const LEDGER_GUID_BATCH_SIZE = 50;
 
+function resolveLedgerNature(parentName, groupLookup) {
+
+    let current =
+        String(parentName || "").trim();
+
+    const visited = new Set();
+
+    while (current && !visited.has(current)) {
+
+        visited.add(current);
+
+        const group =
+            groupLookup.get(
+                current.toUpperCase()
+            );
+
+        if (!group) {
+            return "";
+        }
+
+        const reserved =
+            String(group.reservedName || "").trim();
+
+        if (
+            reserved === "Current Assets" ||
+            reserved === "Fixed Assets"
+        ) {
+            return "Assets";
+        }
+
+        if (
+            reserved === "Current Liabilities" ||
+            reserved === "Loans (Liability)"
+        ) {
+            return "Liabilities";
+        }
+
+        if (reserved === "Capital Account") {
+            return "Capital";
+        }
+
+        current =
+            String(group.parent || "").trim();
+
+        if (!current || /^Primary$/i.test(current)) {
+            return "";
+        }
+    }
+
+    return "";
+}
 
 async function importLedgerBulkByGuid({
     company,
-    ledgerGuids
-}){
+    ledgerGuids,
+    groups = [],
+    booksBeginningFrom
+}) {
     await selectCompany(company);
 
 if (!ledgerGuids?.length) {
@@ -68,19 +117,20 @@ for (
 
 const allLedgers = [];
 
-  const lookups =
-
-    getLookups(
-
-        company
-
-    ) || {};
+ const resolvedGroups =
+    groups?.length
+        ? groups
+        : await getGroups(company);
 
 const groupLookup =
-
-    lookups.groupLookup ||
-
-    new Map();
+    new Map(
+        resolvedGroups.map(group => [
+            String(group.name || "")
+                .trim()
+                .toUpperCase(),
+            group
+        ])
+    );
 
 for (
     let batchIndex = 0;
@@ -110,11 +160,18 @@ await executeChunks({
 
                 company,
 
-                ledgerGuids: chunk.data
+                ledgerGuids: chunk.data,
+
+                booksBeginningFrom
 
             });
 
-       
+       console.log("======================================");
+console.log("BULK LEDGER DATE TEST");
+console.log("COMPANY :", company);
+console.log("FROM    :", booksBeginningFrom);
+console.log("TO      :", booksBeginningFrom);
+console.log("======================================");
 
         const responseXml =
             await sendToTally(requestXml);
@@ -154,23 +211,29 @@ for (const ledger of ledgers) {
 
         );
 
-    if (!parent) {
+  ledger.parentGroupGuid =
+    ledger.parentGroupGuid ||
+    parent?.guid ||
+    null;
 
-        continue;
+ledger.parentGroupMasterId =
+    ledger.parentGroupMasterId ||
+    parent?.masterId ||
+    null;
 
-    }
+ledger.parentGroupAlterId =
+    ledger.parentGroupAlterId ||
+    parent?.alterId ||
+    null;
 
-    ledger.parentGroupGuid =
+ledger.parentGroupReservedName =
+    parent?.reservedName || "";
 
-        parent.guid;
-
-    ledger.parentGroupMasterId =
-
-        parent.masterId;
-
-    ledger.parentGroupAlterId =
-
-        parent.alterId;
+ledger.nature =
+    resolveLedgerNature(
+        ledger.parent,
+        groupLookup
+    );
 
 }
 

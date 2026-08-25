@@ -1608,9 +1608,10 @@ socket.on("getTrialBalance", async (data) => {
 
         const result =
             await getTrialBalance({
-    company: data.company,
-    asOnDate: data.asOnDate
-});
+                company: data.company,
+                asOnDate: data.asOnDate,
+                booksBeginningFrom: data.booksBeginningFrom
+            });
 
         socket.emit(
             "getTrialBalanceResult",
@@ -1622,6 +1623,7 @@ socket.on("getTrialBalance", async (data) => {
 
     } catch (err) {
 
+     
         socket.emit(
             "getTrialBalanceResult",
             {

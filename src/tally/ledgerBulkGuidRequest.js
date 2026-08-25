@@ -1,6 +1,7 @@
 function buildLedgerBulkGuidRequest({
     company,
-    ledgerGuids
+    ledgerGuids,
+    booksBeginningFrom
 }) {
 
     const filter = ledgerGuids
@@ -26,13 +27,21 @@ function buildLedgerBulkGuidRequest({
 
         <DESC>
 
-            <STATICVARIABLES>
+          <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-            </STATICVARIABLES>
+    <SVFROMDATE TYPE="Date">
+        ${booksBeginningFrom}
+    </SVFROMDATE>
+
+    <SVTODATE TYPE="Date">
+        ${booksBeginningFrom}
+    </SVTODATE>
+
+</STATICVARIABLES>
 
             <TDL>
 

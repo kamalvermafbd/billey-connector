@@ -1,0 +1,83 @@
+
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>LedgerOpeningTest</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    Guru Kirpa Trading
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+                <SVFROMDATE TYPE="Date">
+                    20210401
+                </SVFROMDATE>
+
+                <SVTODATE TYPE="Date">
+                    20210401
+                </SVTODATE>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION
+                        NAME="LedgerOpeningTest">
+
+                        <TYPE>Ledger</TYPE>
+
+                        <FILTER>
+                            LedgerOpeningTestFilter
+                        </FILTER>
+
+                        <FETCH>
+
+                            NAME,
+                            GUID,
+                            MASTERID,
+                            ALTERID,
+                            OPENINGBALANCE,
+                            OPENINGBALANCEON
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+
+                    <SYSTEM
+                        TYPE="Formulae"
+                        NAME="LedgerOpeningTestFilter">
+
+                        $NAME = "NEW TECH CHEMICALS"
+
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>

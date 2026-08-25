@@ -229,7 +229,10 @@ console.log(
 const ledgers =
     await importLedgerBulkByGuid({
         company,
-        ledgerGuids: changedLedgerGuids
+        ledgerGuids: changedLedgerGuids,
+        groups,
+        booksBeginningFrom:
+    companyInfo.booksBeginningFrom
     });
 
 console.log(

@@ -16,6 +16,73 @@ const {
 } = require("./lookupCache");
 
 
+function resolveLedgerNature(
+    parentName,
+    groupLookup
+) {
+
+    let current =
+        String(parentName || "")
+            .trim();
+
+    const visited = new Set();
+
+    while (
+        current &&
+        !visited.has(current)
+    ) {
+
+        visited.add(current);
+
+        const group =
+            groupLookup.get(
+                current.toUpperCase()
+            );
+
+        if (!group) {
+            return "";
+        }
+
+        const reserved =
+            String(
+                group.reservedName || ""
+            ).trim();
+
+        if (reserved === "Current Assets") {
+            return "Assets";
+        }
+
+        if (reserved === "Fixed Assets") {
+            return "Assets";
+        }
+
+        if (reserved === "Current Liabilities") {
+            return "Liabilities";
+        }
+
+        if (reserved === "Loans (Liability)") {
+            return "Liabilities";
+        }
+
+        if (reserved === "Capital Account") {
+            return "Capital";
+        }
+
+        current =
+            String(group.parent || "")
+                .trim();
+
+        if (
+            !current ||
+            /^Primary$/i.test(current)
+        ) {
+            return "";
+        }
+    }
+
+    return "";
+}
+
 async function importLedgers({
     company,
     booksBeginningFrom,
@@ -86,6 +153,15 @@ async function importLedgers({
 
         ledger.parentGroupAlterId =
             parent.alterId;
+
+        ledger.parentGroupReservedName =
+            parent.reservedName || "";
+
+        ledger.nature =
+            resolveLedgerNature(
+                ledger.parent,
+                groupLookup
+            );
 
     }
 

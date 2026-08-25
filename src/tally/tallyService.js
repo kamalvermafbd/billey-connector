@@ -2051,6 +2051,15 @@ return groups.map(group => ({
 
     name: group.NAME,
 
+    guid:
+        getValue(group.GUID),
+
+    masterId:
+        getValue(group.MASTERID),
+
+    alterId:
+        getValue(group.ALTERID),
+
     parent: getValue(group.PARENT),
 
     reservedName: group.RESERVEDNAME || ""
@@ -2430,9 +2439,19 @@ async function getTallyMappingData(company) {
 
 const groups =
     await getGroups(company);
-
+/*
 console.log(
     JSON.stringify(groups, null, 2)
+);
+*/
+
+console.log("RESERVED NAMES:");
+console.log(
+    [...new Set(
+        groups
+            .map(g => g.reservedName)
+            .filter(Boolean)
+    )]
 );
 
 const groupTree =
@@ -3122,6 +3141,7 @@ module.exports = {
   getUnits,
   getSalesVouchers,
   getGroups,
+  buildGroupTree,
 
   // getStockMasters
 

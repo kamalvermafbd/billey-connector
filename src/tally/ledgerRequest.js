@@ -32,6 +32,7 @@ function buildLedgerRequest({
                 <SVFROMDATE TYPE="Date">
                     ${booksBeginningFrom}
                 </SVFROMDATE>
+                
 
                 <SVTODATE TYPE="Date">
                     ${booksBeginningFrom}
@@ -102,9 +103,7 @@ function buildLedgerRequest({
 
                         </FETCH>
 
-                        <COMPUTE>
-                            ORIGINALOPENINGBALANCE : $_OpeningBalance
-                        </COMPUTE>
+                       
 
                     </COLLECTION>
 

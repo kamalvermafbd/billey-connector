@@ -83,6 +83,15 @@ console.log("result.ledgers :", result.ledgers?.length);
 console.log("first ledger :", result.ledgers?.[0]);
 console.log("================================");
 
+const newTech = result.ledgers?.find(
+    ledger => ledger.name === "NEW TECH CHEMICALS"
+);
+
+console.log("================================");
+console.log("NEW TECH CHEMICALS CONNECTOR DATA");
+console.dir(newTech, { depth: null });
+console.log("================================");
+
     await this.sendCollection(
         "getMastersLedgers",
         result.ledgers || []

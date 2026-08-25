@@ -1,0 +1,2456 @@
+[
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006bb",
+    "name": "6 D Plus Studio",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f8",
+    "name": "Accountancy Chg Payable",
+    "parent": "EXPENSES PAYABLE",
+    "closingBalance": 12002.45
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000296",
+    "name": "Accounting Charges",
+    "parent": "Indirect Expenses",
+    "closingBalance": -1613
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000023f",
+    "name": "Adesh Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": -250
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000021b",
+    "name": "AGGARWAL BANDU",
+    "parent": "Sundry Debtors",
+    "closingBalance": 101
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000695",
+    "name": "Aggarwal Electrial & Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": -20062
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000291",
+    "name": "Aggarwal Hardware(Blb)",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001ed",
+    "name": "AGGARWAL HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006c8",
+    "name": "AGGARWAL LIGHT HOUSE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000229",
+    "name": "AGGARWAL SANITATION",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000029a",
+    "name": "AGGARWAL TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000690",
+    "name": "AGGARWAL TRADING COMPANY",
+    "parent": "Sundry Creditors",
+    "closingBalance": 10763
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000023b",
+    "name": "Aggrwal H/W Store (Tigaon)",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000276",
+    "name": "AHUJA HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006af",
+    "name": "Ahuja Plywood",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006d7",
+    "name": "AJAY ELECTRICAL",
+    "parent": "Sundry Debtors",
+    "closingBalance": 201
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000028f",
+    "name": "AKSHIT PLASTICS",
+    "parent": "Sundry Creditors",
+    "closingBalance": -47987.38
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000257",
+    "name": "AMAN ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002bc",
+    "name": "AMAR MACHINARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e2",
+    "name": "AMIT CONSTRUCTION",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000036b",
+    "name": "Anand Enterprises",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002df",
+    "name": "Anand Kumar and Sons",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000252",
+    "name": "Anant Tiles & Sanitary Wares",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000393",
+    "name": "ANIKET GHOSH",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002bf",
+    "name": "ANIL ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000023c",
+    "name": "Ankit Electricals",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006ae",
+    "name": "Anubhav Electrical & Inverter",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b4",
+    "name": "ARADHYA TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000024c",
+    "name": "Arora Electrical",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000025e",
+    "name": "ARYA TRADING COMAPNY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006e0",
+    "name": "ASHOK GUPTA",
+    "parent": "Sundry Debtors",
+    "closingBalance": -24040
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006e8",
+    "name": "Ashok Sawhney Foundation",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000302",
+    "name": "AVS Facilities Management Pvt. Ltd.",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006cb",
+    "name": "BABA PAINT",
+    "parent": "Sundry Debtors",
+    "closingBalance": 2700
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006da",
+    "name": "BABA PAINT & SANITARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": 1010
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000069d",
+    "name": "BABBAR ELECTRICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a8",
+    "name": "BADSHAH CREATION",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000024d",
+    "name": "Baghel Sales",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d7",
+    "name": "BALAJI ENTERPRISE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000294",
+    "name": "BANK CHARGES AND INTEREST",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d0",
+    "name": "BANK INTEREST",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000245",
+    "name": "BANSAL HARDWARE & PAINTS STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000219",
+    "name": "BASANT H/W SANITARY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001ee",
+    "name": "BHAGWATI ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000243",
+    "name": "BHANU TRADING COMPANY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000375",
+    "name": "BHARAJ INNOVATION",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b1",
+    "name": "BHARAT MACHINERY & GENERAL STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000287",
+    "name": "BHARDWAJ ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000274",
+    "name": "BHARDWAJ HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f2",
+    "name": "BHARDWAJ SANITARY AND HARDWARE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000273",
+    "name": "BHOLE HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000029c",
+    "name": "CAPITAL A/C ARCHNA VERMA",
+    "parent": "Capital Account",
+    "closingBalance": 2969258.6
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001ef",
+    "name": "CARTAGE INWARD",
+    "parent": "Direct Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006f8",
+    "name": "CARTAGE ON SALE",
+    "parent": "Sales Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000001f",
+    "name": "Cash",
+    "parent": "Cash-in-Hand",
+    "closingBalance": 164787.21
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000028a",
+    "name": "CASH SALE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000269",
+    "name": "CGST",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000399",
+    "name": "CGST 14%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c3",
+    "name": "CGST 6%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f0",
+    "name": "CGST 9%",
+    "parent": "Duties & Taxes",
+    "closingBalance": 1098302.04
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000035c",
+    "name": "CGST PAYABLE",
+    "parent": "GST PAYABLE",
+    "closingBalance": -9146
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000037c",
+    "name": "Chandan Cement and Sanitary House",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000023e",
+    "name": "Chandan Sanitary",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006a5",
+    "name": "Chauhan Paints and Hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000021e",
+    "name": "CHHABRA HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": -8438
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002da",
+    "name": "CHHABRA HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000021f",
+    "name": "Classic Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000029e",
+    "name": "COMMISSION EXP",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000391",
+    "name": "COMPLETE POWER SYSTEMS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000033c",
+    "name": "CROWN ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f1",
+    "name": "CST 2%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006c7",
+    "name": "DASWAL ELECTRICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006e6",
+    "name": "Deepak Arora,",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000023d",
+    "name": "Deepak Garg Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000297",
+    "name": "DEEP ENGNEERS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006de",
+    "name": "DELHI JAL BOARD",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000353",
+    "name": "DHAWAN TRADERS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000020f",
+    "name": "DHINGRA ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000284",
+    "name": "DINESH PAINTS  HARDWARE & MILL STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006a9",
+    "name": "Dinesh Saini",
+    "parent": "Sundry Debtors",
+    "closingBalance": -16797.89
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ce",
+    "name": "DIXIT SANITARY BALLABHGARH",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a6",
+    "name": "Drawing A/c",
+    "parent": "Capital Account",
+    "closingBalance": -1559752.45
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000021a",
+    "name": "D.V.SANITARY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000374",
+    "name": "EASY CONNECT",
+    "parent": "Sundry Creditors",
+    "closingBalance": 1300
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000383",
+    "name": "EMINENT ENGINEERING INDUSTRIES PVT LTD",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000253",
+    "name": "FIX PRICE SHOP",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000214",
+    "name": "GAJENDAR HARDWARE SANITARY & PAINT STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000227",
+    "name": "GANPATI SANITARY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000698",
+    "name": "GARG ELECTRICALS (INDIA)",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000038c",
+    "name": "Garg hardware & Paints",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000241",
+    "name": "Garg Hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e8",
+    "name": "GARG SANITATION",
+    "parent": "Sundry Creditors",
+    "closingBalance": 261854
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b3",
+    "name": "Garg Trading Co",
+    "parent": "Sundry Creditors",
+    "closingBalance": 540772.94
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ee",
+    "name": "Geetanand Hardware and Paint Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006fa",
+    "name": "GNY INFRA",
+    "parent": "Sundry Debtors",
+    "closingBalance": -11254
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002eb",
+    "name": "Gourav Sanitation",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000299",
+    "name": "GOYAL ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000022c",
+    "name": "GROVER SANITARY AND HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000242",
+    "name": "G S HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a3",
+    "name": "GST PAYABLE",
+    "parent": "EXPENSES PAYABLE",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000692",
+    "name": "Gulati Trading Company",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000028e",
+    "name": "GUNGUN HARDWARE & ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000026e",
+    "name": "GUPTA ELE & H/W STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000250",
+    "name": "GUPTA PAINTS & HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000266",
+    "name": "GUPTA SALES CORP",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000235",
+    "name": "GUPTA TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ea",
+    "name": "Guru Ji Traders",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000262",
+    "name": "GURU KIRPA SANITARY PAINTS & HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000039d",
+    "name": "GURU KRIPA HARDWARE SANITARY & PAINT STORE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006f9",
+    "name": "HAIER APPLIANCES INDIA PRIVATE LIMITED",
+    "parent": "Sundry Creditors",
+    "closingBalance": 2973.6
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002cb",
+    "name": "HANUMANT TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000037b",
+    "name": "HARI OM ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000003a1",
+    "name": "Haryana Engineer Service",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000025a",
+    "name": "HIMANSHI TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000330",
+    "name": "HINDUSTAN ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000021c",
+    "name": "HINDUSTAN SANITATION",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007a9",
+    "name": "HOME CONCEPT",
+    "parent": "Sundry Debtors",
+    "closingBalance": -4224
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006f2",
+    "name": "HOUSE NO. 1306",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d6",
+    "name": "ICMC PROJECTS PVT LTD",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f2",
+    "name": "IGST 18%",
+    "parent": "Duties & Taxes",
+    "closingBalance": 22692.03
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000035e",
+    "name": "IGST PAYABLE",
+    "parent": "GST PAYABLE",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000035f",
+    "name": "IGST RESERVED A/C",
+    "parent": "GST PAYABLE",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000369",
+    "name": "Imperial Auto Industries Ltd",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006a2",
+    "name": "INDIA INFOLINE FINANCE LTD",
+    "parent": "Unsecured Loans",
+    "closingBalance": -557821.22
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000292",
+    "name": "INDIAN OVERSEAS BANK",
+    "parent": "Bank Accounts",
+    "closingBalance": -61324.8
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002cf",
+    "name": "INDIAN OVERSEAS BANK OD",
+    "parent": "Bank OD A/c",
+    "closingBalance": 1516465.52
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000038d",
+    "name": "INDO TECKNO ENGINEERING",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002cd",
+    "name": "INDRA ELECTRICALS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000239",
+    "name": "Indra Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000033e",
+    "name": "INFINITI RETAIL LIMITED&#13;&#10;",
+    "parent": "Sundry Creditors",
+    "closingBalance": 57330.6
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000230",
+    "name": "INPUT CGST 14%",
+    "parent": "Duties & Taxes",
+    "closingBalance": -2058.46
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002fb",
+    "name": "INPUT CGST 6%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f9",
+    "name": "INPUT CGST 9%",
+    "parent": "Duties & Taxes",
+    "closingBalance": -645628.72
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f5",
+    "name": "INPUT IGST 18%",
+    "parent": "Duties & Taxes",
+    "closingBalance": -891589.58
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000231",
+    "name": "INPUT SGST 14%",
+    "parent": "Duties & Taxes",
+    "closingBalance": -2058.46
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002fc",
+    "name": "INPUT SGST 6%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002fa",
+    "name": "INPUT SGST 9%",
+    "parent": "Duties & Taxes",
+    "closingBalance": -645627.74
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007ad",
+    "name": "INSTITUTE OF ROAD TRAFFIC EDUCATION",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000356",
+    "name": "INSURANCE",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000035a",
+    "name": "INTEREST ON LOAN",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f3",
+    "name": "I.T.CARE & SPARE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000249",
+    "name": "Jagdamba Electrical",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000264",
+    "name": "JAI BALAJI ELECTRICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000305",
+    "name": "JAI BHAGWATI CONSTRUCTION",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f4",
+    "name": "JAI DURGA TRADING CO.",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ff",
+    "name": "Jai Durge Hardware & Paints",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000020c",
+    "name": "Jain Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000237",
+    "name": "JAIN HARDWARE AND SANITARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000038b",
+    "name": "Jain Marble & Sanitary Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000357",
+    "name": "Jain Sons Finlease Limited&#13;&#10;",
+    "parent": "Unsecured Loans",
+    "closingBalance": -15251
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006aa",
+    "name": "Jain Traders",
+    "parent": "Sundry Debtors",
+    "closingBalance": 4774
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000298",
+    "name": "Jindal and Sons",
+    "parent": "Sundry Debtors",
+    "closingBalance": 6158
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000265",
+    "name": "JINDAL ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000030b",
+    "name": "JINDAL SANITATION",
+    "parent": "Sundry Creditors",
+    "closingBalance": -63161.3
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000263",
+    "name": "JINDAL TRADING CORP",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006cc",
+    "name": "J K ELECTRICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000218",
+    "name": "J&K ENGINEERING WORKS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ba",
+    "name": "J.P PAINT & HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000022e",
+    "name": "JULANA EXIM",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002be",
+    "name": "JVG SANITARY & PAINTS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000280",
+    "name": "KALKAJI HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c6",
+    "name": "KANICA AGENCY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000022a",
+    "name": "KAPOOR PAINTS AND HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000271",
+    "name": "KARUSHA BATHLINE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000259",
+    "name": "KATARIA PAINTS & H/W STORE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000003a2",
+    "name": "Kedman Skilled India Foundation",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000382",
+    "name": "KISSAN POLYMERS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000281",
+    "name": "K K INDUSTRIAL TRADING CO.",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000301",
+    "name": "KRISHA SALES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 7880.82
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000027a",
+    "name": "Krishna Electrical",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000026d",
+    "name": "KUMAR AGENCY",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c8",
+    "name": "KUMAR ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000212",
+    "name": "KUMAR TILES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000300",
+    "name": "Laxmi Enterprises Hardware and Sanitary",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007b1",
+    "name": "Loan A/c Indifi Loan",
+    "parent": "Unsecured Loans",
+    "closingBalance": 882301
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000355",
+    "name": "LOAN A/C IOB",
+    "parent": "Secured Loans",
+    "closingBalance": -1975
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000029d",
+    "name": "LOAN A/C KAMAL VERMA",
+    "parent": "Unsecured Loans",
+    "closingBalance": -1809730
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a9",
+    "name": "Loan Muthoot Finance&#13;&#10;",
+    "parent": "Unsecured Loans",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f7",
+    "name": "LOAN PROCESSING CHARGES",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f6",
+    "name": "loan Riviera Investors 1229471",
+    "parent": "Unsecured Loans",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d3",
+    "name": "loan Riviera Investors Private Limited",
+    "parent": "Unsecured Loans",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000309",
+    "name": "Lokesh Kumar/Parul",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000260",
+    "name": "MAA JAGDAMBA ELECTRICALS & PAINTS H/W STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000224",
+    "name": "Malik Hardware & Sanitary Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000289",
+    "name": "MALIK SANITARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000038a",
+    "name": "MALIK SANITARY STORE  B1ZV",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d4",
+    "name": "MANGA HARDWARE AND SAINTARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000307",
+    "name": "Mangla Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f5",
+    "name": "MANGLA TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000037e",
+    "name": "Mangla Traders Empire",
+    "parent": "Sundry Creditors",
+    "closingBalance": 16587.92
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e3",
+    "name": "MANGLA TRADERS (INDIA)",
+    "parent": "Sundry Debtors",
+    "closingBalance": -9476.51
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d5",
+    "name": "MC PAADIT INTERIORS AND CONTRACTORS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006ab",
+    "name": "Medical officer UPHC",
+    "parent": "Sundry Debtors",
+    "closingBalance": -1359
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000030d",
+    "name": "Meenu Sukhija",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000025d",
+    "name": "MEHAR LEELA AGENCIES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006c6",
+    "name": "MEHTA ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 579250.8
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f6",
+    "name": "M.G.ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 4653
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000032f",
+    "name": "M.G.TRADING CO.",
+    "parent": "Sundry Creditors",
+    "closingBalance": -4654
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000361",
+    "name": "MISC CREDISTORS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000278",
+    "name": "MITTAL HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000288",
+    "name": "MITTAL TILES BUILDING MATERIAL",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000226",
+    "name": "MITTAL TILES & SANITARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000027d",
+    "name": "M K Aggarwal & Company",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000267",
+    "name": "M K TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006cf",
+    "name": "M.K. TRADING",
+    "parent": "Sundry Creditors",
+    "closingBalance": 25974
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000233",
+    "name": "M Kumar Paints & Hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000215",
+    "name": "M.L.CHAUDHARY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000354",
+    "name": "MONGA SANITARY & TILE STORE&#13;&#10;",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f7",
+    "name": "Mouktika Enterprises",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b5",
+    "name": "Mr Anil Kukreja",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006c2",
+    "name": "Mr. Dheeraj Gupta",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006ed",
+    "name": "MR. GOLDI GULATI",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b7",
+    "name": "Mrigpal Singh",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b7",
+    "name": "M/s Bharat Machinery & General Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006bc",
+    "name": "Ms Mamta Sethi",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006be",
+    "name": "Ms Meenakshi",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b8",
+    "name": "M/s Om Enterprises",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b9",
+    "name": "M/s Rameshwer Dass Amar Nath",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000027b",
+    "name": "M TECH PLASTIC",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006a4",
+    "name": "Mukesh Paint & Hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006f4",
+    "name": "MUNEESH MEHRA",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000270",
+    "name": "NAKORA ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000036a",
+    "name": "NALKA METAL INDUSTRIES PRIVATE LIMITED&#13;&#10;",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006e3",
+    "name": "NAND  TUTEJA",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000033d",
+    "name": "NAVNEET BATH SYSTEM",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000347",
+    "name": "Nazar Enterprises",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000286",
+    "name": "NEEL KANTH ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d2",
+    "name": "NEERAJ AGENCY",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000217",
+    "name": "NEMKO INDIA TEST LAB",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002fd",
+    "name": "NEW TECH CHEMICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": -4019.44
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f1",
+    "name": "NIFAST India Private Limited",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000308",
+    "name": "Nitesh Kumar",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000304",
+    "name": "N.S HOME DECOR",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000220",
+    "name": "Om Enterprises",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d1",
+    "name": "OM ENTERPRISES(SEC-17)",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000277",
+    "name": "OM PAINTS HARDWARE & SANITERY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a2",
+    "name": "OPENING STOCK",
+    "parent": "Stock-in-Hand",
+    "closingBalance": -4273307
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000023a",
+    "name": "OSB SOLUTIONS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000360",
+    "name": "OTHER PURCHASE",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f8",
+    "name": "PACKING & FORWARDING",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000251",
+    "name": "PANKAJ ELECTRICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000275",
+    "name": "PARIDHI HARDWARE BHOPANI MORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001f9",
+    "name": "Parmar Traders",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001fa",
+    "name": "PARUL TRADING CO",
+    "parent": "Sundry Creditors",
+    "closingBalance": -23004
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f3",
+    "name": "PBM ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001fb",
+    "name": "POLY PLASTIC INDUSTRIES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000021d",
+    "name": "POOJA HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": -36000
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001fc",
+    "name": "PPURCHASE LOCAL 13.13%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e0",
+    "name": "Pramukhji Paints & Hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ad",
+    "name": "Prem Hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000001e",
+    "name": "Profit & Loss A/c",
+    "parent": " Primary",
+    "closingBalance": -2016957.43
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000283",
+    "name": "PS HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006d8",
+    "name": "PULKIT",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002bb",
+    "name": "PUNJABI SABHA",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001fd",
+    "name": "Purchase Against Gst 18%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001fe",
+    "name": "PURCHASE CST 2%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c2",
+    "name": "PURCHASE GST 12%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000022f",
+    "name": "PURCHASE GST 28%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000272",
+    "name": "PURCHASE IGST 28%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000211",
+    "name": "PURCHASE IGST @18%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000001ff",
+    "name": "PURCHASE LOCAL 5.25%",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a5",
+    "name": "Purchase Unregister",
+    "parent": "Purchase Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000247",
+    "name": "RACHNA ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000306",
+    "name": "R A Engineering Works",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000025b",
+    "name": "RAJ ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b8",
+    "name": "Rajesh Badhe",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006c3",
+    "name": "RAJESH CHOPRA",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000025c",
+    "name": "RAJ HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000039e",
+    "name": "RAMA TRADING COMPANY",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000254",
+    "name": "RAM PRATAP HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000027f",
+    "name": "RANA HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b3",
+    "name": "REDHERRING PLAST INDIA PRIVATE LIMITED",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000024e",
+    "name": "R E ELECTRICAL",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d8",
+    "name": "REGENT AUTOLINKS P LTD",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006d6",
+    "name": "RELIABLE CONSTRUCTION COMPANY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a7",
+    "name": "Rent Paid",
+    "parent": "Indirect Expenses",
+    "closingBalance": -201
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006ec",
+    "name": "RITE INFOTECH PVT LTD.",
+    "parent": "Sundry Creditors",
+    "closingBalance": -17901
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000026c",
+    "name": "R.K.AGGARWAL CO.",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000024a",
+    "name": "R.K.Electricals",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e5",
+    "name": "RK Enterprises Bhawana&#13;&#10;",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e6",
+    "name": "R.K.ENTERPRISES DELHI",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006ac",
+    "name": "R K Enterprises FARIDABAD",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000213",
+    "name": "R.K. Hardware & Paint Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000261",
+    "name": "R.L.TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": -1001
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000030c",
+    "name": "Robust Buieldwell Pvt Ltd",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006fc",
+    "name": "ROHIT BALUJA",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000210",
+    "name": "Round Off",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002dd",
+    "name": "R.S ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 1343398.41
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000691",
+    "name": "RWA New Police Line",
+    "parent": "Sundry Debtors",
+    "closingBalance": -500
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000039f",
+    "name": "RW New Police Line",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000029b",
+    "name": "SACHIN INDUSTRIES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 50376.14
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000696",
+    "name": "SAI BUILDERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000398",
+    "name": "Saini Bath Gallery",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000027e",
+    "name": "SAI PAINT & SANITARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000029f",
+    "name": "SALARY A/C",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000020d",
+    "name": "Sale Gst 18%",
+    "parent": "Sales Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ab",
+    "name": "Sale Gst 28%",
+    "parent": "Sales Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000225",
+    "name": "SALE IGST 18%",
+    "parent": "Sales Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000200",
+    "name": "SALE LOCAL 13.13%",
+    "parent": "Sales Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000201",
+    "name": "SALE LOCAL 5.25%",
+    "parent": "Sales Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a1",
+    "name": "SALES TAX PAYABLE",
+    "parent": "EXPENSES PAYABLE",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002a4",
+    "name": "Sale Unregister",
+    "parent": "Sales Accounts",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000268",
+    "name": "SANTOSH INDUSTRIAL STATIONERS",
+    "parent": "Sundry Creditors",
+    "closingBalance": 50874.29
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000285",
+    "name": "SATGURU PAINTS SANITARY & HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006c0",
+    "name": "Saumya Sanitary and hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b9",
+    "name": "Sawhney Bizline Solution Pvt. Ltd.",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000216",
+    "name": "SETHI HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000240",
+    "name": "Se/ts Circel(HVPN.LTD)",
+    "parent": "Sundry Debtors",
+    "closingBalance": -1640
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000026a",
+    "name": "SGST",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000039a",
+    "name": "SGST 14%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c4",
+    "name": "SGST 6%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000202",
+    "name": "SGST 9%",
+    "parent": "Duties & Taxes",
+    "closingBalance": 1098302.03
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000035d",
+    "name": "SGST PAYABLE",
+    "parent": "GST PAYABLE",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000364",
+    "name": "Shakil Ahmed Contractors",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000069f",
+    "name": "SHARMA ELETRICAL STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": -2125
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000025f",
+    "name": "SHARMA PAINTS & H/W STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000020e",
+    "name": "SHARMA TRADING COMPANY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006db",
+    "name": "SHASHI GULATI",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000236",
+    "name": "SHIVA AGENCIES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000203",
+    "name": "SHIV ENTERPRISES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000026f",
+    "name": "SHIV SHAKTI ELECTRICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000204",
+    "name": "SHIV SHAKTI SANITATION",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000255",
+    "name": "SHIV SUPPLY STORE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000028b",
+    "name": "SHIV TRADING CO.",
+    "parent": "Sundry Creditors",
+    "closingBalance": -0.4
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000290",
+    "name": "SHORT & EXCESS",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000392",
+    "name": "SHREE BALAJI TRADERS",
+    "parent": "Sundry Creditors",
+    "closingBalance": -292.12
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000222",
+    "name": "Shree Krishna Traders",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b2",
+    "name": "Shri Balaji Sanitary House",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000303",
+    "name": "Shriji Sanitary and Hardware Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002db",
+    "name": "SHRI KRISHNA TRADERS ( DELHI)",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007ab",
+    "name": "Shri Ram Prime Distributors",
+    "parent": "Sundry Creditors",
+    "closingBalance": 20106.31
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f4",
+    "name": "SHRI RAM SANITARY TILES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 2752
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002f0",
+    "name": "Shri Ramsharnam Sabha(Regd) Panipat",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000244",
+    "name": "SHRI SAI SAINTARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000256",
+    "name": "SIDDHAM PRODUCTS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000022d",
+    "name": "SIDDHA PRODUCTS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000003a3",
+    "name": "Signtec",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000258",
+    "name": "SINGLA ENTERPRISE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e7",
+    "name": "SINGLA ENTERPRISES DELHI",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e9",
+    "name": "Singla Hardware & Paints Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000205",
+    "name": "SINGLA METAL INDUSTRIES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002de",
+    "name": "SINGLA PAINTS AND HARDWARE STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000024f",
+    "name": "SINGLA TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000693",
+    "name": "Singla Traders OLD FARIDABAD",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000389",
+    "name": "S.K.TRADING",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ae",
+    "name": "SK TRADING COMPANY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002aa",
+    "name": "Small Diff Exp",
+    "parent": "Indirect Expenses",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ef",
+    "name": "S.M.C GGPS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ed",
+    "name": "S.M.Enterprises",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006f6",
+    "name": "S.M. TRAVEL GEAR PVT. LTD.",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000246",
+    "name": "SOLANKI ELECTRICALS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000238",
+    "name": "SONI RAM AND COMPANY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b6",
+    "name": "SPR CERAMICS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b0",
+    "name": "S.P.S. Enterprises",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002cc",
+    "name": "S. R. B. SANITATION",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006f3",
+    "name": "S R ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 14689
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000007af",
+    "name": "SRI CHAKRA BEARING PRODUCTS PVT. LTD.",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000346",
+    "name": "SRI DURGA SANITARY WARE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c9",
+    "name": "STANDARD HARDWARE SECTOR 31",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000234",
+    "name": "STANDARD PAINT & HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c0",
+    "name": "STANDARD PAINTS & SANITARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": -45170
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000022b",
+    "name": "STANDARD SANITARY",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000282",
+    "name": "STANDARD SANITARY SALES PVT. LTD.",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002bd",
+    "name": "S-TECH PLASTIC",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000221",
+    "name": "Suman Hardware",
+    "parent": "Sundry Debtors",
+    "closingBalance": 500
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006c1",
+    "name": "Suman Polymers",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000248",
+    "name": "SUPREME STORE",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000206",
+    "name": "SURCHARGE",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000293",
+    "name": "SUSPENSE",
+    "parent": "Suspense A/c",
+    "closingBalance": -116758.83
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006f1",
+    "name": "Swiss Military Consumer Goods Ltd.",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000279",
+    "name": "TALWAR SANITARY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c7",
+    "name": "TANEJA ELECTRICALS & HARDWARE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000207",
+    "name": "TAX 12.5%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000208",
+    "name": "TAX 5%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000026b",
+    "name": "TAYAL SCREW PRODUCTS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ac",
+    "name": "TELEPHONE EXPENSES",
+    "parent": "Indirect Expenses",
+    "closingBalance": -1214
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000209",
+    "name": "T.M.Components",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002af",
+    "name": "T.M.POLYWORLD PVT LTD",
+    "parent": "Sundry Creditors",
+    "closingBalance": -10666.32
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000027c",
+    "name": "TONIKA TRADERS",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000396",
+    "name": "TR Infra Constructions",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000337",
+    "name": "Trinity Homes",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e1",
+    "name": "TUTEJA INTERNATIONAL",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006e2",
+    "name": "UNICORN INFOSOLUTIONS PVT LTD",
+    "parent": "Sundry Creditors",
+    "closingBalance": 86313
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002b5",
+    "name": "UNITED SALES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b2",
+    "name": "United Traders",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000232",
+    "name": "VAIBHHARSHI TRADING COMAPNY",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002d9",
+    "name": "VARMA ELECTRONICS & ELECTRICAL",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c5",
+    "name": "VARUN PIPE & INDUTRIES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000020a",
+    "name": "VAT 12.5%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000020b",
+    "name": "VAT 5.25%",
+    "parent": "Duties & Taxes",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b4",
+    "name": "VEDIK ENTERPRISES",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000228",
+    "name": "VIDYA SALES",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006b6",
+    "name": "VIG GRAPHICS MACHINERY PVT. LTD",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006eb",
+    "name": "VIJAY SALES",
+    "parent": "Sundry Creditors",
+    "closingBalance": 54449
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ca",
+    "name": "VIKAS MACHINERY STORE",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000030a",
+    "name": "VINAYAK CORPORATION&#13;&#10;",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002ec",
+    "name": "Vinkay Fabrics",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006ba",
+    "name": "VIOS OVERSEAS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006bf",
+    "name": "Vivek Goya",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002dc",
+    "name": "VIVEK GUPTA TRADERS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006ad",
+    "name": "V K INTERNATIONAL",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002c1",
+    "name": "V T PLASTIC",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002fe",
+    "name": "WINCURE CHEMICALS PVT LTD",
+    "parent": "Sundry Debtors",
+    "closingBalance": 332067.6
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006e1",
+    "name": "XIAOMI TECHNOLOGY INDIA PVT LTD",
+    "parent": "Sundry Creditors",
+    "closingBalance": 18999
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000002e4",
+    "name": "XNE HSAMB FARIDABAD&#13;&#10;",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000028d",
+    "name": "YADAV TRADERS",
+    "parent": "Sundry Creditors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-0000024b",
+    "name": "Yash Sanitary & Hw Paint Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00000223",
+    "name": "Yash Tiles and Sanitary Store",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  },
+  {
+    "guid": "b06ee43a-c023-4bfc-b8d9-3fd85283e679-000006e4",
+    "name": "YMCA Multi Sports Complex",
+    "parent": "Sundry Debtors",
+    "closingBalance": null
+  }
+]
