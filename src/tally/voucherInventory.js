@@ -474,7 +474,12 @@ if (items.length === 0) {
 
     return items.map(item => {
 
-        const movementType = item.__movementType;
+const movementType = item.__movementType;
+
+const isDeemedPositive =
+    getStringValue(
+        item.ISDEEMEDPOSITIVE
+    ).trim();
 
 const inventoryNode = item.__inventoryNode;
 
@@ -626,7 +631,7 @@ const {
 
         return {
 
-                     voucherGuid: header.guid,
+            voucherGuid: header.guid,
 
             voucherMasterId: header.masterid,
 
@@ -640,6 +645,16 @@ const {
             voucherType: header.voucherType,
 
             transactionType: header.isInvoice,
+
+            isDeemedPositive:
+                isDeemedPositive || null,
+
+            materialMovement:
+                isDeemedPositive === "Yes"
+                    ? "IN"
+                    : isDeemedPositive === "No"
+                        ? "OUT"
+                        : null,
 
             stockItem: getValue(item.STOCKITEMNAME),
 

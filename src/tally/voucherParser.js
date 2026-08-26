@@ -70,10 +70,19 @@ function parseVoucherResponse(
 
     const json = parser.parse(xml);
 
+    
+
        const vouchers = toArray(
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
     );
+const target = vouchers.find(
+    v => v.GUID === "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00001d70"
+);
 
+console.log(
+    "TARGET INVENTORY:",
+    target?.["ALLINVENTORYENTRIES.LIST"]
+);
 
 
 

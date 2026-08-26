@@ -65,6 +65,24 @@ class ConnectorProtocolController {
 
 }
 
+async sendStockGodownSummary(rows) {
+
+    await this.sendCollection(
+        "getStockGodownSummary",
+        rows || []
+    );
+
+}
+
+async sendTrialBalance(rows) {
+
+    await this.sendCollection(
+        "getTrialBalance",
+        rows || []
+    );
+
+}
+
 async sendMasters(result) {
 
     await this.sendCollection(

@@ -26,6 +26,9 @@ const {
     importMasters
 } = require("../tally/importMasters");
 
+const {
+    importStockSummary
+} = require("../tally/stockSummaryImportService");
 
 const {
     importVoucherGuids
@@ -342,6 +345,113 @@ function sendProgress(stage) {
 
 }
 
+// ==========================================
+// STOCK GODOWN SUMMARY
+// ==========================================
+socket.on("getStockGodownSummary", async (data) => {
+
+    try {
+
+        console.log("=================================");
+        console.log("📦 STOCK GODOWN SUMMARY REQUEST");
+        console.log("=================================");
+
+        console.log(
+            "Company :",
+            data.company
+        );
+
+        console.log(
+            "Books Beginning From :",
+            data.booksBeginningFrom
+        );
+
+
+        // ======================================
+        // IMPORT GODOWN-WISE STOCK FROM TALLY
+        // ======================================
+
+        const stockGodownSummary =
+            await importStockSummary({
+
+                company:
+                    data.company,
+
+                booksBeginningFrom:
+                    data.booksBeginningFrom
+
+            });
+
+
+        const stockGodownRows =
+            stockGodownSummary.data || [];
+
+
+        console.log(
+            "Godown-wise stock rows :",
+            stockGodownRows.length
+        );
+
+
+        // ======================================
+        // SEND RESULT COUNT
+        // ======================================
+
+        socket.emit(
+            "getStockGodownSummaryResult",
+            {
+
+                success: true,
+
+                collectionName:
+                    "stockGodownBalances",
+
+                stockGodownCount:
+                    stockGodownRows.length
+
+            }
+        );
+
+
+        // ======================================
+        // SEND THROUGH EXISTING
+        // MASTER PROTOCOL CHUNK SYSTEM
+        // ======================================
+
+        await protocolController.sendStockGodownSummary(
+            stockGodownRows
+        );
+
+
+        console.log(
+            "✅ Stock Godown Summary sent through protocol"
+        );
+
+
+    } catch (err) {
+
+        console.error(
+            "STOCK GODOWN SUMMARY ERROR"
+        );
+
+        console.error(err);
+
+
+        socket.emit(
+            "getStockGodownSummaryResult",
+            {
+
+                success: false,
+
+                error:
+                    err.message
+
+            }
+        );
+
+    }
+
+});
 
 socket.on("getMasters", async (data) => {
 
@@ -1602,6 +1712,7 @@ socket.on("ledgerByGuid", async (data) => {
 
 });
 
+/*
 socket.on("getTrialBalance", async (data) => {
 
     try {
@@ -1636,6 +1747,81 @@ socket.on("getTrialBalance", async (data) => {
 
 });
 
+*/
+
+socket.on("getTrialBalance", async (data) => {
+
+    try {
+
+        const result =
+            await getTrialBalance({
+                company: data.company,
+                asOnDate: data.asOnDate,
+                booksBeginningFrom: data.booksBeginningFrom
+            });
+
+
+        const trialBalanceRows =
+            Array.isArray(result)
+                ? result
+                : result?.data || [];
+
+
+        console.log(
+            "Trial Balance Rows :",
+            trialBalanceRows.length
+        );
+
+
+        // ======================================
+        // SEND RESULT COUNT
+        // ======================================
+
+        socket.emit(
+            "getTrialBalanceResult",
+            {
+                success: true,
+                collectionName: "trialBalance",
+                trialBalanceCount:
+                    trialBalanceRows.length
+            }
+        );
+
+
+        // ======================================
+        // SEND THROUGH PROTOCOL CHUNKS
+        // ======================================
+
+        await protocolController.sendTrialBalance(
+            trialBalanceRows
+        );
+
+
+        console.log(
+            "✅ Trial Balance sent through protocol"
+        );
+
+
+    } catch (err) {
+
+        console.error(
+            "GET TRIAL BALANCE ERROR"
+        );
+
+        console.error(err);
+
+
+        socket.emit(
+            "getTrialBalanceResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
 
 
     socket.on("connect_error", (err) => {
