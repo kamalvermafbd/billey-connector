@@ -97,7 +97,7 @@ return vouchers.map(v => {
     lookups
 );
 
-
+/* 270826
 const parsedVoucher = {
     header,
     ledgers,
@@ -106,6 +106,42 @@ const parsedVoucher = {
         lookups,
         ledgers
     )
+};
+*/
+
+const inventory = parseVoucherInventory(
+    v,
+    lookups,
+    ledgers
+);
+const stockInCount = inventory.filter(
+    row =>
+        row.movementType === "IN" ||
+        row.materialMovement === "IN"
+).length;
+
+const stockOutCount = inventory.filter(
+    row =>
+        row.movementType === "OUT" ||
+        row.materialMovement === "OUT"
+).length;
+
+fs.appendFileSync(
+    "./logs/STOCK-COUNT-CONNECTOR.jsonl",
+    JSON.stringify({
+        guid: header.guid,
+        persistedView: header.persistedView,
+        stockInCount,
+        stockOutCount
+    }) + "\n"
+);
+
+const parsedVoucher = {
+    header,
+    ledgers,
+    inventory,
+    stockInCount,
+    stockOutCount
 };
 
 if (process.env.INTEGRITY_DEBUG === "true") {
