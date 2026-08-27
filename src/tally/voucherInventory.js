@@ -429,11 +429,15 @@ function addInventoryItems(source, movementType, inventoryNode) {
 
 
 
-addInventoryItems(
-    inventory,
-    null,
-    "ALLINVENTORYENTRIES.LIST"
-);
+if (!inventoryIn && !inventoryOut) {
+
+    addInventoryItems(
+        inventory,
+        null,
+        "ALLINVENTORYENTRIES.LIST"
+    );
+
+}
 
 addInventoryItems(
     inventoryIn,
