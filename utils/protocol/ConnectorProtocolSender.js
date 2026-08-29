@@ -30,6 +30,10 @@ class ConnectorProtocolSender {
 
         const onReady = (data) => {
 
+          if (!data || data.collection !== collection) {
+                return;
+            }
+
             this.socket.off(
                 event,
                 onReady
@@ -40,9 +44,8 @@ class ConnectorProtocolSender {
                 onDisconnect
             );
 
-            if (data.collection !== collection) {
-                return;
-            }
+           
+
 
             resolve(data);
 
