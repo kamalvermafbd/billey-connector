@@ -24317,7 +24317,7 @@ var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
       SERVER_URL: "https://webthaali-api.onrender.com",
-      //SERVER_URL: "http://localhost:5000",
+      // SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -49961,6 +49961,9 @@ var require_tallyService = __commonJS({
             }
           }
         );
+        console.log("========== RAW TALLY RESPONSE ==========");
+        console.log(response.data);
+        console.log("========== END RAW TALLY RESPONSE ==========");
         console.log("<<< Tally response received");
         return response.data;
       } catch (err) {
@@ -50024,13 +50027,25 @@ var require_tallyService = __commonJS({
 
             <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>
-                    ${company}
-                </SVCURRENTCOMPANY>
+               <SVCURRENTCOMPANY>
+    ${company}
+</SVCURRENTCOMPANY>
 
-                <SVEXPORTFORMAT>
-                    $$SysName:XML
-                </SVEXPORTFORMAT>
+<SVFROMDATE TYPE="Date">
+      20160401
+</SVFROMDATE>
+
+<SVTODATE TYPE="Date">
+    20991231
+</SVTODATE>
+
+<SVCURRENTDATE TYPE="Date">
+    20991231
+</SVCURRENTDATE>
+
+<SVEXPORTFORMAT>
+    $$SysName:XML
+</SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -50051,8 +50066,8 @@ var require_tallyService = __commonJS({
                     </COLLECTION>
 
                    <SYSTEM TYPE="Formulae" NAME="BilleyMasterIDRangeFilter">
-    $MASTERID &gt; ${startId} AND $MASTERID &lt;= ${endId}
-</SYSTEM>
+                    $MASTERID &gt; ${startId} AND $MASTERID &lt;= ${endId}
+                </SYSTEM>
 
                 </TDLMESSAGE>
 
@@ -50245,14 +50260,22 @@ var require_tallyService = __commonJS({
       company,
       fromDate,
       toDate,
+      booksBeginningFrom,
+      lastAlterId,
+      syncMode,
       batchSize = 50
     }) {
       const batches = await fetchVoucherIdsInBatches({
         company,
         fromDate,
         toDate,
+        booksBeginningFrom,
+        lastAlterId,
+        syncMode,
         batchSize
       });
+      const collectionFromDate = syncMode === "ALTERID" ? "20160401" : fromDate;
+      const collectionToDate = syncMode === "ALTERID" ? "20991231" : toDate;
       const allResults = [];
       for (const batch of batches) {
         const masterIds = batch.map((row) => row.masterid).filter(
@@ -50284,8 +50307,8 @@ var require_tallyService = __commonJS({
             "ISCANCELLED"
           ],
           masterIds,
-          fromDate,
-          toDate
+          fromDate: collectionFromDate,
+          toDate: collectionToDate
         });
         allResults.push(result);
       }
@@ -50295,8 +50318,9 @@ var require_tallyService = __commonJS({
       company,
       fromDate,
       toDate,
-      startMasterId = null,
-      endMasterId = null
+      booksBeginningFrom,
+      lastAlterId,
+      syncMode
     }) {
       if (!company) {
         throw new Error(
@@ -50314,7 +50338,28 @@ var require_tallyService = __commonJS({
         );
       }
       await selectCompany(company);
-      const useMasterIdRange = startMasterId !== null && endMasterId !== null;
+      let discoveryFromDate;
+      if (syncMode === "PERIODIC") {
+        discoveryFromDate = fromDate;
+      } else if (syncMode === "FULL") {
+        discoveryFromDate = booksBeginningFrom;
+      } else {
+        discoveryFromDate = fromDate;
+      }
+      const hasAlterId = lastAlterId !== null && lastAlterId !== void 0 && lastAlterId !== "" && Number.isFinite(Number(lastAlterId));
+      const useAlterIdFilter = syncMode === "ALTERID" && hasAlterId;
+      const filterXml = useAlterIdFilter ? `
+<FILTER>
+    BilleyVoucherSyncFilter
+</FILTER>
+` : "";
+      console.log("=== VOUCHER FILTER DEBUG ===");
+      console.log("syncMode:", syncMode);
+      console.log("lastAlterId:", lastAlterId);
+      console.log("hasAlterId:", hasAlterId);
+      console.log("discoveryFromDate:", discoveryFromDate);
+      console.log("toDate:", toDate);
+      console.log("useAlterIdFilter:", useAlterIdFilter);
       const xml = `
 <ENVELOPE>
 
@@ -50334,68 +50379,51 @@ var require_tallyService = __commonJS({
 
         <DESC>
 
-            <STATICVARIABLES>
+          <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>
-                    ${company}
-                </SVCURRENTCOMPANY>
+    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-                <SVFROMDATE TYPE="Date">
-                    ${fromDate}
-                </SVFROMDATE>
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-                <SVTODATE TYPE="Date">
-                    ${toDate}
-                </SVTODATE>
+   <SVFROMDATE TYPE="Date">20160401</SVFROMDATE>
 
-                <SVCURRENTDATE TYPE="Date">
-                    ${toDate}
-                </SVCURRENTDATE>
+<SVTODATE TYPE="Date">20991231</SVTODATE>
 
-                <SVEXPORTFORMAT>
-                    $$SysName:XML
-                </SVEXPORTFORMAT>
+<SVCURRENTDATE TYPE="Date">20991231</SVCURRENTDATE>
 
-            </STATICVARIABLES>
+</STATICVARIABLES>
 
             <TDL>
 
                 <TDLMESSAGE>
 
-                    <COLLECTION NAME="BilleyVoucherIdCollection">
+                <COLLECTION NAME="BilleyVoucherIdCollection">
 
-                        <TYPE>Voucher</TYPE>
+    <TYPE>Voucher</TYPE>
 
-                        ${useMasterIdRange ? `
-                        <FILTER>
-                            BilleyVoucherMasterIdRangeFilter
-                        </FILTER>
-                        ` : ""}
+     ${filterXml}
 
-                        <FETCH>
+    <FETCH>
 
-                            MASTERID,
-                            GUID,
-                            ALTERID,
-                            DATE,
-                            VOUCHERTYPENAME,
-                            VOUCHERNUMBER
+        MASTERID,
+        GUID,
+        ALTERID,
+        DATE,
+        VOUCHERTYPENAME,
+        VOUCHERNUMBER
 
-                        </FETCH>
+    </FETCH>
 
-                    </COLLECTION>
+</COLLECTION>
+${useAlterIdFilter ? `
+    <SYSTEM
+        TYPE="Formulae"
+        NAME="BilleyVoucherSyncFilter">
 
-                    ${useMasterIdRange ? `
-                    <SYSTEM
-                        TYPE="Formulae"
-                        NAME="BilleyVoucherMasterIdRangeFilter">
+        $ALTERID > ${Number(lastAlterId)}
 
-                       $MASTERID &gt; ${Number(startMasterId)}
-                        AND
-                        $MASTERID &lt;= ${Number(endMasterId)}
-
-                    </SYSTEM>
-                    ` : ""}
+    </SYSTEM>
+    ` : ""}
 
                 </TDLMESSAGE>
 
@@ -50407,6 +50435,19 @@ var require_tallyService = __commonJS({
 
 </ENVELOPE>
 `;
+      console.log("=== FINAL VOUCHER DISCOVERY XML ===");
+      console.log(xml);
+      console.log("=== END VOUCHER DISCOVERY XML ===");
+      fs.writeFileSync(
+        path.join(
+          __dirname,
+          "..",
+          "logs",
+          `VOUCHER-DISCOVERY-${Date.now()}.xml`
+        ),
+        xml,
+        "utf8"
+      );
       console.log(
         "======================================"
       );
@@ -50419,26 +50460,19 @@ var require_tallyService = __commonJS({
       );
       console.log(
         "Date:",
-        fromDate,
+        booksBeginningFrom,
         "\u2192",
         toDate
       );
-      if (useMasterIdRange) {
-        console.log(
-          "MASTERID RANGE:",
-          startMasterId,
-          "\u2192",
-          endMasterId
-        );
-      } else {
-        console.log(
-          "MASTERID RANGE: FULL"
-        );
-      }
       console.log(
         "======================================"
       );
       const response = await sendToTally(xml);
+      fs.writeFileSync(
+        path.join(__dirname, "../../logs/VOUCHER_DISCOVERY_DEBUG.xml"),
+        String(response || ""),
+        "utf8"
+      );
       if (!response) {
         throw new Error(
           "Empty response received from Tally."
@@ -50476,12 +50510,18 @@ var require_tallyService = __commonJS({
       company,
       fromDate,
       toDate,
+      booksBeginningFrom,
+      lastAlterId,
+      syncMode,
       batchSize = 50
     }) {
       const voucherIds = await fetchVoucherIds({
         company,
         fromDate,
-        toDate
+        toDate,
+        booksBeginningFrom,
+        lastAlterId,
+        syncMode
       });
       const batches = [];
       for (let i = 0; i < voucherIds.length; i += batchSize) {
@@ -50554,19 +50594,20 @@ var require_tallyService = __commonJS({
                     ${finalFilterFormula}
                 </SYSTEM>
               ` : "";
-      const dateXml = fromDate && toDate ? `
-                <SVFROMDATE TYPE="Date">
-                    ${fromDate}
-                </SVFROMDATE>
+      const hasMasterIds = Array.isArray(masterIds) && masterIds.length > 0;
+      const dateXml = `
+    <SVFROMDATE TYPE="Date">
+      ${fromDate || "20160401"}
+    </SVFROMDATE>
 
-                <SVTODATE TYPE="Date">
-                    ${toDate}
-                </SVTODATE>
+    <SVTODATE TYPE="Date">
+        ${toDate || "20991231"}
+    </SVTODATE>
 
-                <SVCURRENTDATE TYPE="Date">
-                    ${toDate}
-                </SVCURRENTDATE>
-              ` : "";
+    <SVCURRENTDATE TYPE="Date">
+        ${toDate || "20991231"}
+    </SVCURRENTDATE>
+`;
       const xml = `
 <ENVELOPE>
 
@@ -50674,9 +50715,21 @@ var require_tallyService = __commonJS({
       voucherId,
       fetchFields = []
     }) {
-      if (!voucherId) {
+      if (!company) {
+        throw new Error(
+          "company missing in fetchTallyCollectionByVoucherId"
+        );
+      }
+      if (voucherId === void 0 || voucherId === null || voucherId === "") {
         throw new Error(
           "voucherId missing in fetchTallyCollectionByVoucherId"
+        );
+      }
+      if (!Number.isFinite(
+        Number(voucherId)
+      )) {
+        throw new Error(
+          "voucherId must be a number"
         );
       }
       const fields = fetchFields.length > 0 ? fetchFields : [
@@ -50701,17 +50754,20 @@ var require_tallyService = __commonJS({
         collectionType: "Voucher",
         fetchFields: fields,
         filterName: "BilleyVoucherIdFilter",
-        filterFormula: `$MASTERID = ${Number(voucherId)}`
+        filterFormula: `$MASTERID = ${Number(voucherId)}`,
+        fromDate: null,
+        toDate: null
       });
     }
     async function getTallyCompanies() {
       const xml = `
 <ENVELOPE>
+
   <HEADER>
     <VERSION>1</VERSION>
     <TALLYREQUEST>Export</TALLYREQUEST>
     <TYPE>Collection</TYPE>
-    <ID>List of Companies</ID>
+    <ID>BilleyCompanyCollection</ID>
   </HEADER>
 
   <BODY>
@@ -50722,6 +50778,25 @@ var require_tallyService = __commonJS({
         <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
       </STATICVARIABLES>
 
+      <TDL>
+
+        <TDLMESSAGE>
+
+          <COLLECTION NAME="BilleyCompanyCollection">
+
+            <TYPE>Company</TYPE>
+
+            <FETCH>
+              NAME,
+              GUID
+            </FETCH>
+
+          </COLLECTION>
+
+        </TDLMESSAGE>
+
+      </TDL>
+
     </DESC>
 
   </BODY>
@@ -50729,20 +50804,25 @@ var require_tallyService = __commonJS({
 </ENVELOPE>
 `;
       const result = await sendToTally(xml);
-      const companies = [];
-      const regex = /<COMPANY\s+NAME="([^"]+)"/g;
-      let match;
-      while ((match = regex.exec(result)) !== null) {
-        companies.push({
-          name: match[1]
-        });
-      }
+      const json = parser.parse(result);
+      const rawCompanies = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.COMPANY;
+      const companyList = toArray(rawCompanies);
+      const companies = companyList.map((company) => ({
+        name: getValue(company.NAME) || getValue(company.name),
+        guid: getValue(company.GUID) || getValue(company.guid)
+      })).filter(
+        (company) => company.name
+      );
+      console.log(
+        "TALLY COMPANIES:",
+        companies
+      );
       return {
         success: true,
         companies
       };
     }
-    async function selectCompany(companyName) {
+    async function selectCompany(companyName, companyGuid) {
       const xml = `
 <ENVELOPE>
 
@@ -50858,6 +50938,9 @@ var require_tallyService = __commonJS({
       const groups = Array.isArray(groupsRaw) ? groupsRaw : groupsRaw ? [groupsRaw] : [];
       return groups.map((group) => ({
         name: group.NAME,
+        guid: getValue(group.GUID),
+        masterId: getValue(group.MASTERID),
+        alterId: getValue(group.ALTERID),
         parent: getValue(group.PARENT),
         reservedName: group.RESERVEDNAME || ""
       }));
@@ -51122,7 +51205,6 @@ var require_tallyService = __commonJS({
 </ENVELOPE>
 `;
       const result = await sendToTally(xml);
-      const fs2 = require("fs");
       const path2 = require("path");
       const outputFile = path2.join(
         __dirname,
@@ -51138,8 +51220,11 @@ var require_tallyService = __commonJS({
     async function getTallyMappingData(company) {
       console.log("COMPANY RECEIVED:", company);
       const groups = await getGroups(company);
+      console.log("RESERVED NAMES:");
       console.log(
-        JSON.stringify(groups, null, 2)
+        [...new Set(
+          groups.map((g) => g.reservedName).filter(Boolean)
+        )]
       );
       const groupTree = buildGroupTree(groups);
       const salesJson = await getSalesVouchers(company);
@@ -51521,7 +51606,8 @@ var require_tallyService = __commonJS({
       getTallyMappingData,
       getUnits,
       getSalesVouchers,
-      getGroups
+      getGroups,
+      buildGroupTree
       // getStockMasters
     };
   }
@@ -51949,6 +52035,9 @@ var require_ConnectorProtocolSender = __commonJS({
         return new Promise((resolve, reject) => {
           const event = EVENTS.READY;
           const onReady = (data) => {
+            if (!data || data.collection !== collection) {
+              return;
+            }
             this.socket.off(
               event,
               onReady
@@ -51957,9 +52046,6 @@ var require_ConnectorProtocolSender = __commonJS({
               "disconnect",
               onDisconnect
             );
-            if (data.collection !== collection) {
-              return;
-            }
             resolve(data);
           };
           const onDisconnect = () => {
@@ -52003,6 +52089,12 @@ var require_ConnectorProtocolSender = __commonJS({
             this.socket.off(
               "disconnect",
               onDisconnect
+            );
+            console.log(
+              "\u2705 CONNECTOR RECEIVED ACK:",
+              collection,
+              batchId,
+              chunkIndex
             );
             resolve();
           };
@@ -52119,6 +52211,12 @@ var require_ConnectorProtocolSender = __commonJS({
           );
         }
         for (const chunk of chunks) {
+          console.log(
+            "\u{1F4E4} CONNECTOR SENDING CHUNK:",
+            collection,
+            batchId,
+            chunk.chunkIndex
+          );
           this.socket.emit(
             EVENTS.CHUNK,
             {
@@ -52129,6 +52227,12 @@ var require_ConnectorProtocolSender = __commonJS({
               payloadSize: chunk.payloadSize,
               data: chunk.data
             }
+          );
+          console.log(
+            "\u23F3 CONNECTOR WAITING ACK:",
+            collection,
+            batchId,
+            chunk.chunkIndex
           );
           await this.waitForReceived(
             collection,
@@ -52212,6 +52316,18 @@ var require_ConnectorProtocolController = __commonJS({
           `Finished ${event}`
         );
       }
+      async sendStockGodownSummary(rows) {
+        await this.sendCollection(
+          "getStockGodownSummary",
+          rows || []
+        );
+      }
+      async sendTrialBalance(rows) {
+        await this.sendCollection(
+          "getTrialBalance",
+          rows || []
+        );
+      }
       async sendMasters(result) {
         await this.sendCollection(
           "getMastersGroups",
@@ -52225,6 +52341,13 @@ var require_ConnectorProtocolController = __commonJS({
         console.log("SEND MASTER LEDGERS");
         console.log("result.ledgers :", result.ledgers?.length);
         console.log("first ledger :", result.ledgers?.[0]);
+        console.log("================================");
+        const newTech = result.ledgers?.find(
+          (ledger) => ledger.name === "NEW TECH CHEMICALS"
+        );
+        console.log("================================");
+        console.log("NEW TECH CHEMICALS CONNECTOR DATA");
+        console.dir(newTech, { depth: null });
         console.log("================================");
         await this.sendCollection(
           "getMastersLedgers",
@@ -52448,6 +52571,7 @@ var require_companyImportService = __commonJS({
 var require_groupRequest = __commonJS({
   "src/tally/groupRequest.js"(exports2, module2) {
     function buildGroupRequest({
+      company,
       masterIds = []
     }) {
       return `
@@ -52464,9 +52588,15 @@ var require_groupRequest = __commonJS({
 
         <DESC>
 
-            <STATICVARIABLES>
+             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -52609,7 +52739,7 @@ var require_groupImportService = __commonJS({
 // src/tally/unitRequest.js
 var require_unitRequest = __commonJS({
   "src/tally/unitRequest.js"(exports2, module2) {
-    function buildUnitRequest() {
+    function buildUnitRequest(company) {
       return `
 <ENVELOPE>
 
@@ -52626,7 +52756,13 @@ var require_unitRequest = __commonJS({
 
             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -52636,26 +52772,34 @@ var require_unitRequest = __commonJS({
 
                     <COLLECTION NAME="Billey Unit Collection">
 
-    <TYPE>Unit</TYPE>
+                        <TYPE>Unit</TYPE>
 
-    <COMPUTE>UNITGUID : $GUID</COMPUTE>
-    <COMPUTE>UNITMASTERID : $MASTERID</COMPUTE>
-    <COMPUTE>UNITALTERID : $ALTERID</COMPUTE>
+                        <COMPUTE>
+                            UNITGUID : $GUID
+                        </COMPUTE>
 
-    <FETCH>
+                        <COMPUTE>
+                            UNITMASTERID : $MASTERID
+                        </COMPUTE>
 
-        UNITGUID,
-        UNITMASTERID,
-        UNITALTERID,
+                        <COMPUTE>
+                            UNITALTERID : $ALTERID
+                        </COMPUTE>
 
-        NAME,
-        FORMALNAME,
-        DECIMALPLACES,
-        RESERVEDNAME
+                        <FETCH>
 
-    </FETCH>
+                            UNITGUID,
+                            UNITMASTERID,
+                            UNITALTERID,
 
-</COLLECTION>
+                            NAME,
+                            FORMALNAME,
+                            DECIMALPLACES,
+                            RESERVEDNAME
+
+                        </FETCH>
+
+                    </COLLECTION>
 
                 </TDLMESSAGE>
 
@@ -52720,9 +52864,10 @@ var require_unitParser = __commonJS({
 // src/tally/unitObjectRequest.js
 var require_unitObjectRequest = __commonJS({
   "src/tally/unitObjectRequest.js"(exports2, module2) {
-    function buildUnitObjectRequest(name) {
+    function buildUnitObjectRequest(name, company) {
       return `
 <ENVELOPE>
+
     <HEADER>
         <VERSION>1</VERSION>
         <TALLYREQUEST>Export</TALLYREQUEST>
@@ -52732,23 +52877,40 @@ var require_unitObjectRequest = __commonJS({
     </HEADER>
 
     <BODY>
+
         <DESC>
+
             <STATICVARIABLES>
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
             </STATICVARIABLES>
 
             <FETCHLIST>
+
                 <FETCH>GUID</FETCH>
                 <FETCH>ALTERID</FETCH>
                 <FETCH>MASTERID</FETCH>
                 <FETCH>NAME</FETCH>
+
             </FETCHLIST>
+
         </DESC>
+
     </BODY>
+
 </ENVELOPE>
 `;
     }
-    module2.exports = { buildUnitObjectRequest };
+    module2.exports = {
+      buildUnitObjectRequest
+    };
   }
 });
 
@@ -52815,16 +52977,31 @@ var require_unitImportService = __commonJS({
       company
     }) {
       await selectCompany(company);
-      const requestXml = buildUnitRequest();
-      const responseXml = await sendToTally(requestXml);
-      const units = parseUnitResponse(responseXml);
+      const requestXml = buildUnitRequest(
+        company
+      );
+      const responseXml = await sendToTally(
+        requestXml
+      );
+      const units = parseUnitResponse(
+        responseXml
+      );
       const finalUnits = [];
       for (const unit of units) {
-        const objectRequest = buildUnitObjectRequest(unit.name);
-        const objectResponse = await sendToTally(objectRequest);
-        const fullUnit = parseUnitObjectResponse(objectResponse);
+        const objectRequest = buildUnitObjectRequest(
+          unit.name,
+          company
+        );
+        const objectResponse = await sendToTally(
+          objectRequest
+        );
+        const fullUnit = parseUnitObjectResponse(
+          objectResponse
+        );
         if (fullUnit) {
-          finalUnits.push(fullUnit);
+          finalUnits.push(
+            fullUnit
+          );
         } else {
           console.warn(
             `Unit object not found: ${unit.name}`
@@ -52844,8 +53021,8 @@ var require_voucherRequest = __commonJS({
   "src/tally/voucherRequest.js"(exports2, module2) {
     function buildVoucherRequest({
       company,
-      fromDate,
-      toDate,
+      fromDate = "20160401",
+      toDate = "20991231",
       lastAlterId = null
     }) {
       return `
@@ -52877,7 +53054,7 @@ var require_voucherRequest = __commonJS({
 
                 <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
 
-               ${toDate ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>` : ""}
+                        ${toDate ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>` : ""}
 
             </STATICVARIABLES>
 
@@ -52962,7 +53139,9 @@ var require_voucherRequest = __commonJS({
     }
     function buildVoucherRequestByGuid({
       company,
-      voucherGuid
+      voucherGuid,
+      fromDate = "20260401",
+      toDate = "20270331"
     }) {
       return `
 <ENVELOPE>
@@ -52985,13 +53164,17 @@ var require_voucherRequest = __commonJS({
 
         <DESC>
 
-            <STATICVARIABLES>
+         <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-            </STATICVARIABLES>
+            <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+
+            <SVTODATE TYPE="Date">${toDate}</SVTODATE>
+
+        </STATICVARIABLES>
 
             <TDL>
 
@@ -53080,65 +53263,65 @@ var require_voucherRequest = __commonJS({
 var require_voucherGuidRequest = __commonJS({
   "src/tally/voucherGuidRequest.js"(exports2, module2) {
     function buildVoucherGuidRequest({
-      company,
-      fromDate,
-      toDate
+      company
     }) {
       return `
-<HEADER>
+    <HEADER>
 
-    <VERSION>1</VERSION>
+        <VERSION>1</VERSION>
 
-    <TALLYREQUEST>Export</TALLYREQUEST>
+        <TALLYREQUEST>Export</TALLYREQUEST>
 
-    <TYPE>Collection</TYPE>
+        <TYPE>Collection</TYPE>
 
-    <ID>BilleyVoucherCollection</ID>
+        <ID>BilleyVoucherCollection</ID>
 
-</HEADER>
+    </HEADER>
 
-<BODY>
+    <BODY>
 
-    <DESC>
+        <DESC>
 
-        <STATICVARIABLES>
+            <STATICVARIABLES>
 
-            <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-            ${fromDate ? `<SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>` : ""}
+             <SVFROMDATE TYPE="Date">19000101</SVFROMDATE>
 
-            ${toDate ? `<SVTODATE TYPE="Date">${toDate}</SVTODATE>` : ""}
+<SVTODATE TYPE="Date">20991231</SVTODATE>
 
-        </STATICVARIABLES>
+<SVCURRENTDATE TYPE="Date">20991231</SVCURRENTDATE>
 
-        <TDL>
+            </STATICVARIABLES>
 
-            <TDLMESSAGE>
+            <TDL>
 
-                <COLLECTION NAME="BilleyVoucherCollection">
+                <TDLMESSAGE>
 
-                    <TYPE>Voucher</TYPE>
+                    <COLLECTION NAME="BilleyVoucherCollection">
 
-                    <FETCH>
+                        <TYPE>Voucher</TYPE>
 
-                        GUID,
+                        <FETCH>
 
-                        ALTERID
+                            GUID,
 
-                    </FETCH>
+                            ALTERID
 
-                </COLLECTION>
+                        </FETCH>
 
-            </TDLMESSAGE>
+                    </COLLECTION>
 
-        </TDL>
+                </TDLMESSAGE>
 
-    </DESC>
+            </TDL>
 
-</BODY>
-`;
+        </DESC>
+
+    </BODY>
+    `;
     }
     module2.exports = {
       buildVoucherGuidRequest
@@ -53164,8 +53347,8 @@ var require_voucherHeader = __commonJS({
         guid: getValue(v.GUID),
         masterid: getValue(v.MASTERID),
         alterid: getValue(v.ALTERID),
-        // voucherType: getValue(v.VOUCHERTYPENAME),
-        voucherTypeName: getValue(v.VOUCHERTYPENAME),
+        voucherType: getValue(v.VOUCHERTYPENAME),
+        //voucherTypeName: getValue(v.VOUCHERTYPENAME),
         voucherNumber: getValue(v.VOUCHERNUMBER),
         voucherDate: getValue(v.DATE),
         effectiveDate: getValue(v.EFFECTIVEDATE),
@@ -53239,20 +53422,6 @@ var require_voucherLedgers = __commonJS({
         const ledger = ledgerLookup?.get(
           getValue(row.LEDGERNAME).trim().toUpperCase()
         );
-/*
-        fs.appendFileSync(
-          "./logs/voucher-ledger-debug.jsonl",
-          JSON.stringify({
-            stage: "LEDGER_LOOKUP_DEBUG",
-            ledgerName: getValue(row.LEDGERNAME),
-            lookupKey: getValue(row.LEDGERNAME).trim().toUpperCase(),
-            lookupSize: ledgerLookup?.size || 0,
-            found: !!ledger,
-            foundLedger: ledger || null
-          }) + "\n"
-        );
-        */
-
         const ledgerParent = ledger ? groupLookup?.get(
           (ledger.parent || "").trim().toUpperCase()
         ) : null;
@@ -53476,11 +53645,13 @@ var require_voucherInventory = __commonJS({
           }))
         );
       }
-      addInventoryItems(
-        inventory,
-        null,
-        "ALLINVENTORYENTRIES.LIST"
-      );
+      if (!inventoryIn && !inventoryOut) {
+        addInventoryItems(
+          inventory,
+          null,
+          "ALLINVENTORYENTRIES.LIST"
+        );
+      }
       addInventoryItems(
         inventoryIn,
         "IN",
@@ -53496,6 +53667,9 @@ var require_voucherInventory = __commonJS({
       }
       return items.map((item) => {
         const movementType = item.__movementType;
+        const isDeemedPositive = getStringValue(
+          item.ISDEEMEDPOSITIVE
+        ).trim();
         const inventoryNode = item.__inventoryNode;
         const batches = parseBatchAllocations(item);
         const accounting = parseAccountingAllocations(item);
@@ -53562,6 +53736,8 @@ var require_voucherInventory = __commonJS({
           voucherDate: header.voucherDate,
           voucherType: header.voucherType,
           transactionType: header.isInvoice,
+          isDeemedPositive: isDeemedPositive || null,
+          materialMovement: isDeemedPositive === "Yes" ? "IN" : isDeemedPositive === "No" ? "OUT" : null,
           stockItem: getValue(item.STOCKITEMNAME),
           movementType,
           inventoryNode,
@@ -53648,8 +53824,24 @@ var require_voucherParser = __commonJS({
     }
     function parseVoucherGuidResponse(xml) {
       const json = parser.parse(xml);
+      console.log("=== PARSER DEBUG ===");
+      console.dir(json?.ENVELOPE?.BODY, { depth: 6 });
+      console.log(
+        "COLLECTION:",
+        json?.ENVELOPE?.BODY?.DATA?.COLLECTION
+      );
+      console.log("====================");
+      require("fs").writeFileSync(
+        "./logs/one-voucher-response.json",
+        JSON.stringify(json, null, 2),
+        "utf8"
+      );
       const vouchers = toArray(
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
+      );
+      console.log(
+        "PARSER VOUCHER COUNT:",
+        vouchers.length
       );
       return vouchers.map((v) => ({
         guid: v.GUID || null,
@@ -53663,6 +53855,13 @@ var require_voucherParser = __commonJS({
       const vouchers = toArray(
         json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.VOUCHER
       );
+      const target = vouchers.find(
+        (v) => v.GUID === "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00001d70"
+      );
+      console.log(
+        "TARGET INVENTORY:",
+        target?.["ALLINVENTORYENTRIES.LIST"]
+      );
       return vouchers.map((v) => {
         const header = parseVoucherHeader(v);
         v.__header = header;
@@ -53670,14 +53869,32 @@ var require_voucherParser = __commonJS({
           v,
           lookups
         );
+        const inventory = parseVoucherInventory(
+          v,
+          lookups,
+          ledgers
+        );
+        const stockInCount = inventory.filter(
+          (row) => row.movementType === "IN" || row.materialMovement === "IN"
+        ).length;
+        const stockOutCount = inventory.filter(
+          (row) => row.movementType === "OUT" || row.materialMovement === "OUT"
+        ).length;
+        fs.appendFileSync(
+          "./logs/STOCK-COUNT-CONNECTOR.jsonl",
+          JSON.stringify({
+            guid: header.guid,
+            persistedView: header.persistedView,
+            stockInCount,
+            stockOutCount
+          }) + "\n"
+        );
         const parsedVoucher = {
           header,
           ledgers,
-          inventory: parseVoucherInventory(
-            v,
-            lookups,
-            ledgers
-          )
+          inventory,
+          stockInCount,
+          stockOutCount
         };
         if (process.env.INTEGRITY_DEBUG === "true") {
           parsedVoucher.raw = v;
@@ -53755,7 +53972,11 @@ var require_voucherImportService = __commonJS({
     async function importVoucherGuids({
       company,
       fromDate,
-      toDate
+      toDate,
+      booksBeginningFrom,
+      lastAlterId,
+      syncMode,
+      syncPeriod
     }) {
       if (!company) {
         throw new Error(
@@ -53772,11 +53993,19 @@ var require_voucherImportService = __commonJS({
           "toDate missing in importVoucherGuids"
         );
       }
+      if (!booksBeginningFrom) {
+        throw new Error(
+          "booksBeginningFrom missing in importVoucherGuids"
+        );
+      }
       await selectCompany(company);
       const allRecords = await fetchVoucherIds({
         company,
         fromDate,
-        toDate
+        toDate,
+        booksBeginningFrom,
+        lastAlterId,
+        syncMode
       });
       console.log(
         "Total Voucher Records:",
@@ -53798,54 +54027,6 @@ var require_voucherImportService = __commonJS({
       console.log(
         "======================================"
       );
-      const LEVEL1_BATCH_SIZE = 500;
-      const level1Results = [];
-      for (let i = 0; i < finalRecords.length; i += LEVEL1_BATCH_SIZE) {
-        const batch = finalRecords.slice(
-          i,
-          i + LEVEL1_BATCH_SIZE
-        );
-        console.log(
-          `Voucher Level-1 Batch ${Math.floor(i / LEVEL1_BATCH_SIZE) + 1} : ${batch.length}`
-        );
-        const masterIds = batch.map(
-          (row) => Number(row.masterid)
-        ).filter(
-          Number.isFinite
-        );
-        if (!masterIds.length) {
-          throw new Error(
-            `Voucher Level-1 Batch ${Math.floor(i / LEVEL1_BATCH_SIZE) + 1} contains no valid MASTERIDs`
-          );
-        }
-        const result = await fetchTallyCollection({
-          company,
-          collectionName: "BilleyVoucherCollection",
-          collectionType: "Voucher",
-          fetchFields: [
-            "GUID",
-            "MASTERID",
-            "ALTERID",
-            "DATE",
-            "EFFECTIVEDATE",
-            "VOUCHERTYPENAME",
-            "VOUCHERNUMBER",
-            "REFERENCE",
-            "REFERENCEDATE",
-            "PARTYLEDGERNAME",
-            "NARRATION",
-            "ISINVOICE",
-            "ISOPTIONAL",
-            "ISCANCELLED"
-          ],
-          masterIds,
-          fromDate,
-          toDate
-        });
-        level1Results.push(
-          result
-        );
-      }
       console.log(
         "FULL VOUCHER GUID DISCOVERY"
       );
@@ -53957,336 +54138,11 @@ var require_voucherImportService = __commonJS({
   }
 });
 
-// src/tally/voucherBulkGuidRequest.js
-var require_voucherBulkGuidRequest = __commonJS({
-  "src/tally/voucherBulkGuidRequest.js"(exports2, module2) {
-    function buildVoucherBulkGuidRequest({
-      company,
-      voucherGuids
-    }) {
-      const filter = voucherGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
-      return `
-<ENVELOPE>
- 
-    <HEADER>
-
-        <VERSION>1</VERSION>
-
-        <TALLYREQUEST>Export</TALLYREQUEST>
-
-        <TYPE>Collection</TYPE>
-
-         
-
-        <ID>BilleyVoucherCollection</ID>
-
-    </HEADER>
-
-    <BODY>
-
-        <DESC>
-
-            <STATICVARIABLES>
-
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
-
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-
-            </STATICVARIABLES>
-
-            <TDL>
-
-                <TDLMESSAGE>
-
-                    <COLLECTION NAME="BilleyVoucherCollection">
-
-                      <FILTER>VoucherGuidFilter</FILTER>
-
-                        <TYPE>Voucher</TYPE>
-
-                        <FETCH>
-
-                            GUID,
-
-                            MASTERID,
-
-                            ALTERID,
-
-                            DATE,
-
-                            EFFECTIVEDATE,
-
-                            VOUCHERTYPENAME,
-
-                            VOUCHERNUMBER,
-
-                            REFERENCE,
-
-                            REFERENCEDATE,
-
-                            PARTYLEDGERNAME,
-
-                            NARRATION,
-
-                            PARTYGSTIN,
-
-                            PLACEOFSUPPLY,
-
-                            BASICBUYERNAME,
-
-                            BASICBUYERADDRESS,
-
-                            GSTREGISTRATIONTYPE,
-
-                            PERSISTEDVIEW,
-
-                            ISINVOICE,
-
-                            ISOPTIONAL,
-
-                            ISCANCELLED,
-
-                            ALLLEDGERENTRIES,
-
-                            ALLINVENTORYENTRIES,
-
-                            INVENTORYENTRIESIN,
-
-                            INVENTORYENTRIESOUT
-
-                        </FETCH>
-
-                    </COLLECTION>
-
-                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
-                        ${filter}
-                    </SYSTEM>
-
-                </TDLMESSAGE>
-
-            </TDL>
-
-        </DESC>
-
-    </BODY>
-
-</ENVELOPE>
-`;
-    }
-    module2.exports = {
-      buildVoucherBulkGuidRequest
-    };
-  }
-});
-
-// src/tally/lookupCache.js
-var require_lookupCache = __commonJS({
-  "src/tally/lookupCache.js"(exports2, module2) {
-    var cache = /* @__PURE__ */ new Map();
-    function setLookups(company, lookups) {
-      cache.set(company.trim().toUpperCase(), lookups);
-    }
-    function getLookups(company) {
-      return cache.get(company.trim().toUpperCase());
-    }
-    function clearLookups(company) {
-      cache.delete(company.trim().toUpperCase());
-    }
-    module2.exports = {
-      setLookups,
-      getLookups,
-      clearLookups
-    };
-  }
-});
-
-// utils/chunkExecutor.js
-var require_chunkExecutor = __commonJS({
-  "utils/chunkExecutor.js"(exports2, module2) {
-    async function executeChunks({
-      chunks,
-      onChunk
-    }) {
-      if (!Array.isArray(chunks)) {
-        throw new Error("chunks must be an array");
-      }
-      if (typeof onChunk !== "function") {
-        throw new Error("onChunk must be a function");
-      }
-      const results = [];
-      for (const chunk of chunks) {
-        const result = await onChunk(chunk);
-        results.push(result);
-      }
-      return results;
-    }
-    module2.exports = {
-      executeChunks
-    };
-  }
-});
-
-// src/tally/voucherImportServiceBulkGuid.js
-var require_voucherImportServiceBulkGuid = __commonJS({
-  "src/tally/voucherImportServiceBulkGuid.js"(exports2, module2) {
-    var {
-      sendToTally,
-      selectCompany
-    } = require_tallyService();
-    var {
-      buildVoucherBulkGuidRequest
-    } = require_voucherBulkGuidRequest();
-    var {
-      parseVoucherResponse
-    } = require_voucherParser();
-    var {
-      getLookups
-    } = require_lookupCache();
-    var {
-      executeChunks
-    } = require_chunkExecutor();
-    var VOUCHER_GUID_BATCH_SIZE = 100;
-    var VOUCHER_XML_MAX_SIZE = 300 * 1024;
-    async function importVoucherBulkByGuid({
-      company,
-      voucherGuids
-    }) {
-      await selectCompany(company);
-      const lookups = getLookups(company);
-      if (!lookups) {
-        throw new Error(
-          "Lookup cache not found. Run importMasters() before Bulk GUID import."
-        );
-      }
-      if (!voucherGuids?.length) {
-        return [];
-      }
-      const chunks = [];
-      let currentChunk = [];
-      for (const guid of voucherGuids) {
-        if (currentChunk.length >= VOUCHER_GUID_BATCH_SIZE) {
-          chunks.push({
-            chunkIndex: chunks.length + 1,
-            data: currentChunk
-          });
-          currentChunk = [];
-        }
-        const testChunk = [
-          ...currentChunk,
-          guid
-        ];
-        const testXml = buildVoucherBulkGuidRequest({
-          company,
-          voucherGuids: testChunk
-        });
-        const testXmlSize = Buffer.byteLength(
-          testXml,
-          "utf8"
-        );
-        if (testXmlSize > VOUCHER_XML_MAX_SIZE && currentChunk.length > 0) {
-          chunks.push({
-            chunkIndex: chunks.length + 1,
-            data: currentChunk
-          });
-          currentChunk = [guid];
-          continue;
-        }
-        if (testXmlSize > VOUCHER_XML_MAX_SIZE && currentChunk.length === 0) {
-          throw new Error(
-            `Single Voucher GUID request exceeds 300 KB: ${guid}`
-          );
-        }
-        currentChunk.push(guid);
-      }
-      if (currentChunk.length > 0) {
-        chunks.push({
-          chunkIndex: chunks.length + 1,
-          data: currentChunk
-        });
-      }
-      console.log(
-        "===================================="
-      );
-      console.log(
-        "VOUCHER BULK GUID CHUNKS"
-      );
-      console.log(
-        "Total GUIDs:",
-        voucherGuids.length
-      );
-      console.log(
-        "Total Chunks:",
-        chunks.length
-      );
-      console.log(
-        "Max GUIDs / Chunk:",
-        VOUCHER_GUID_BATCH_SIZE
-      );
-      console.log(
-        "Max XML Size:",
-        VOUCHER_XML_MAX_SIZE,
-        "bytes"
-      );
-      console.log(
-        "===================================="
-      );
-      const allVouchers = [];
-      const totalChunks = chunks.length;
-      for (const chunk of chunks) {
-        chunk.totalChunks = totalChunks;
-      }
-      await executeChunks({
-        chunks,
-        onChunk: async (chunk) => {
-          const requestXml = buildVoucherBulkGuidRequest({
-            company,
-            voucherGuids: chunk.data
-          });
-          const responseXml = await sendToTally(requestXml);
-          if (!responseXml) {
-            throw new Error(
-              "Empty response received from Tally."
-            );
-          }
-          const vouchers = parseVoucherResponse(
-            responseXml,
-            lookups
-          );
-          console.log(
-            "BULK CHUNK:",
-            chunk.chunkIndex,
-            "/",
-            chunk.totalChunks,
-            "| GUIDs:",
-            chunk.data.length,
-            "| Response Bytes:",
-            Buffer.byteLength(
-              String(responseXml || ""),
-              "utf8"
-            ),
-            "| Vouchers:",
-            vouchers.length
-          );
-          allVouchers.push(...vouchers);
-          return {
-            chunkIndex: chunk.chunkIndex,
-            totalChunks: chunk.totalChunks,
-            vouchers: vouchers.length
-          };
-        }
-      });
-      return allVouchers;
-    }
-    module2.exports = {
-      importVoucherBulkByGuid
-    };
-  }
-});
-
 // src/tally/ledgerRequest.js
 var require_ledgerRequest = __commonJS({
   "src/tally/ledgerRequest.js"(exports2, module2) {
     function buildLedgerRequest({
+      company,
       booksBeginningFrom,
       lastLedgerAlterId = null,
       masterIds = []
@@ -54305,14 +54161,26 @@ var require_ledgerRequest = __commonJS({
 
         <DESC>
 
-          <STATICVARIABLES>
+            <STATICVARIABLES>
 
-    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
 
-  <SVFROMDATE TYPE="Date">${booksBeginningFrom}</SVFROMDATE>
-<SVTODATE TYPE="Date">${booksBeginningFrom}</SVTODATE>
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
-</STATICVARIABLES>
+                <SVFROMDATE TYPE="Date">
+                    ${booksBeginningFrom}
+                </SVFROMDATE>
+                
+
+                <SVTODATE TYPE="Date">
+                    ${booksBeginningFrom}
+                </SVTODATE>
+
+            </STATICVARIABLES>
 
             <TDL>
 
@@ -54322,8 +54190,9 @@ var require_ledgerRequest = __commonJS({
 
                         <TYPE>Ledger</TYPE>
 
-                     ${masterIds.length ? `<FILTER>LedgerMasterIdFilter</FILTER>` : lastLedgerAlterId !== null ? `<FILTER>LedgerAlterIdFilter</FILTER>` : ""}
-                       <FETCH>
+                        ${masterIds.length ? `<FILTER>LedgerMasterIdFilter</FILTER>` : lastLedgerAlterId !== null ? `<FILTER>LedgerAlterIdFilter</FILTER>` : ""}
+
+                        <FETCH>
 
                             NAME,
                             GUID,
@@ -54353,27 +54222,28 @@ var require_ledgerRequest = __commonJS({
                             ISBILLWISEON,
                             ISREVENUE,
                             ISDEEMEDPOSITIVE,
+
                             LEDGSTREGDETAILS.LIST,
                             LEDMAILINGDETAILS.LIST,
                             CONTACTDETAILS.LIST,
+
                             TYPEOFDUTYTAX,
                             TAXTYPE,
                             GSTDUTYHEAD,
                             RATEOFTAXCALCULATION,
                             GSTRATE,
-                           PARENTGUID,
+
+                            PARENTGUID,
                             PARENTMASTERID,
                             PARENTALTERID
 
                         </FETCH>
 
-                        <COMPUTE>
-                            ORIGINALOPENINGBALANCE : $_OpeningBalance
-                        </COMPUTE>
+                       
 
                     </COLLECTION>
 
-                   ${masterIds.length ? `
+                    ${masterIds.length ? `
                         <SYSTEM TYPE="Formulae" NAME="LedgerMasterIdFilter">
                             ${masterIds.map((id) => `$MASTERID = ${id}`).join(" OR ")}
                         </SYSTEM>
@@ -54393,9 +54263,16 @@ var require_ledgerRequest = __commonJS({
 
 </ENVELOPE>
 `;
-      console.log("================================");
-      console.log("booksBeginningFrom:", booksBeginningFrom);
-      console.log("================================");
+      console.log(
+        "================================"
+      );
+      console.log(
+        "booksBeginningFrom:",
+        booksBeginningFrom
+      );
+      console.log(
+        "================================"
+      );
       return xml;
     }
     module2.exports = {
@@ -54529,6 +54406,27 @@ var require_ledgerParser = __commonJS({
   }
 });
 
+// src/tally/lookupCache.js
+var require_lookupCache = __commonJS({
+  "src/tally/lookupCache.js"(exports2, module2) {
+    var cache = /* @__PURE__ */ new Map();
+    function setLookups(company, lookups) {
+      cache.set(company.trim().toUpperCase(), lookups);
+    }
+    function getLookups(company) {
+      return cache.get(company.trim().toUpperCase());
+    }
+    function clearLookups(company) {
+      cache.delete(company.trim().toUpperCase());
+    }
+    module2.exports = {
+      setLookups,
+      getLookups,
+      clearLookups
+    };
+  }
+});
+
 // src/tally/ledgerImportService.js
 var require_ledgerImportService = __commonJS({
   "src/tally/ledgerImportService.js"(exports2, module2) {
@@ -54545,15 +54443,55 @@ var require_ledgerImportService = __commonJS({
     var {
       getLookups
     } = require_lookupCache();
+    function resolveLedgerNature(parentName, groupLookup) {
+      let current = String(parentName || "").trim();
+      const visited = /* @__PURE__ */ new Set();
+      while (current && !visited.has(current)) {
+        visited.add(current);
+        const group = groupLookup.get(
+          current.toUpperCase()
+        );
+        if (!group) {
+          return "";
+        }
+        const reserved = String(
+          group.reservedName || ""
+        ).trim();
+        if (reserved === "Current Assets") {
+          return "Assets";
+        }
+        if (reserved === "Fixed Assets") {
+          return "Assets";
+        }
+        if (reserved === "Current Liabilities") {
+          return "Liabilities";
+        }
+        if (reserved === "Loans (Liability)") {
+          return "Liabilities";
+        }
+        if (reserved === "Capital Account") {
+          return "Capital";
+        }
+        current = String(group.parent || "").trim();
+        if (!current || /^Primary$/i.test(current)) {
+          return "";
+        }
+      }
+      return "";
+    }
     async function importLedgers({
       company,
       booksBeginningFrom,
       lastLedgerAlterId = null,
       masterIds = []
     }) {
-      console.log("Ledger booksBeginningFrom:", booksBeginningFrom);
+      console.log(
+        "Ledger booksBeginningFrom:",
+        booksBeginningFrom
+      );
       await selectCompany(company);
       const requestXml = buildLedgerRequest({
+        company,
         booksBeginningFrom,
         lastLedgerAlterId,
         masterIds
@@ -54578,6 +54516,11 @@ var require_ledgerImportService = __commonJS({
         ledger.parentGroupGuid = parent.guid;
         ledger.parentGroupMasterId = parent.masterId;
         ledger.parentGroupAlterId = parent.alterId;
+        ledger.parentGroupReservedName = parent.reservedName || "";
+        ledger.nature = resolveLedgerNature(
+          ledger.parent,
+          groupLookup
+        );
       }
       return ledgers;
     }
@@ -54592,7 +54535,8 @@ var require_ledgerBulkGuidRequest = __commonJS({
   "src/tally/ledgerBulkGuidRequest.js"(exports2, module2) {
     function buildLedgerBulkGuidRequest({
       company,
-      ledgerGuids
+      ledgerGuids,
+      booksBeginningFrom
     }) {
       const filter = ledgerGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
       return `
@@ -54614,13 +54558,21 @@ var require_ledgerBulkGuidRequest = __commonJS({
 
         <DESC>
 
-            <STATICVARIABLES>
+          <STATICVARIABLES>
 
-                <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
 
-            </STATICVARIABLES>
+    <SVFROMDATE TYPE="Date">
+        ${booksBeginningFrom}
+    </SVFROMDATE>
+
+    <SVTODATE TYPE="Date">
+        ${booksBeginningFrom}
+    </SVTODATE>
+
+</STATICVARIABLES>
 
             <TDL>
 
@@ -54703,12 +54655,39 @@ var require_ledgerBulkGuidRequest = __commonJS({
   }
 });
 
+// utils/chunkExecutor.js
+var require_chunkExecutor = __commonJS({
+  "utils/chunkExecutor.js"(exports2, module2) {
+    async function executeChunks({
+      chunks,
+      onChunk
+    }) {
+      if (!Array.isArray(chunks)) {
+        throw new Error("chunks must be an array");
+      }
+      if (typeof onChunk !== "function") {
+        throw new Error("onChunk must be a function");
+      }
+      const results = [];
+      for (const chunk of chunks) {
+        const result = await onChunk(chunk);
+        results.push(result);
+      }
+      return results;
+    }
+    module2.exports = {
+      executeChunks
+    };
+  }
+});
+
 // src/tally/ledgerImportServiceBulkGuid.js
 var require_ledgerImportServiceBulkGuid = __commonJS({
   "src/tally/ledgerImportServiceBulkGuid.js"(exports2, module2) {
     var {
       sendToTally,
-      selectCompany
+      selectCompany,
+      getGroups
     } = require_tallyService();
     var {
       buildLedgerBulkGuidRequest
@@ -54717,9 +54696,6 @@ var require_ledgerImportServiceBulkGuid = __commonJS({
       parseLedgerResponse
     } = require_ledgerParser();
     var {
-      getLookups
-    } = require_lookupCache();
-    var {
       buildChunks
     } = require_ChunkBuilder();
     var {
@@ -54727,9 +54703,39 @@ var require_ledgerImportServiceBulkGuid = __commonJS({
     } = require_chunkExecutor();
     var BULK_GUID_CHUNK_SIZE = 300 * 1024;
     var LEDGER_GUID_BATCH_SIZE = 50;
+    function resolveLedgerNature(parentName, groupLookup) {
+      let current = String(parentName || "").trim();
+      const visited = /* @__PURE__ */ new Set();
+      while (current && !visited.has(current)) {
+        visited.add(current);
+        const group = groupLookup.get(
+          current.toUpperCase()
+        );
+        if (!group) {
+          return "";
+        }
+        const reserved = String(group.reservedName || "").trim();
+        if (reserved === "Current Assets" || reserved === "Fixed Assets") {
+          return "Assets";
+        }
+        if (reserved === "Current Liabilities" || reserved === "Loans (Liability)") {
+          return "Liabilities";
+        }
+        if (reserved === "Capital Account") {
+          return "Capital";
+        }
+        current = String(group.parent || "").trim();
+        if (!current || /^Primary$/i.test(current)) {
+          return "";
+        }
+      }
+      return "";
+    }
     async function importLedgerBulkByGuid({
       company,
-      ledgerGuids
+      ledgerGuids,
+      groups = [],
+      booksBeginningFrom
     }) {
       await selectCompany(company);
       if (!ledgerGuids?.length) {
@@ -54745,10 +54751,13 @@ var require_ledgerImportServiceBulkGuid = __commonJS({
         );
       }
       const allLedgers = [];
-      const lookups = getLookups(
-        company
-      ) || {};
-      const groupLookup = lookups.groupLookup || /* @__PURE__ */ new Map();
+      const resolvedGroups = groups?.length ? groups : await getGroups(company);
+      const groupLookup = new Map(
+        resolvedGroups.map((group) => [
+          String(group.name || "").trim().toUpperCase(),
+          group
+        ])
+      );
       for (let batchIndex = 0; batchIndex < level1Batches.length; batchIndex++) {
         const level1Batch = level1Batches[batchIndex];
         const chunks = buildChunks(
@@ -54760,8 +54769,15 @@ var require_ledgerImportServiceBulkGuid = __commonJS({
           onChunk: async (chunk) => {
             const requestXml = buildLedgerBulkGuidRequest({
               company,
-              ledgerGuids: chunk.data
+              ledgerGuids: chunk.data,
+              booksBeginningFrom
             });
+            console.log("======================================");
+            console.log("BULK LEDGER DATE TEST");
+            console.log("COMPANY :", company);
+            console.log("FROM    :", booksBeginningFrom);
+            console.log("TO      :", booksBeginningFrom);
+            console.log("======================================");
             const responseXml = await sendToTally(requestXml);
             if (!responseXml) {
               throw new Error(
@@ -54777,12 +54793,14 @@ var require_ledgerImportServiceBulkGuid = __commonJS({
                   ledger.parent || ""
                 ).trim().toUpperCase()
               );
-              if (!parent) {
-                continue;
-              }
-              ledger.parentGroupGuid = parent.guid;
-              ledger.parentGroupMasterId = parent.masterId;
-              ledger.parentGroupAlterId = parent.alterId;
+              ledger.parentGroupGuid = ledger.parentGroupGuid || parent?.guid || null;
+              ledger.parentGroupMasterId = ledger.parentGroupMasterId || parent?.masterId || null;
+              ledger.parentGroupAlterId = ledger.parentGroupAlterId || parent?.alterId || null;
+              ledger.parentGroupReservedName = parent?.reservedName || "";
+              ledger.nature = resolveLedgerNature(
+                ledger.parent,
+                groupLookup
+              );
             }
             allLedgers.push(...ledgers);
             return {
@@ -54804,7 +54822,7 @@ var require_ledgerImportServiceBulkGuid = __commonJS({
 // src/tally/stockGroupRequest.js
 var require_stockGroupRequest = __commonJS({
   "src/tally/stockGroupRequest.js"(exports2, module2) {
-    function buildStockGroupRequest() {
+    function buildStockGroupRequest(company) {
       return `
 <ENVELOPE>
 
@@ -54820,7 +54838,15 @@ var require_stockGroupRequest = __commonJS({
         <DESC>
 
             <STATICVARIABLES>
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
             </STATICVARIABLES>
 
             <TDL>
@@ -54831,9 +54857,17 @@ var require_stockGroupRequest = __commonJS({
 
                         <TYPE>Stock Group</TYPE>
 
-                        <COMPUTE>GROUPGUID : $GUID</COMPUTE>
-                        <COMPUTE>GROUPMASTERID : $MASTERID</COMPUTE>
-                        <COMPUTE>GROUPALTERID : $ALTERID</COMPUTE>
+                        <COMPUTE>
+                            GROUPGUID : $GUID
+                        </COMPUTE>
+
+                        <COMPUTE>
+                            GROUPMASTERID : $MASTERID
+                        </COMPUTE>
+
+                        <COMPUTE>
+                            GROUPALTERID : $ALTERID
+                        </COMPUTE>
 
                         <FETCH>
 
@@ -54925,9 +54959,15 @@ var require_stockGroupImportService = __commonJS({
       company
     }) {
       await selectCompany(company);
-      const requestXml = buildStockGroupRequest();
-      const responseXml = await sendToTally(requestXml);
-      return parseStockGroupResponse(responseXml);
+      const requestXml = buildStockGroupRequest(
+        company
+      );
+      const responseXml = await sendToTally(
+        requestXml
+      );
+      return parseStockGroupResponse(
+        responseXml
+      );
     }
     module2.exports = {
       importStockGroups
@@ -55477,7 +55517,7 @@ var require_godownImportService = __commonJS({
 // src/tally/costCentreRequest.js
 var require_costCentreRequest = __commonJS({
   "src/tally/costCentreRequest.js"(exports2, module2) {
-    function buildCostCentreRequest() {
+    function buildCostCentreRequest(company) {
       return `
 <ENVELOPE>
 
@@ -55494,7 +55534,13 @@ var require_costCentreRequest = __commonJS({
 
             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -55505,18 +55551,19 @@ var require_costCentreRequest = __commonJS({
                     <COLLECTION NAME="Billey Cost Centre Collection">
 
                         <TYPE>CostCentre</TYPE>
-<FETCH>
 
-    GUID,
-    MASTERID,
-    ALTERID,
+                        <FETCH>
 
-    NAME,
-    PARENT,
-    CATEGORY,
-    RESERVEDNAME
+                            GUID,
+                            MASTERID,
+                            ALTERID,
 
-</FETCH>
+                            NAME,
+                            PARENT,
+                            CATEGORY,
+                            RESERVEDNAME
+
+                        </FETCH>
 
                     </COLLECTION>
 
@@ -55597,9 +55644,15 @@ var require_costCentreImportService = __commonJS({
       company
     }) {
       await selectCompany(company);
-      const requestXml = buildCostCentreRequest();
-      const responseXml = await sendToTally(requestXml);
-      return parseCostCentreResponse(responseXml);
+      const requestXml = buildCostCentreRequest(
+        company
+      );
+      const responseXml = await sendToTally(
+        requestXml
+      );
+      return parseCostCentreResponse(
+        responseXml
+      );
     }
     module2.exports = {
       importCostCentres
@@ -55678,9 +55731,6 @@ var require_importMasters = __commonJS({
     var {
       importVouchers
     } = require_voucherImportService();
-    var {
-      importVoucherBulkByGuid
-    } = require_voucherImportServiceBulkGuid();
     var {
       importLedgers
     } = require_ledgerImportService();
@@ -55782,7 +55832,9 @@ var require_importMasters = __commonJS({
       );
       const ledgers = await importLedgerBulkByGuid({
         company,
-        ledgerGuids: changedLedgerGuids
+        ledgerGuids: changedLedgerGuids,
+        groups,
+        booksBeginningFrom: companyInfo.booksBeginningFrom
       });
       console.log(
         `\u2713 Changed Ledgers Imported : ${ledgers.length}`
@@ -55865,22 +55917,8 @@ var require_importMasters = __commonJS({
       console.log("######## AFTER COST CENTRES ########");
       console.log("Importing Vouchers...");
       console.log("Importing Full Voucher GUIDs...");
-      const voucherRecords = await importVoucherGuids({
-        company,
-        fromDate: companyInfo.booksBeginningFrom,
-        toDate: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "")
-      });
-      const voucherGuids = voucherRecords.map((row) => row.guid).filter(Boolean);
       console.log(
-        "Voucher GUID sample:",
-        voucherGuids.slice(0, 3)
-      );
-      const vouchers = await importVoucherBulkByGuid({
-        company,
-        voucherGuids
-      });
-      console.log(
-        `\u2713 Changed Vouchers Imported : ${vouchers.length}`
+        "Voucher GUID discovery and voucher import handled by getMasters flow."
       );
       console.log(
         "######## AFTER VOUCHER BULK GUIDS ########"
@@ -55903,9 +55941,10 @@ var require_importMasters = __commonJS({
           allStocks: allStocks.length,
           godowns: godowns.length,
           costCentres: costCentres.length,
-          vouchers: vouchers.length,
+          // vouchers: vouchers.length,
           //voucherGuids: voucherGuids.length,
-          totalMasters: groups.length + units.length + allLedgers.length + stockGroups.length + stocks.length + godowns.length + costCentres.length + vouchers.length
+          totalMasters: groups.length + units.length + allLedgers.length + stockGroups.length + stocks.length + godowns.length + costCentres.length
+          // vouchers.length
         },
         groups,
         units,
@@ -55915,8 +55954,8 @@ var require_importMasters = __commonJS({
         stocks,
         allStocks,
         godowns,
-        costCentres,
-        vouchers
+        costCentres
+        //vouchers,
         //voucherGuids
       };
     }
@@ -55926,10 +55965,259 @@ var require_importMasters = __commonJS({
   }
 });
 
+// src/tally/stockSummaryRequest.js
+var require_stockSummaryRequest = __commonJS({
+  "src/tally/stockSummaryRequest.js"(exports2, module2) {
+    function buildStockSummaryRequest({
+      company,
+      booksBeginningFrom
+    }) {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Data</TYPE>
+
+        <ID>Stock Summary</ID>
+
+    </HEADER>
+
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+
+                <EXPLODEFLAG>
+                    Yes
+                </EXPLODEFLAG>
+
+
+                <ISITEMWISE>
+                    Yes
+                </ISITEMWISE>
+
+
+                <SHOWGODOWN>
+                    Yes
+                </SHOWGODOWN>
+
+
+                <SHOWBATCHES>
+                    Yes
+                </SHOWBATCHES>
+
+
+                <SVFROMDATE TYPE="Date">
+                    ${booksBeginningFrom}
+                </SVFROMDATE>
+
+
+                <SVTODATE TYPE="Date">
+                    20991231
+                </SVTODATE>
+
+
+                <SVCURRENTDATE TYPE="Date">
+                    20991231
+                </SVCURRENTDATE>
+
+            </STATICVARIABLES>
+
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <REPORT NAME="Stock Summary">
+
+                        <VARIABLE>
+                            EXPLODEFLAG,
+                            SHOWGODOWN,
+                            ISITEMWISE
+                        </VARIABLE>
+
+
+                        <SET>
+                            EXPLODEFLAG : Yes
+                        </SET>
+
+
+                        <SET>
+                            SHOWGODOWN : Yes
+                        </SET>
+
+
+                        <SET>
+                            ISITEMWISE : Yes
+                        </SET>
+
+                    </REPORT>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildStockSummaryRequest
+    };
+  }
+});
+
+// src/tally/stockSummaryImportService.js
+var require_stockSummaryImportService = __commonJS({
+  "src/tally/stockSummaryImportService.js"(exports2, module2) {
+    var {
+      sendToTally
+    } = require_tallyService();
+    var {
+      buildStockSummaryRequest
+    } = require_stockSummaryRequest();
+    function parseGodownWiseStock(response) {
+      const xmlText = String(response);
+      const itemBlocks = xmlText.match(
+        /<DSPACCNAME>[\s\S]*?(?=<DSPACCNAME>|<\/ENVELOPE>)/g
+      ) || [];
+      const godownStock = [];
+      for (const block of itemBlocks) {
+        const itemNameMatch = block.match(
+          /<DSPDISPNAME>([\s\S]*?)<\/DSPDISPNAME>/
+        );
+        if (!itemNameMatch) {
+          continue;
+        }
+        const stockItemName = itemNameMatch[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"').trim();
+        const godownMatches = [
+          ...block.matchAll(
+            /<SSGODOWN>([\s\S]*?)<\/SSGODOWN>[\s\S]*?<DSPCLQTY>([\s\S]*?)<\/DSPCLQTY>/g
+          )
+        ];
+        for (const match of godownMatches) {
+          const godownName = match[1].trim();
+          const closingBalance = match[2].trim();
+          const qtyMatch = closingBalance.match(
+            /^(-?\d+(?:\.\d+)?)\s*(.*)$/
+          );
+          if (!qtyMatch) {
+            continue;
+          }
+          godownStock.push({
+            stockItemName,
+            godownName,
+            closingQuantity: Number(qtyMatch[1]),
+            unit: qtyMatch[2].trim()
+          });
+        }
+      }
+      return godownStock;
+    }
+    async function importStockSummary({
+      company,
+      booksBeginningFrom
+    }) {
+      if (!company) {
+        throw new Error(
+          "company missing in importStockSummary"
+        );
+      }
+      if (!booksBeginningFrom) {
+        throw new Error(
+          "booksBeginningFrom missing in importStockSummary"
+        );
+      }
+      const xml = buildStockSummaryRequest({
+        company,
+        booksBeginningFrom
+      });
+      console.log(
+        "======================================"
+      );
+      console.log(
+        "IMPORTING GODOWN-WISE STOCK"
+      );
+      console.log(
+        "COMPANY :",
+        company
+      );
+      console.log(
+        "BOOKS FROM :",
+        booksBeginningFrom
+      );
+      console.log(
+        "======================================"
+      );
+      const response = await sendToTally(xml);
+      console.log(
+        "========== STOCK SUMMARY RAW XML =========="
+      );
+      console.log(
+        String(response).slice(0, 2e4)
+      );
+      console.log(
+        "==========================================="
+      );
+      const stock = parseGodownWiseStock(response);
+      console.log(
+        "======================================"
+      );
+      console.log(
+        "GODOWN-WISE STOCK IMPORTED"
+      );
+      console.log(
+        "ROWS :",
+        stock.length
+      );
+      console.dir(
+        stock,
+        {
+          depth: null
+        }
+      );
+      console.log(
+        "======================================"
+      );
+      return {
+        success: true,
+        data: stock,
+        summary: {
+          stockGodownRows: stock.length
+        }
+      };
+    }
+    module2.exports = {
+      importStockSummary,
+      parseGodownWiseStock
+    };
+  }
+});
+
 // src/tally/groupGuidRequest.js
 var require_groupGuidRequest = __commonJS({
   "src/tally/groupGuidRequest.js"(exports2, module2) {
-    function buildGroupGuidRequest() {
+    function buildGroupGuidRequest(company) {
       return `
 <ENVELOPE>
 
@@ -55944,9 +56232,15 @@ var require_groupGuidRequest = __commonJS({
 
         <DESC>
 
-            <STATICVARIABLES>
+           <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
 
@@ -56038,7 +56332,7 @@ var require_groupGuidImportService = __commonJS({
       company
     }) {
       await selectCompany(company);
-      const requestXml = buildGroupGuidRequest();
+      const requestXml = buildGroupGuidRequest(company);
       const responseXml = await sendToTally(requestXml);
       const groupGuids = parseGroupGuidResponse(responseXml);
       return groupGuids;
@@ -56052,7 +56346,7 @@ var require_groupGuidImportService = __commonJS({
 // src/tally/ledgerGuidRequest.js
 var require_ledgerGuidRequest = __commonJS({
   "src/tally/ledgerGuidRequest.js"(exports2, module2) {
-    function buildLedgerGuidRequest() {
+    function buildLedgerGuidRequest(company) {
       return `
 <ENVELOPE>
 
@@ -56069,10 +56363,15 @@ var require_ledgerGuidRequest = __commonJS({
 
             <STATICVARIABLES>
 
-                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
 
             </STATICVARIABLES>
-
 
             <TDL>
 
@@ -56083,11 +56382,9 @@ var require_ledgerGuidRequest = __commonJS({
                         <TYPE>Ledger</TYPE>
 
                         <FETCH>
-
                             GUID,
                             MASTERID,
                             ALTERID
-
                         </FETCH>
 
                     </COLLECTION>
@@ -56095,7 +56392,6 @@ var require_ledgerGuidRequest = __commonJS({
                 </TDLMESSAGE>
 
             </TDL>
-
 
         </DESC>
 
@@ -56164,14 +56460,8 @@ var require_ledgerGuidImportService = __commonJS({
       company
     }) {
       await selectCompany(company);
-      const requestXml = buildLedgerGuidRequest();
+      const requestXml = buildLedgerGuidRequest(company);
       const responseXml = await sendToTally(requestXml);
-      console.log(
-        "LEDGER GUID XML RESPONSE"
-      );
-      console.log(
-        responseXml
-      );
       const ledgerGuids = parseLedgerGuidResponse(responseXml);
       return ledgerGuids;
     }
@@ -56184,7 +56474,7 @@ var require_ledgerGuidImportService = __commonJS({
 // src/tally/stockGroupGuidRequest.js
 var require_stockGroupGuidRequest = __commonJS({
   "src/tally/stockGroupGuidRequest.js"(exports2, module2) {
-    function buildStockGroupGuidRequest() {
+    function buildStockGroupGuidRequest(company) {
       return `
 <ENVELOPE>
 
@@ -56195,45 +56485,41 @@ var require_stockGroupGuidRequest = __commonJS({
     <ID>Billey Stock Group GUID Collection</ID>
 </HEADER>
 
-
 <BODY>
 
 <DESC>
 
 <STATICVARIABLES>
 
-    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+    <SVCURRENTCOMPANY>
+        ${company}
+    </SVCURRENTCOMPANY>
+
+    <SVEXPORTFORMAT>
+        $$SysName:XML
+    </SVEXPORTFORMAT>
 
 </STATICVARIABLES>
-
 
 <TDL>
 
 <TDLMESSAGE>
 
-
 <COLLECTION NAME="Billey Stock Group GUID Collection">
-
 
     <TYPE>Stock Group</TYPE>
 
-
     <FETCH>
-
         GUID,
         MASTERID,
         ALTERID
-
     </FETCH>
 
-
 </COLLECTION>
-
 
 </TDLMESSAGE>
 
 </TDL>
-
 
 </DESC>
 
@@ -56296,24 +56582,108 @@ var require_stockGroupGuidParser = __commonJS({
 // src/tally/stockGroupGuidImportService.js
 var require_stockGroupGuidImportService = __commonJS({
   "src/tally/stockGroupGuidImportService.js"(exports2, module2) {
-    var { sendToTally, selectCompany } = require_tallyService();
-    var { buildStockGroupGuidRequest } = require_stockGroupGuidRequest();
-    var { parseStockGroupGuidResponse } = require_stockGroupGuidParser();
-    async function importStockGroupGuids({ company }) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildStockGroupGuidRequest
+    } = require_stockGroupGuidRequest();
+    var {
+      parseStockGroupGuidResponse
+    } = require_stockGroupGuidParser();
+    async function importStockGroupGuids({
+      company
+    }) {
       await selectCompany(company);
-      return parseStockGroupGuidResponse(await sendToTally(buildStockGroupGuidRequest()));
+      const requestXml = buildStockGroupGuidRequest(
+        company
+      );
+      const responseXml = await sendToTally(
+        requestXml
+      );
+      return parseStockGroupGuidResponse(
+        responseXml
+      );
     }
-    module2.exports = { importStockGroupGuids };
+    module2.exports = {
+      importStockGroupGuids
+    };
   }
 });
 
 // src/tally/stockGuidRequest.js
 var require_stockGuidRequest = __commonJS({
   "src/tally/stockGuidRequest.js"(exports2, module2) {
-    function buildStockGuidRequest() {
-      return `<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Billey Stock GUID Collection</ID></HEADER><BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="Billey Stock GUID Collection"><TYPE>Stock Item</TYPE><COMPUTE>STOCKGUID : $GUID</COMPUTE><COMPUTE>STOCKMASTERID : $MASTERID</COMPUTE><COMPUTE>STOCKALTERID : $ALTERID</COMPUTE><FETCH>STOCKGUID,STOCKMASTERID,STOCKALTERID</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>`;
+    function buildStockGuidRequest(company) {
+      return `
+<ENVELOPE>
+
+<HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>Export</TALLYREQUEST>
+    <TYPE>Collection</TYPE>
+    <ID>Billey Stock GUID Collection</ID>
+</HEADER>
+
+<BODY>
+
+<DESC>
+
+<STATICVARIABLES>
+
+    <SVCURRENTCOMPANY>
+        ${company}
+    </SVCURRENTCOMPANY>
+
+    <SVEXPORTFORMAT>
+        $$SysName:XML
+    </SVEXPORTFORMAT>
+
+</STATICVARIABLES>
+
+<TDL>
+
+<TDLMESSAGE>
+
+<COLLECTION NAME="Billey Stock GUID Collection">
+
+    <TYPE>Stock Item</TYPE>
+
+    <COMPUTE>
+        STOCKGUID : $GUID
+    </COMPUTE>
+
+    <COMPUTE>
+        STOCKMASTERID : $MASTERID
+    </COMPUTE>
+
+    <COMPUTE>
+        STOCKALTERID : $ALTERID
+    </COMPUTE>
+
+    <FETCH>
+        STOCKGUID,
+        STOCKMASTERID,
+        STOCKALTERID
+    </FETCH>
+
+</COLLECTION>
+
+</TDLMESSAGE>
+
+</TDL>
+
+</DESC>
+
+</BODY>
+
+</ENVELOPE>
+`;
     }
-    module2.exports = { buildStockGuidRequest };
+    module2.exports = {
+      buildStockGuidRequest
+    };
   }
 });
 
@@ -56349,7 +56719,7 @@ var require_stockGuidImportService = __commonJS({
       await selectCompany(company);
       return parseStockGuidResponse(
         await sendToTally(
-          buildStockGuidRequest()
+          buildStockGuidRequest(company)
         )
       );
     }
@@ -56362,7 +56732,7 @@ var require_stockGuidImportService = __commonJS({
 // src/tally/unitGuidRequest.js
 var require_unitGuidRequest = __commonJS({
   "src/tally/unitGuidRequest.js"(exports2, module2) {
-    function buildUnitGuidRequest() {
+    function buildUnitGuidRequest(company) {
       return `
 <ENVELOPE>
 
@@ -56378,7 +56748,15 @@ var require_unitGuidRequest = __commonJS({
 <DESC>
 
 <STATICVARIABLES>
-<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+<SVCURRENTCOMPANY>
+    ${company}
+</SVCURRENTCOMPANY>
+
+<SVEXPORTFORMAT>
+    $$SysName:XML
+</SVEXPORTFORMAT>
+
 </STATICVARIABLES>
 
 <TDL>
@@ -56462,11 +56840,19 @@ var require_unitGuidImportService = __commonJS({
     var {
       parseUnitGuidResponse
     } = require_unitGuidParser();
-    async function importUnitGuids({ company }) {
+    async function importUnitGuids({
+      company
+    }) {
       await selectCompany(company);
-      const requestXml = buildUnitGuidRequest();
-      const responseXml = await sendToTally(requestXml);
-      return parseUnitGuidResponse(responseXml);
+      const requestXml = buildUnitGuidRequest(
+        company
+      );
+      const responseXml = await sendToTally(
+        requestXml
+      );
+      return parseUnitGuidResponse(
+        responseXml
+      );
     }
     module2.exports = {
       importUnitGuids
@@ -56477,10 +56863,63 @@ var require_unitGuidImportService = __commonJS({
 // src/tally/godownGuidRequest.js
 var require_godownGuidRequest = __commonJS({
   "src/tally/godownGuidRequest.js"(exports2, module2) {
-    function buildGodownGuidRequest() {
-      return `<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Billey Godown GUID Collection</ID></HEADER><BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="Billey Godown GUID Collection"><TYPE>Godown</TYPE><FETCH>GUID,MASTERID,ALTERID</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>`;
+    function buildGodownGuidRequest(company) {
+      return `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Godown GUID Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Godown GUID Collection">
+
+                        <TYPE>Godown</TYPE>
+
+                        <FETCH>
+                            GUID,
+                            MASTERID,
+                            ALTERID
+                        </FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
     }
-    module2.exports = { buildGodownGuidRequest };
+    module2.exports = {
+      buildGodownGuidRequest
+    };
   }
 });
 
@@ -56508,21 +56947,36 @@ var require_godownGuidParser = __commonJS({
 // src/tally/godownGuidImportService.js
 var require_godownGuidImportService = __commonJS({
   "src/tally/godownGuidImportService.js"(exports2, module2) {
-    var { sendToTally, selectCompany } = require_tallyService();
-    var { buildGodownGuidRequest } = require_godownGuidRequest();
-    var { parseGodownGuidResponse } = require_godownGuidParser();
-    async function importGodownGuids({ company }) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildGodownGuidRequest
+    } = require_godownGuidRequest();
+    var {
+      parseGodownGuidResponse
+    } = require_godownGuidParser();
+    async function importGodownGuids({
+      company
+    }) {
       await selectCompany(company);
-      return parseGodownGuidResponse(await sendToTally(buildGodownGuidRequest()));
+      return parseGodownGuidResponse(
+        await sendToTally(
+          buildGodownGuidRequest(company)
+        )
+      );
     }
-    module2.exports = { importGodownGuids };
+    module2.exports = {
+      importGodownGuids
+    };
   }
 });
 
 // src/tally/costCentreGuidRequest.js
 var require_costCentreGuidRequest = __commonJS({
   "src/tally/costCentreGuidRequest.js"(exports2, module2) {
-    function buildCostCentreGuidRequest() {
+    function buildCostCentreGuidRequest(company) {
       return `
 <ENVELOPE>
 
@@ -56534,13 +56988,23 @@ var require_costCentreGuidRequest = __commonJS({
 </HEADER>
 
 <BODY>
+
 <DESC>
 
 <STATICVARIABLES>
-<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+<SVCURRENTCOMPANY>
+    ${company}
+</SVCURRENTCOMPANY>
+
+<SVEXPORTFORMAT>
+    $$SysName:XML
+</SVEXPORTFORMAT>
+
 </STATICVARIABLES>
 
 <TDL>
+
 <TDLMESSAGE>
 
 <COLLECTION NAME="Billey Cost Centre GUID Collection">
@@ -56556,9 +57020,11 @@ ALTERID
 </COLLECTION>
 
 </TDLMESSAGE>
+
 </TDL>
 
 </DESC>
+
 </BODY>
 
 </ENVELOPE>
@@ -56618,14 +57084,330 @@ var require_costCentreGuidImportService = __commonJS({
     var {
       parseCostCentreGuidResponse
     } = require_costCentreGuidParser();
-    async function importCostCentreGuids({ company }) {
+    async function importCostCentreGuids({
+      company
+    }) {
       await selectCompany(company);
-      const requestXml = buildCostCentreGuidRequest();
-      const responseXml = await sendToTally(requestXml);
-      return parseCostCentreGuidResponse(responseXml);
+      const requestXml = buildCostCentreGuidRequest(
+        company
+      );
+      const responseXml = await sendToTally(
+        requestXml
+      );
+      return parseCostCentreGuidResponse(
+        responseXml
+      );
     }
     module2.exports = {
       importCostCentreGuids
+    };
+  }
+});
+
+// src/tally/voucherBulkGuidRequest.js
+var require_voucherBulkGuidRequest = __commonJS({
+  "src/tally/voucherBulkGuidRequest.js"(exports2, module2) {
+    function buildVoucherBulkGuidRequest({
+      company,
+      voucherGuids,
+      fromDate = "20160401",
+      toDate = "20991231"
+    }) {
+      const filter = voucherGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
+      return `
+<ENVELOPE>
+ 
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+         
+
+        <ID>BilleyVoucherCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+          <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+<SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+<SVTODATE TYPE="Date">${toDate}</SVTODATE>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherCollection">
+
+                      <FILTER>VoucherGuidFilter</FILTER>
+
+                        <TYPE>Voucher</TYPE>
+
+                        <FETCH>
+
+                            GUID,
+
+                            MASTERID,
+
+                            ALTERID,
+
+                            DATE,
+
+                            EFFECTIVEDATE,
+
+                            VOUCHERTYPENAME,
+
+                            VOUCHERNUMBER,
+
+                            REFERENCE,
+
+                            REFERENCEDATE,
+
+                            PARTYLEDGERNAME,
+
+                            NARRATION,
+
+                            PARTYGSTIN,
+
+                            PLACEOFSUPPLY,
+
+                            BASICBUYERNAME,
+
+                            BASICBUYERADDRESS,
+
+                            GSTREGISTRATIONTYPE,
+
+                            PERSISTEDVIEW,
+
+                            ISINVOICE,
+
+                            ISOPTIONAL,
+
+                            ISCANCELLED,
+
+                            ALLLEDGERENTRIES,
+
+                            ALLINVENTORYENTRIES,
+
+                            INVENTORYENTRIESIN,
+
+                            INVENTORYENTRIESOUT
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
+                        ${filter}
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildVoucherBulkGuidRequest
+    };
+  }
+});
+
+// src/tally/voucherImportServiceBulkGuid.js
+var require_voucherImportServiceBulkGuid = __commonJS({
+  "src/tally/voucherImportServiceBulkGuid.js"(exports2, module2) {
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      buildVoucherBulkGuidRequest
+    } = require_voucherBulkGuidRequest();
+    var {
+      parseVoucherResponse
+    } = require_voucherParser();
+    var {
+      getLookups
+    } = require_lookupCache();
+    var fs = require("fs");
+    var {
+      executeChunks
+    } = require_chunkExecutor();
+    var VOUCHER_GUID_BATCH_SIZE = 100;
+    var VOUCHER_XML_MAX_SIZE = 300 * 1024;
+    async function importVoucherBulkByGuid({
+      company,
+      voucherGuids
+    }) {
+      voucherGuids = (voucherGuids || []).map(
+        (item) => typeof item === "string" ? item : item?.guid
+      ).filter(Boolean);
+      await selectCompany(company);
+      const lookups = getLookups(company);
+      if (!lookups) {
+        throw new Error(
+          "Lookup cache not found. Run importMasters() before Bulk GUID import."
+        );
+      }
+      if (!voucherGuids?.length) {
+        return [];
+      }
+      const chunks = [];
+      let currentChunk = [];
+      for (const guid of voucherGuids) {
+        if (currentChunk.length >= VOUCHER_GUID_BATCH_SIZE) {
+          chunks.push({
+            chunkIndex: chunks.length + 1,
+            data: currentChunk
+          });
+          currentChunk = [];
+        }
+        const testChunk = [
+          ...currentChunk,
+          guid
+        ];
+        const testXml = buildVoucherBulkGuidRequest({
+          company,
+          voucherGuids: testChunk
+        });
+        const testXmlSize = Buffer.byteLength(
+          testXml,
+          "utf8"
+        );
+        if (testXmlSize > VOUCHER_XML_MAX_SIZE && currentChunk.length > 0) {
+          chunks.push({
+            chunkIndex: chunks.length + 1,
+            data: currentChunk
+          });
+          currentChunk = [guid];
+          continue;
+        }
+        if (testXmlSize > VOUCHER_XML_MAX_SIZE && currentChunk.length === 0) {
+          throw new Error(
+            `Single Voucher GUID request exceeds 300 KB: ${guid}`
+          );
+        }
+        currentChunk.push(guid);
+      }
+      if (currentChunk.length > 0) {
+        chunks.push({
+          chunkIndex: chunks.length + 1,
+          data: currentChunk
+        });
+      }
+      console.log(
+        "===================================="
+      );
+      console.log(
+        "VOUCHER BULK GUID CHUNKS"
+      );
+      console.log(
+        "Total GUIDs:",
+        voucherGuids.length
+      );
+      console.log(
+        "Total Chunks:",
+        chunks.length
+      );
+      console.log(
+        "Max GUIDs / Chunk:",
+        VOUCHER_GUID_BATCH_SIZE
+      );
+      console.log(
+        "Max XML Size:",
+        VOUCHER_XML_MAX_SIZE,
+        "bytes"
+      );
+      console.log(
+        "===================================="
+      );
+      const allVouchers = [];
+      const totalChunks = chunks.length;
+      for (const chunk of chunks) {
+        chunk.totalChunks = totalChunks;
+      }
+      await executeChunks({
+        chunks,
+        onChunk: async (chunk) => {
+          const requestXml = buildVoucherBulkGuidRequest({
+            company,
+            voucherGuids: chunk.data
+          });
+          const responseXml = await sendToTally(requestXml);
+          fs.writeFileSync(
+            "./logs/BULK-GUID-RAW-RESPONSE.xml",
+            String(responseXml || ""),
+            "utf8"
+          );
+          console.log(
+            "BULK GUID RESPONSE SIZE:",
+            Buffer.byteLength(String(responseXml || ""), "utf8")
+          );
+          console.log(
+            "BULK GUID RESPONSE HAS VOUCHER:",
+            String(responseXml || "").includes("<VOUCHER>")
+          );
+          if (!responseXml) {
+            throw new Error(
+              "Empty response received from Tally."
+            );
+          }
+          const vouchers = parseVoucherResponse(
+            responseXml,
+            lookups
+          );
+          fs.writeFileSync(
+            "./logs/BULK-GUID-PARSED-RESPONSE.json",
+            JSON.stringify(
+              vouchers,
+              null,
+              2
+            ),
+            "utf8"
+          );
+          console.log(
+            "BULK CHUNK:",
+            chunk.chunkIndex,
+            "/",
+            chunk.totalChunks,
+            "| GUIDs:",
+            chunk.data.length,
+            "| Response Bytes:",
+            Buffer.byteLength(
+              String(responseXml || ""),
+              "utf8"
+            ),
+            "| Vouchers:",
+            vouchers.length
+          );
+          allVouchers.push(...vouchers);
+          return {
+            chunkIndex: chunk.chunkIndex,
+            totalChunks: chunk.totalChunks,
+            vouchers: vouchers.length
+          };
+        }
+      });
+      return allVouchers;
+    }
+    module2.exports = {
+      importVoucherBulkByGuid
     };
   }
 });
@@ -56646,23 +57428,25 @@ var require_reportService = __commonJS({
       trimValues: true
     });
     async function getTrialBalance({
-      company,
-      asOnDate
+      company
     }) {
       await selectCompany(company);
+      const fromDate = "20260401";
+      const asOnDate = "20991201";
+      console.log("================================");
+      console.log("TRIAL BALANCE TEST");
+      console.log("COMPANY :", company);
+      console.log("FROM    :", fromDate);
+      console.log("TILL    :", asOnDate);
+      console.log("================================");
       const xml = `
 <ENVELOPE>
 
     <HEADER>
-
         <VERSION>1</VERSION>
-
         <TALLYREQUEST>Export</TALLYREQUEST>
-
-        <TYPE>Data</TYPE>
-
-        <ID>Trial Balance</ID>
-
+        <TYPE>Collection</TYPE>
+        <ID>Phase3LedgerBalance</ID>
     </HEADER>
 
     <BODY>
@@ -56671,13 +57455,48 @@ var require_reportService = __commonJS({
 
             <STATICVARIABLES>
 
-    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
 
-    <SVTODATE>${asOnDate}</SVTODATE>
+                <SVFROMDATE TYPE="Date">
+                    ${fromDate}
+                </SVFROMDATE>
 
-    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVTODATE TYPE="Date">
+                    ${asOnDate}
+                </SVTODATE>
 
-</STATICVARIABLES>
+                <SVCURRENTDATE TYPE="Date">
+                    ${asOnDate}
+                </SVCURRENTDATE>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Phase3LedgerBalance">
+
+                        <TYPE>Ledger</TYPE>
+
+                        <FETCH>
+                            NAME,
+                            GUID,
+                            PARENT,
+                            CLOSINGBALANCE
+                        </FETCH>
+
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
 
         </DESC>
 
@@ -56686,41 +57505,138 @@ var require_reportService = __commonJS({
 </ENVELOPE>
 `;
       const result = await sendToTally(xml);
+      fs.writeFileSync(
+        "./trial-balance-raw.xml",
+        String(result),
+        "utf8"
+      );
+      console.log("TB RAW RESPONSE SAVED");
       const json = parser.parse(result);
-      const names = json.ENVELOPE?.DSPACCNAME || [];
-      const infos = json.ENVELOPE?.DSPACCINFO || [];
-      const trialBalance = names.map((item, index) => ({
-        ledger: item.DSPDISPNAME || "",
-        debit: Math.abs(
-          Number(
-            infos[index]?.DSPCLDRAMT?.DSPCLDRAMTA || 0
-          )
-        ),
-        credit: Math.abs(
-          Number(
-            infos[index]?.DSPCLCRAMT?.DSPCLCRAMTA || 0
-          )
+      const ledgerData = json.ENVELOPE?.BODY?.DATA?.COLLECTION?.LEDGER || [];
+      const ledgers = Array.isArray(ledgerData) ? ledgerData : [ledgerData];
+      return ledgers.map((ledger) => ({
+        guid: ledger.GUID?.["#text"] || ledger.GUID || "",
+        name: ledger.NAME || "",
+        parent: ledger.PARENT?.["#text"] || ledger.PARENT || "",
+        closingBalance: Number(
+          ledger.CLOSINGBALANCE?.["#text"] || ledger.CLOSINGBALANCE || 0
         )
       }));
-      return json;
+    }
+    async function testLedgerNature({
+      company
+    }) {
+      await selectCompany(company);
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Data</TYPE>
+        <ID>LedgerNatureTest</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <REPORT NAME="LedgerNatureTest">
+                        <FORM>LedgerNatureTestForm</FORM>
+                    </REPORT>
+
+                    <FORM NAME="LedgerNatureTestForm">
+                        <PART>LedgerNatureTestPart</PART>
+                    </FORM>
+
+                    <PART NAME="LedgerNatureTestPart">
+                        <LINE>LedgerNatureTestLine</LINE>
+                        <REPEAT>
+                            LedgerNatureTestLine :
+                            LedgerNatureTestCollection
+                        </REPEAT>
+                    </PART>
+
+                    <LINE NAME="LedgerNatureTestLine">
+                        <FIELD>LedgerName</FIELD>
+                        <FIELD>ParentName</FIELD>
+                        <FIELD>NatureName</FIELD>
+                    </LINE>
+
+                    <FIELD NAME="LedgerName">
+                        <SET AS>$$String:$Name</SET>
+                    </FIELD>
+
+                    <FIELD NAME="ParentName">
+                        <SET AS>$$String:$Parent</SET>
+                    </FIELD>
+
+                    <FIELD NAME="NatureName">
+                        <SET AS>
+                            $$String:$NatureOfGroup:Group:$Parent
+                        </SET>
+                    </FIELD>
+
+                    <COLLECTION NAME="LedgerNatureTestCollection">
+                        <TYPE>Ledger</TYPE>
+                        <FETCH>
+                            Name,
+                            Parent,
+                            GUID
+                        </FETCH>
+                    </COLLECTION>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      const result = await sendToTally(xml);
+      fs.writeFileSync(
+        "./ledger-nature-test.xml",
+        String(result),
+        "utf8"
+      );
+      console.log(
+        "LEDGER NATURE TEST SAVED"
+      );
+      return parser.parse(result);
     }
     async function getProfitAndLoss(company) {
-      throw new Error("Not implemented");
+      throw new Error(
+        "Not implemented"
+      );
     }
     async function getBalanceSheet(company) {
-      throw new Error("Not implemented");
+      throw new Error(
+        "Not implemented"
+      );
     }
     async function getLedgerReport(company, ledgerName) {
-      throw new Error("Not implemented");
+      throw new Error(
+        "Not implemented"
+      );
     }
     async function getStockSummary(company) {
-      throw new Error("Not implemented");
+      throw new Error(
+        "Not implemented"
+      );
     }
     module2.exports = {
       getTrialBalance,
       getProfitAndLoss,
       getBalanceSheet,
       getLedgerReport,
+      testLedgerNature,
       getStockSummary
     };
   }
@@ -56751,6 +57667,9 @@ var require_client = __commonJS({
     var {
       importMasters
     } = require_importMasters();
+    var {
+      importStockSummary
+    } = require_stockSummaryImportService();
     var {
       importVoucherGuids
     } = require_voucherImportService();
@@ -56799,7 +57718,7 @@ var require_client = __commonJS({
       const protocolController = new ConnectorProtocolController(
         socket
       );
-      socket.on("connect", () => {
+      socket.on("connect", async () => {
         console.log("=================================");
         console.log("\u2705 Connected to Billey Server");
         console.log("Socket ID :", socket.id);
@@ -56809,8 +57728,18 @@ var require_client = __commonJS({
           console.log("\u274C Connector not configured");
           return;
         }
+        const tallyResult = await getTallyCompanies();
+        if (!tallyResult.success || !tallyResult.companies?.length) {
+          console.log(
+            "\u274C Unable to identify Tally company"
+          );
+          return;
+        }
+        const tallyCompany = tallyResult.companies[0];
         socket.emit("register", {
           company_code: connectorConfig.company_code,
+          company_name: tallyCompany.name,
+          company_guid: tallyCompany.guid,
           connector_version: config.CONNECTOR_VERSION,
           computer_name: os.hostname()
         });
@@ -56947,6 +57876,56 @@ var require_client = __commonJS({
           timestamp: Date.now()
         });
       }
+      socket.on("getStockGodownSummary", async (data) => {
+        try {
+          console.log("=================================");
+          console.log("\u{1F4E6} STOCK GODOWN SUMMARY REQUEST");
+          console.log("=================================");
+          console.log(
+            "Company :",
+            data.company
+          );
+          console.log(
+            "Books Beginning From :",
+            data.booksBeginningFrom
+          );
+          const stockGodownSummary = await importStockSummary({
+            company: data.company,
+            booksBeginningFrom: data.booksBeginningFrom
+          });
+          const stockGodownRows = stockGodownSummary.data || [];
+          console.log(
+            "Godown-wise stock rows :",
+            stockGodownRows.length
+          );
+          socket.emit(
+            "getStockGodownSummaryResult",
+            {
+              success: true,
+              collectionName: "stockGodownBalances",
+              stockGodownCount: stockGodownRows.length
+            }
+          );
+          await protocolController.sendStockGodownSummary(
+            stockGodownRows
+          );
+          console.log(
+            "\u2705 Stock Godown Summary sent through protocol"
+          );
+        } catch (err) {
+          console.error(
+            "STOCK GODOWN SUMMARY ERROR"
+          );
+          console.error(err);
+          socket.emit(
+            "getStockGodownSummaryResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
       socket.on("getMasters", async (data) => {
         try {
           const result = await importMasters({
@@ -57036,26 +58015,30 @@ var require_client = __commonJS({
             fromDate: data.fromDate,
             toDate: data.toDate
           });
-
-
+          console.log("=== GUID REQUEST DEBUG ===");
+          console.log({
+            company: data.company,
+            fromDate: data.fromDate,
+            toDate: data.toDate,
+            booksBeginningFrom: data.booksBeginningFrom,
+            lastAlterId: data.lastAlterId,
+            syncMode: data.syncMode,
+            syncPeriod: data.syncPeriod
+          });
           const voucherGuids = await importVoucherGuids({
             company: data.company,
             fromDate: data.fromDate,
-            toDate: data.toDate
+            toDate: data.toDate,
+            booksBeginningFrom: data.booksBeginningFrom,
+            lastAlterId: data.lastAlterId,
+            syncMode: data.syncMode,
+            syncPeriod: data.syncPeriod
           });
-
-          console.log("=== CONNECTOR VOUCHER GUID RESULT ===", {
-    count: voucherGuids?.length || 0,
-    targetGuidPresent:
-        (voucherGuids || []).some(
-            x =>
-                (typeof x === "string"
-                    ? x
-                    : x?.guid) ===
-                "b06ee43a-c023-4bfc-b8d9-3fd85283e679-00002b6a"
-        )
-});
-
+          console.log(
+            "VOUCHER GUIDS RECEIVED FROM TALLY:",
+            voucherGuids.length
+          );
+          console.log("=== END GUID REQUEST DEBUG ===");
           socket.emit(
             "getMastersVoucherGuidsResult",
             {
@@ -57522,6 +58505,10 @@ var require_client = __commonJS({
             );
           }
           const voucherGuids = complete(data.batchId);
+          console.log(
+            "BULK GUID INPUT:",
+            voucherGuids
+          );
           socket.emit(
             "voucherByGuidCompleteAck",
             {
@@ -57690,16 +58677,33 @@ var require_client = __commonJS({
         try {
           const result = await getTrialBalance({
             company: data.company,
-            asOnDate: data.asOnDate
+            asOnDate: data.asOnDate,
+            booksBeginningFrom: data.booksBeginningFrom
           });
+          const trialBalanceRows = Array.isArray(result) ? result : result?.data || [];
+          console.log(
+            "Trial Balance Rows :",
+            trialBalanceRows.length
+          );
           socket.emit(
             "getTrialBalanceResult",
             {
               success: true,
-              data: result
+              collectionName: "trialBalance",
+              trialBalanceCount: trialBalanceRows.length
             }
           );
+          await protocolController.sendTrialBalance(
+            trialBalanceRows
+          );
+          console.log(
+            "\u2705 Trial Balance sent through protocol"
+          );
         } catch (err) {
+          console.error(
+            "GET TRIAL BALANCE ERROR"
+          );
+          console.error(err);
           socket.emit(
             "getTrialBalanceResult",
             {
