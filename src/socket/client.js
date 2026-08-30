@@ -196,7 +196,9 @@ socket.on("connect", async () => {
 
     if (!connectorConfig) {
 
-        console.log("❌ Connector not configured");
+        console.log(
+            "🆕 New connector - waiting for pairing"
+        );
 
         return;
 
@@ -240,9 +242,15 @@ socket.on("connect", async () => {
 
     });
 
-    socket.emit("testExport");
-
 });
+
+
+
+
+
+
+
+
 
     socket.on("disconnect", (reason) => {
 
