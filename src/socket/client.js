@@ -106,7 +106,9 @@ function connectServer() {
         socket
     );
 
-    socket.on("connect", () => {
+    /* 300826
+    socket.on("connect", async () => {
+
 
         console.log("=================================");
         console.log("✅ Connected to Billey Server");
@@ -123,19 +125,124 @@ if (!connectorConfig) {
 
 }
 
+
+const tallyResult =
+    await getTallyCompanies();
+
+if (
+    !tallyResult.success ||
+    !tallyResult.companies?.length
+) {
+
+    console.log(
+        "❌ Unable to identify Tally company"
+    );
+
+    return;
+
+}
+
+const tallyCompany =
+    tallyResult.companies[0];
+
 socket.emit("register", {
 
-    company_code: connectorConfig.company_code,
+    company_code:
+        connectorConfig.company_code,
 
-    connector_version: config.CONNECTOR_VERSION,
+    company_name:
+        tallyCompany.name,
 
-    computer_name: os.hostname()
+    company_guid:
+        tallyCompany.guid,
+
+    connector_version:
+        config.CONNECTOR_VERSION,
+
+    computer_name:
+        os.hostname()
 
 });
+
+socket.emit("register", {
+
+    company_code:
+        connectorConfig.company_code,
+
+    connector_version:
+        config.CONNECTOR_VERSION,
+
+    computer_name:
+        os.hostname()
+
+});
+
 
     socket.emit("testExport");
 
     });
+
+
+*/
+
+socket.on("connect", async () => {
+
+    console.log("=================================");
+    console.log("✅ Connected to Billey Server");
+    console.log("Socket ID :", socket.id);
+    console.log("=================================");
+
+    const connectorConfig = loadConfig();
+
+    if (!connectorConfig) {
+
+        console.log("❌ Connector not configured");
+
+        return;
+
+    }
+
+    const tallyResult =
+        await getTallyCompanies();
+
+    if (
+        !tallyResult.success ||
+        !tallyResult.companies?.length
+    ) {
+
+        console.log(
+            "❌ Unable to identify Tally company"
+        );
+
+        return;
+
+    }
+
+    const tallyCompany =
+        tallyResult.companies[0];
+
+    socket.emit("register", {
+
+        company_code:
+            connectorConfig.company_code,
+
+        company_name:
+            tallyCompany.name,
+
+        company_guid:
+            tallyCompany.guid,
+
+        connector_version:
+            config.CONNECTOR_VERSION,
+
+        computer_name:
+            os.hostname()
+
+    });
+
+    socket.emit("testExport");
+
+});
 
     socket.on("disconnect", (reason) => {
 

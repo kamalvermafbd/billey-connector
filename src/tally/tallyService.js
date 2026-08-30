@@ -186,6 +186,9 @@ console.log("====================================");
         }
       }
     );
+console.log("========== RAW TALLY RESPONSE ==========");
+console.log(response.data);
+console.log("========== END RAW TALLY RESPONSE ==========");
 
     // Tally response save
  /*   fs.appendFileSync(
@@ -1823,7 +1826,7 @@ async function fetchTallyCollectionByVoucherId({
 
 
 
-
+/*
 
 async function getTallyCompanies() {
 
@@ -1845,6 +1848,18 @@ async function getTallyCompanies() {
       </STATICVARIABLES>
 
     </DESC>
+
+    <TDL>
+  <TDLMESSAGE>
+    <COLLECTION NAME="BilleyCompanyCollection">
+      <TYPE>Company</TYPE>
+      <FETCH>
+        NAME,
+        GUID
+      </FETCH>
+    </COLLECTION>
+  </TDLMESSAGE>
+</TDL>
 
   </BODY>
 
@@ -1876,9 +1891,102 @@ return {
 };
 
 }
+*/
 
+async function getTallyCompanies() {
 
+  const xml = `
+<ENVELOPE>
 
+  <HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>Export</TALLYREQUEST>
+    <TYPE>Collection</TYPE>
+    <ID>BilleyCompanyCollection</ID>
+  </HEADER>
+
+  <BODY>
+
+    <DESC>
+
+      <STATICVARIABLES>
+        <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+      </STATICVARIABLES>
+
+      <TDL>
+
+        <TDLMESSAGE>
+
+          <COLLECTION NAME="BilleyCompanyCollection">
+
+            <TYPE>Company</TYPE>
+
+            <FETCH>
+              NAME,
+              GUID
+            </FETCH>
+
+          </COLLECTION>
+
+        </TDLMESSAGE>
+
+      </TDL>
+
+    </DESC>
+
+  </BODY>
+
+</ENVELOPE>
+`;
+
+  const result =
+    await sendToTally(xml);
+
+  const json =
+    parser.parse(result);
+
+  const rawCompanies =
+    json
+      ?.ENVELOPE
+      ?.BODY
+      ?.DATA
+      ?.COLLECTION
+      ?.COMPANY;
+
+  const companyList =
+    toArray(rawCompanies);
+
+  const companies =
+    companyList
+      .map(company => ({
+
+        name:
+          getValue(company.NAME) ||
+          getValue(company.name),
+
+        guid:
+          getValue(company.GUID) ||
+          getValue(company.guid)
+
+      }))
+      .filter(company =>
+        company.name
+      );
+
+  console.log(
+    "TALLY COMPANIES:",
+    companies
+  );
+
+  return {
+
+    success: true,
+
+    companies
+
+  };
+
+}
 
 
 
@@ -1908,9 +2016,7 @@ return {
 // SELECT TALLY COMPANY
 // =========================
 
-async function selectCompany(
-  companyName
-) {
+async function selectCompany(companyName, companyGuid) {
 
   const xml = `
 <ENVELOPE>
