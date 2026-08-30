@@ -24317,7 +24317,7 @@ var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
       SERVER_URL: "https://webthaali-api.onrender.com",
-      // SERVER_URL: "http://localhost:5000",
+      //SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -57729,7 +57729,9 @@ var require_client = __commonJS({
         console.log("=================================");
         const connectorConfig = loadConfig();
         if (!connectorConfig) {
-          console.log("\u274C Connector not configured");
+          console.log(
+            "\u{1F195} New connector - waiting for pairing"
+          );
           return;
         }
         const tallyResult = await getTallyCompanies();
@@ -57747,7 +57749,6 @@ var require_client = __commonJS({
           connector_version: config.CONNECTOR_VERSION,
           computer_name: os.hostname()
         });
-        socket.emit("testExport");
       });
       socket.on("disconnect", (reason) => {
         console.log("=================================");

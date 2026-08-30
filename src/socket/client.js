@@ -272,13 +272,41 @@ socket.on("connect", async () => {
 
 socket.on("getTallyCompanies", async () => {
 
-    const result =
-        await getTallyCompanies();
+    try {
 
-    socket.emit(
-        "getTallyCompaniesResult",
-        result
-    );
+        console.log("=================================");
+        console.log("📋 GET TALLY COMPANIES REQUEST");
+        console.log("=================================");
+
+        const result =
+            await getTallyCompanies();
+
+        console.log(
+            "TALLY COMPANIES RESULT:",
+            result
+        );
+
+        socket.emit(
+            "getTallyCompaniesResult",
+            result
+        );
+
+    } catch (err) {
+
+        console.error(
+            "❌ GET TALLY COMPANIES ERROR:",
+            err
+        );
+
+        socket.emit(
+            "getTallyCompaniesResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
 
 });
 
@@ -381,26 +409,37 @@ socket.on("pair", async (data) => {
         saveConfig
     } = require("../config/connectorConfig");
 
-    saveConfig({
+ saveConfig({
 
-        company_code:
-            data.company_code
+    company_code:
+        data.company_code,
 
-    });
+    company_name:
+        data.company_name,
+
+    company_guid:
+        data.company_guid
+
+});
 
     socket.emit("register", {
 
-        company_code:
-            data.company_code,
+    company_code:
+        data.company_code,
 
-        connector_version:
-            config.CONNECTOR_VERSION,
+    company_name:
+        data.company_name,
 
-        computer_name:
-            os.hostname()
+    company_guid:
+        data.company_guid,
 
-    });
+    connector_version:
+        config.CONNECTOR_VERSION,
 
+    computer_name:
+        os.hostname()
+
+});
     socket.emit(
         "pairResult",
         {
