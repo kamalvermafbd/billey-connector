@@ -1,7 +1,11 @@
 const io = require("socket.io-client");
 const os = require("os");
 const config = require("../config/config");
-const { loadConfig } = require("../config/connectorConfig");
+const {
+    loadConfig,
+    saveConfig
+} = require("../config/connectorConfig");
+
 const {
     sendToTally,
     getTallyCompanies,
@@ -234,6 +238,9 @@ socket.on("connect", async () => {
         company_guid:
             tallyCompany.guid,
 
+          connector_id:
+        connectorConfig.connector_id,
+
         connector_version:
             config.CONNECTOR_VERSION,
 
@@ -405,41 +412,47 @@ socket.on("exportSalesToTally", async (data) => {
 
 socket.on("pair", async (data) => {
 
-    const {
-        saveConfig
-    } = require("../config/connectorConfig");
+    socket.connectorId =
+        data.connector_id;
 
- saveConfig({
+         saveConfig({
 
-    company_code:
-        data.company_code,
+        company_code:
+            data.company_code,
 
-    company_name:
-        data.company_name,
+        company_name:
+            data.company_name,
 
-    company_guid:
-        data.company_guid
+        company_guid:
+            data.company_guid,
 
-});
+        connector_id:
+            data.connector_id
+
+    });
 
     socket.emit("register", {
 
-    company_code:
-        data.company_code,
+        company_code:
+            data.company_code,
 
-    company_name:
-        data.company_name,
+        company_name:
+            data.company_name,
 
-    company_guid:
-        data.company_guid,
+        company_guid:
+            data.company_guid,
 
-    connector_version:
-        config.CONNECTOR_VERSION,
+        connector_id:
+            data.connector_id,
 
-    computer_name:
-        os.hostname()
+        connector_version:
+            config.CONNECTOR_VERSION,
 
-});
+        computer_name:
+            os.hostname()
+
+    });
+
     socket.emit(
         "pairResult",
         {
@@ -448,7 +461,6 @@ socket.on("pair", async (data) => {
     );
 
 });
-
 
 socket.on("getTallyMappingData", async (data) => {
 

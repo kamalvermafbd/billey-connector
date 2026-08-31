@@ -24317,7 +24317,7 @@ var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
       SERVER_URL: "https://webthaali-api.onrender.com",
-      //SERVER_URL: "http://localhost:5000",
+      // SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -57763,11 +57763,32 @@ var require_client = __commonJS({
         console.log("=================================");
       });
       socket.on("getTallyCompanies", async () => {
-        const result = await getTallyCompanies();
-        socket.emit(
-          "getTallyCompaniesResult",
-          result
-        );
+        try {
+          console.log("=================================");
+          console.log("\u{1F4CB} GET TALLY COMPANIES REQUEST");
+          console.log("=================================");
+          const result = await getTallyCompanies();
+          console.log(
+            "TALLY COMPANIES RESULT:",
+            result
+          );
+          socket.emit(
+            "getTallyCompaniesResult",
+            result
+          );
+        } catch (err) {
+          console.error(
+            "\u274C GET TALLY COMPANIES ERROR:",
+            err
+          );
+          socket.emit(
+            "getTallyCompaniesResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
       });
       socket.on("createUnitsInTally", async (data) => {
         const result = await sendToTally(
@@ -57835,10 +57856,14 @@ var require_client = __commonJS({
           saveConfig
         } = require_connectorConfig();
         saveConfig({
-          company_code: data.company_code
+          company_code: data.company_code,
+          company_name: data.company_name,
+          company_guid: data.company_guid
         });
         socket.emit("register", {
           company_code: data.company_code,
+          company_name: data.company_name,
+          company_guid: data.company_guid,
           connector_version: config.CONNECTOR_VERSION,
           computer_name: os.hostname()
         });
