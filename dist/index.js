@@ -57730,8 +57730,8 @@ var require_client = __commonJS({
         console.log("\u2705 Connected to Billey Server");
         console.log("Socket ID :", socket.id);
         console.log("=================================");
-        const connectorConfig2 = loadConfig();
-        if (!connectorConfig2) {
+        const connectorConfig = loadConfig();
+        if (!connectorConfig) {
           console.log(
             "\u{1F195} New connector - waiting for pairing"
           );
@@ -57746,10 +57746,10 @@ var require_client = __commonJS({
         }
         const tallyCompany = tallyResult.companies[0];
         socket.emit("register", {
-          company_code: connectorConfig2.company_code,
+          company_code: connectorConfig.company_code,
           company_name: tallyCompany.name,
           company_guid: tallyCompany.guid,
-          connector_id: connectorConfig2.connector_id,
+          connector_id: connectorConfig.connector_id,
           connector_version: config.CONNECTOR_VERSION,
           computer_name: os.hostname()
         });
@@ -57864,7 +57864,12 @@ var require_client = __commonJS({
           connector_id: data.connector_id
         });
         socket.emit("register", {
-          connector_id: connectorConfig.connector_id
+          company_code: data.company_code,
+          company_name: data.company_name,
+          company_guid: data.company_guid,
+          connector_id: data.connector_id,
+          connector_version: config.CONNECTOR_VERSION,
+          computer_name: os.hostname()
         });
         socket.emit(
           "pairResult",

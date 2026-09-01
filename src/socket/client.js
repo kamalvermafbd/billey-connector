@@ -195,7 +195,7 @@ socket.on("connect", async () => {
     console.log("✅ Connected to Billey Server");
     console.log("Socket ID :", socket.id);
     console.log("=================================");
-
+/* 010926 change
     const connectorConfig = loadConfig();
 
     if (!connectorConfig) {
@@ -207,6 +207,22 @@ socket.on("connect", async () => {
         return;
 
     }
+*/
+
+    const connectorConfig = loadConfig();
+
+if (
+    !connectorConfig ||
+    !connectorConfig.connector_id
+) {
+
+    console.log(
+        "🆕 Connector not paired - waiting for pairing"
+    );
+
+    return;
+
+}
 
     const tallyResult =
         await getTallyCompanies();
