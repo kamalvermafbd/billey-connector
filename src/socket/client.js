@@ -430,7 +430,7 @@ socket.on("pair", async (data) => {
             data.connector_id
 
     });
-/*
+
     socket.emit("register", {
 
         company_code:
@@ -452,15 +452,15 @@ socket.on("pair", async (data) => {
             os.hostname()
 
     });
-*/
 
+/*
 socket.emit("register", {
 
     connector_id:
         connectorConfig.connector_id
 
 });
-
+*/
 
     socket.emit(
         "pairResult",

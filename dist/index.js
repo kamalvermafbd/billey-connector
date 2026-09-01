@@ -24317,7 +24317,7 @@ var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
       SERVER_URL: "https://webthaali-api.onrender.com",
-      //SERVER_URL: "http://localhost:5000",
+      // SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -57730,8 +57730,8 @@ var require_client = __commonJS({
         console.log("\u2705 Connected to Billey Server");
         console.log("Socket ID :", socket.id);
         console.log("=================================");
-        const connectorConfig = loadConfig();
-        if (!connectorConfig) {
+        const connectorConfig2 = loadConfig();
+        if (!connectorConfig2) {
           console.log(
             "\u{1F195} New connector - waiting for pairing"
           );
@@ -57746,10 +57746,10 @@ var require_client = __commonJS({
         }
         const tallyCompany = tallyResult.companies[0];
         socket.emit("register", {
-          company_code: connectorConfig.company_code,
+          company_code: connectorConfig2.company_code,
           company_name: tallyCompany.name,
           company_guid: tallyCompany.guid,
-          connector_id: connectorConfig.connector_id,
+          connector_id: connectorConfig2.connector_id,
           connector_version: config.CONNECTOR_VERSION,
           computer_name: os.hostname()
         });
@@ -57864,12 +57864,7 @@ var require_client = __commonJS({
           connector_id: data.connector_id
         });
         socket.emit("register", {
-          company_code: data.company_code,
-          company_name: data.company_name,
-          company_guid: data.company_guid,
-          connector_id: data.connector_id,
-          connector_version: config.CONNECTOR_VERSION,
-          computer_name: os.hostname()
+          connector_id: connectorConfig.connector_id
         });
         socket.emit(
           "pairResult",
