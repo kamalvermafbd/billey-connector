@@ -24317,7 +24317,7 @@ var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
       SERVER_URL: "https://webthaali-api.onrender.com",
-      // SERVER_URL: "http://localhost:5000",
+      //SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -57652,7 +57652,10 @@ var require_client = __commonJS({
     var io = require_cjs5();
     var os = require("os");
     var config = require_config();
-    var { loadConfig } = require_connectorConfig();
+    var {
+      loadConfig,
+      saveConfig
+    } = require_connectorConfig();
     var {
       sendToTally,
       getTallyCompanies,
@@ -57746,6 +57749,7 @@ var require_client = __commonJS({
           company_code: connectorConfig.company_code,
           company_name: tallyCompany.name,
           company_guid: tallyCompany.guid,
+          connector_id: connectorConfig.connector_id,
           connector_version: config.CONNECTOR_VERSION,
           computer_name: os.hostname()
         });
@@ -57852,18 +57856,18 @@ var require_client = __commonJS({
         );
       });
       socket.on("pair", async (data) => {
-        const {
-          saveConfig
-        } = require_connectorConfig();
+        socket.connectorId = data.connector_id;
         saveConfig({
           company_code: data.company_code,
           company_name: data.company_name,
-          company_guid: data.company_guid
+          company_guid: data.company_guid,
+          connector_id: data.connector_id
         });
         socket.emit("register", {
           company_code: data.company_code,
           company_name: data.company_name,
           company_guid: data.company_guid,
+          connector_id: data.connector_id,
           connector_version: config.CONNECTOR_VERSION,
           computer_name: os.hostname()
         });
