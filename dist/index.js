@@ -57731,9 +57731,9 @@ var require_client = __commonJS({
         console.log("Socket ID :", socket.id);
         console.log("=================================");
         const connectorConfig = loadConfig();
-        if (!connectorConfig) {
+        if (!connectorConfig || !connectorConfig.connector_id) {
           console.log(
-            "\u{1F195} New connector - waiting for pairing"
+            "\u{1F195} Connector not paired - waiting for pairing"
           );
           return;
         }
