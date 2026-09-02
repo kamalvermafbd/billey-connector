@@ -1,10 +1,12 @@
 const io = require("socket.io-client");
 const os = require("os");
 const config = require("../config/config");
+/*020926
 const {
     loadConfig,
     saveConfig
 } = require("../config/connectorConfig");
+*/
 
 const {
     sendToTally,
@@ -90,6 +92,14 @@ const {
 let socket = null;
 
 function connectServer() {
+
+     console.log(
+        "🔥 CONNECTSERVER CALLED",
+        "PID:", process.pid,
+        "TIME:", new Date().toISOString()
+    );
+
+    console.trace("CONNECTSERVER CALL STACK");
 
     console.log("Connecting to Billey Server...");
 
@@ -189,6 +199,7 @@ socket.emit("register", {
 
 */
 
+/*020926
 socket.on("connect", async () => {
 
     console.log("=================================");
@@ -254,15 +265,19 @@ socket.on("connect", async () => {
 
 });
 
+*/
+
+socket.on("connect", async () => {
+
+    console.log("================================");
+    console.log("Connected to Billey Server");
+    console.log("Socket ID :", socket.id);
+    console.log("================================");
+
+});
 
 
-
-
-
-
-
-
-    socket.on("disconnect", (reason) => {
+socket.on("disconnect", (reason) => {
 
     console.log("=================================");
     console.log("❌ Disconnected from Billey Server");
@@ -418,7 +433,7 @@ socket.on("pair", async (data) => {
     socket.connectorId =
         data.connector_id;
 
-         saveConfig({
+ /*        saveConfig({
 
         company_code:
             data.company_code,
@@ -433,7 +448,7 @@ socket.on("pair", async (data) => {
             data.connector_id
 
     });
-
+*/
     socket.emit("register", {
 
         company_code:

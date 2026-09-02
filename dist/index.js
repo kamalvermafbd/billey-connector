@@ -24316,8 +24316,8 @@ var require_express2 = __commonJS({
 var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
-      SERVER_URL: "https://webthaali-api.onrender.com",
-      // SERVER_URL: "http://localhost:5000",
+      // SERVER_URL: "https://webthaali-api.onrender.com",
+      SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -32537,48 +32537,6 @@ var require_cjs5 = __commonJS({
       return engine_io_client_1.WebTransport;
     } });
     module2.exports = lookup;
-  }
-});
-
-// src/config/connectorConfig.js
-var require_connectorConfig = __commonJS({
-  "src/config/connectorConfig.js"(exports2, module2) {
-    var fs = require("fs");
-    var path = require("path");
-    var os = require("os");
-    var CONFIG_DIR = path.join(
-      os.homedir(),
-      "AppData",
-      "Roaming",
-      "Billey Connector"
-    );
-    if (!fs.existsSync(CONFIG_DIR)) {
-      fs.mkdirSync(CONFIG_DIR, {
-        recursive: true
-      });
-    }
-    var CONFIG_FILE = path.join(
-      CONFIG_DIR,
-      "connector.json"
-    );
-    function loadConfig() {
-      if (!fs.existsSync(CONFIG_FILE)) {
-        return null;
-      }
-      return JSON.parse(
-        fs.readFileSync(CONFIG_FILE, "utf8")
-      );
-    }
-    function saveConfig(config) {
-      fs.writeFileSync(
-        CONFIG_FILE,
-        JSON.stringify(config, null, 2)
-      );
-    }
-    module2.exports = {
-      loadConfig,
-      saveConfig
-    };
   }
 });
 
@@ -57653,10 +57611,6 @@ var require_client = __commonJS({
     var os = require("os");
     var config = require_config();
     var {
-      loadConfig,
-      saveConfig
-    } = require_connectorConfig();
-    var {
       sendToTally,
       getTallyCompanies,
       getTallyMappingData,
@@ -57715,6 +57669,14 @@ var require_client = __commonJS({
     } = require_reportService();
     var socket = null;
     function connectServer() {
+      console.log(
+        "\u{1F525} CONNECTSERVER CALLED",
+        "PID:",
+        process.pid,
+        "TIME:",
+        (/* @__PURE__ */ new Date()).toISOString()
+      );
+      console.trace("CONNECTSERVER CALL STACK");
       console.log("Connecting to Billey Server...");
       socket = io(config.SERVER_URL, {
         transports: ["websocket"],
@@ -57726,33 +57688,10 @@ var require_client = __commonJS({
         socket
       );
       socket.on("connect", async () => {
-        console.log("=================================");
-        console.log("\u2705 Connected to Billey Server");
+        console.log("================================");
+        console.log("Connected to Billey Server");
         console.log("Socket ID :", socket.id);
-        console.log("=================================");
-        const connectorConfig = loadConfig();
-        if (!connectorConfig || !connectorConfig.connector_id) {
-          console.log(
-            "\u{1F195} Connector not paired - waiting for pairing"
-          );
-          return;
-        }
-        const tallyResult = await getTallyCompanies();
-        if (!tallyResult.success || !tallyResult.companies?.length) {
-          console.log(
-            "\u274C Unable to identify Tally company"
-          );
-          return;
-        }
-        const tallyCompany = tallyResult.companies[0];
-        socket.emit("register", {
-          company_code: connectorConfig.company_code,
-          company_name: tallyCompany.name,
-          company_guid: tallyCompany.guid,
-          connector_id: connectorConfig.connector_id,
-          connector_version: config.CONNECTOR_VERSION,
-          computer_name: os.hostname()
-        });
+        console.log("================================");
       });
       socket.on("disconnect", (reason) => {
         console.log("=================================");
@@ -57857,12 +57796,6 @@ var require_client = __commonJS({
       });
       socket.on("pair", async (data) => {
         socket.connectorId = data.connector_id;
-        saveConfig({
-          company_code: data.company_code,
-          company_name: data.company_name,
-          company_guid: data.company_guid,
-          connector_id: data.connector_id
-        });
         socket.emit("register", {
           company_code: data.company_code,
           company_name: data.company_name,
@@ -58757,6 +58690,48 @@ var require_client = __commonJS({
     }
     module2.exports = {
       connectServer
+    };
+  }
+});
+
+// src/config/connectorConfig.js
+var require_connectorConfig = __commonJS({
+  "src/config/connectorConfig.js"(exports2, module2) {
+    var fs = require("fs");
+    var path = require("path");
+    var os = require("os");
+    var CONFIG_DIR = path.join(
+      os.homedir(),
+      "AppData",
+      "Roaming",
+      "Billey Connector"
+    );
+    if (!fs.existsSync(CONFIG_DIR)) {
+      fs.mkdirSync(CONFIG_DIR, {
+        recursive: true
+      });
+    }
+    var CONFIG_FILE = path.join(
+      CONFIG_DIR,
+      "connector.json"
+    );
+    function loadConfig() {
+      if (!fs.existsSync(CONFIG_FILE)) {
+        return null;
+      }
+      return JSON.parse(
+        fs.readFileSync(CONFIG_FILE, "utf8")
+      );
+    }
+    function saveConfig(config) {
+      fs.writeFileSync(
+        CONFIG_FILE,
+        JSON.stringify(config, null, 2)
+      );
+    }
+    module2.exports = {
+      loadConfig,
+      saveConfig
     };
   }
 });
