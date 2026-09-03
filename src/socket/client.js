@@ -103,6 +103,7 @@ function connectServer() {
 
     console.log("Connecting to Billey Server...");
 
+    console.log("SOCKET CONNECT TARGET :", config.SERVER_URL);
     socket = io(config.SERVER_URL, {
 
         transports: ["websocket"],
@@ -273,7 +274,51 @@ socket.on("connect", async () => {
     console.log("Connected to Billey Server");
     console.log("Socket ID :", socket.id);
     console.log("================================");
+// 030926 added
+      try {
 
+        const tallyResult =
+            await getTallyCompanies();
+
+        if (
+            !tallyResult.success ||
+            !tallyResult.companies?.length
+        ) {
+
+            console.log(
+                "❌ Unable to identify Tally companies"
+            );
+
+            return;
+
+        }
+
+        const company_guids =
+            tallyResult.companies
+                .map(company => company.guid)
+                .filter(Boolean);
+
+        console.log(
+            "IDENTIFY CONNECTOR GUIDS:",
+            company_guids
+        );
+
+        socket.emit(
+            "identifyConnector",
+            {
+                company_guids
+            }
+        );
+
+    } catch (err) {
+
+        console.error(
+            "❌ CONNECTOR IDENTIFICATION ERROR:",
+            err
+        );
+
+    }
+//
 });
 
 
