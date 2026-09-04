@@ -76,38 +76,7 @@ function buildStockSummaryRequest({
             </STATICVARIABLES>
 
 
-            <TDL>
-
-                <TDLMESSAGE>
-
-                    <REPORT NAME="Stock Summary">
-
-                        <VARIABLE>
-                            EXPLODEFLAG,
-                            SHOWGODOWN,
-                            ISITEMWISE
-                        </VARIABLE>
-
-
-                        <SET>
-                            EXPLODEFLAG : Yes
-                        </SET>
-
-
-                        <SET>
-                            SHOWGODOWN : Yes
-                        </SET>
-
-
-                        <SET>
-                            ISITEMWISE : Yes
-                        </SET>
-
-                    </REPORT>
-
-                </TDLMESSAGE>
-
-            </TDL>
+           
 
         </DESC>
 

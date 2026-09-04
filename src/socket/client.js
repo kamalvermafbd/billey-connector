@@ -277,8 +277,12 @@ socket.on("connect", async () => {
 // 030926 added
       try {
 
+        console.log("🔎 STARTING TALLY COMPANY IDENTIFICATION");
+
         const tallyResult =
             await getTallyCompanies();
+
+        console.log("🔎 TALLY COMPANY IDENTIFICATION RESULT RECEIVED");
 
         if (
             !tallyResult.success ||
