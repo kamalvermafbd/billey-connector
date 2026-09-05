@@ -221,13 +221,7 @@ await executeChunks({
         const responseXml =
             await sendToTally(requestXml);
 
-            
-fs.writeFileSync(
-    "./logs/BULK-GUID-RAW-RESPONSE.xml",
-    String(responseXml || ""),
-    "utf8"
-);
-
+    
             console.log(
     "BULK GUID RESPONSE SIZE:",
     Buffer.byteLength(String(responseXml || ""), "utf8")
@@ -254,15 +248,7 @@ console.log(
                 lookups
             );
 
-                    fs.writeFileSync(
-            "./logs/BULK-GUID-PARSED-RESPONSE.json",
-            JSON.stringify(
-                vouchers,
-                null,
-                2
-            ),
-            "utf8"
-        );
+                
 
         console.log(
             "BULK CHUNK:",
