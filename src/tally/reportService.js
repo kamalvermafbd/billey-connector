@@ -102,13 +102,13 @@ async function getTrialBalance({
 
     const result =
         await sendToTally(xml);
-
+/*
     fs.writeFileSync(
         "./trial-balance-raw.xml",
         String(result),
         "utf8"
     );
-
+*/
     console.log("TB RAW RESPONSE SAVED");
 
     const json =

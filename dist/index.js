@@ -57408,11 +57408,6 @@ var require_reportService = __commonJS({
 </ENVELOPE>
 `;
       const result = await sendToTally(xml);
-      fs.writeFileSync(
-        "./trial-balance-raw.xml",
-        String(result),
-        "utf8"
-      );
       console.log("TB RAW RESPONSE SAVED");
       const json = parser.parse(result);
       const ledgerData = json.ENVELOPE?.BODY?.DATA?.COLLECTION?.LEDGER || [];
