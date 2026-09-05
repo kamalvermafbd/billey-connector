@@ -1119,7 +1119,7 @@ ${
 console.log("=== FINAL VOUCHER DISCOVERY XML ===");
 console.log(xml);
 console.log("=== END VOUCHER DISCOVERY XML ===");
-
+/*
 fs.writeFileSync(
     path.join(
         __dirname,
@@ -1130,7 +1130,7 @@ fs.writeFileSync(
     xml,
     "utf8"
 );
-
+*/
     console.log(
         "======================================"
     );
