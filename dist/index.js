@@ -24317,7 +24317,7 @@ var require_config = __commonJS({
   "src/config/config.js"(exports2, module2) {
     module2.exports = {
       SERVER_URL: "https://webthaali-api.onrender.com",
-      // SERVER_URL: "http://localhost:5000",
+      //  SERVER_URL: "http://localhost:5000",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -56003,38 +56003,7 @@ var require_stockSummaryRequest = __commonJS({
             </STATICVARIABLES>
 
 
-            <TDL>
-
-                <TDLMESSAGE>
-
-                    <REPORT NAME="Stock Summary">
-
-                        <VARIABLE>
-                            EXPLODEFLAG,
-                            SHOWGODOWN,
-                            ISITEMWISE
-                        </VARIABLE>
-
-
-                        <SET>
-                            EXPLODEFLAG : Yes
-                        </SET>
-
-
-                        <SET>
-                            SHOWGODOWN : Yes
-                        </SET>
-
-
-                        <SET>
-                            ISITEMWISE : Yes
-                        </SET>
-
-                    </REPORT>
-
-                </TDLMESSAGE>
-
-            </TDL>
+           
 
         </DESC>
 
@@ -57678,6 +57647,7 @@ var require_client = __commonJS({
       );
       console.trace("CONNECTSERVER CALL STACK");
       console.log("Connecting to Billey Server...");
+      console.log("SOCKET CONNECT TARGET :", config.SERVER_URL);
       socket = io(config.SERVER_URL, {
         transports: ["websocket"],
         reconnection: true,
@@ -57692,6 +57662,33 @@ var require_client = __commonJS({
         console.log("Connected to Billey Server");
         console.log("Socket ID :", socket.id);
         console.log("================================");
+        try {
+          console.log("\u{1F50E} STARTING TALLY COMPANY IDENTIFICATION");
+          const tallyResult = await getTallyCompanies();
+          console.log("\u{1F50E} TALLY COMPANY IDENTIFICATION RESULT RECEIVED");
+          if (!tallyResult.success || !tallyResult.companies?.length) {
+            console.log(
+              "\u274C Unable to identify Tally companies"
+            );
+            return;
+          }
+          const company_guids = tallyResult.companies.map((company) => company.guid).filter(Boolean);
+          console.log(
+            "IDENTIFY CONNECTOR GUIDS:",
+            company_guids
+          );
+          socket.emit(
+            "identifyConnector",
+            {
+              company_guids
+            }
+          );
+        } catch (err) {
+          console.error(
+            "\u274C CONNECTOR IDENTIFICATION ERROR:",
+            err
+          );
+        }
       });
       socket.on("disconnect", (reason) => {
         console.log("=================================");
