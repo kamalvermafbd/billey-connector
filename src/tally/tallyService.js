@@ -1119,18 +1119,7 @@ ${
 console.log("=== FINAL VOUCHER DISCOVERY XML ===");
 console.log(xml);
 console.log("=== END VOUCHER DISCOVERY XML ===");
-/*
-fs.writeFileSync(
-    path.join(
-        __dirname,
-        "..",
-        "logs",
-        `VOUCHER-DISCOVERY-${Date.now()}.xml`
-    ),
-    xml,
-    "utf8"
-);
-*/
+
     console.log(
         "======================================"
     );
@@ -1174,13 +1163,13 @@ fs.writeFileSync(
 
     const response =
         await sendToTally(xml);
-
+/*
      fs.writeFileSync(
     path.join(__dirname, "../../logs/VOUCHER_DISCOVERY_DEBUG.xml"),
     String(response || ""),
     "utf8"
 );
-
+*/
     if (!response) {
         throw new Error(
             "Empty response received from Tally."
