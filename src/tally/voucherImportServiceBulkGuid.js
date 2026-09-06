@@ -249,6 +249,17 @@ console.log(
             );
 
                 
+     /*     
+fs.writeFileSync(
+ "./logs/BULK-GUID-PARSED-RESPONSE.json",
+ JSON.stringify(
+ vouchers,
+ null,
+ 2
+),
+ "utf8"
+ );
+      */
 
         console.log(
             "BULK CHUNK:",

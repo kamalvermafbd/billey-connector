@@ -53828,15 +53828,6 @@ var require_voucherParser = __commonJS({
         const stockOutCount = inventory.filter(
           (row) => row.movementType === "OUT" || row.materialMovement === "OUT"
         ).length;
-        fs.appendFileSync(
-          "./logs/STOCK-COUNT-CONNECTOR.jsonl",
-          JSON.stringify({
-            guid: header.guid,
-            persistedView: header.persistedView,
-            stockInCount,
-            stockOutCount
-          }) + "\n"
-        );
         const parsedVoucher = {
           header,
           ledgers,

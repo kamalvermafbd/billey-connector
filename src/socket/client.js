@@ -1,7 +1,7 @@
 const io = require("socket.io-client");
 const os = require("os");
 const config = require("../config/config");
-/*020926
+/*060926
 const {
     loadConfig,
     saveConfig
@@ -274,7 +274,7 @@ socket.on("connect", async () => {
     console.log("Connected to Billey Server");
     console.log("Socket ID :", socket.id);
     console.log("================================");
-// 030926 added
+
       try {
 
         console.log("🔎 STARTING TALLY COMPANY IDENTIFICATION");
@@ -482,22 +482,6 @@ socket.on("pair", async (data) => {
     socket.connectorId =
         data.connector_id;
 
- /*        saveConfig({
-
-        company_code:
-            data.company_code,
-
-        company_name:
-            data.company_name,
-
-        company_guid:
-            data.company_guid,
-
-        connector_id:
-            data.connector_id
-
-    });
-*/
     socket.emit("register", {
 
         company_code:
@@ -520,14 +504,7 @@ socket.on("pair", async (data) => {
 
     });
 
-/*
-socket.emit("register", {
 
-    connector_id:
-        connectorConfig.connector_id
-
-});
-*/
 
     socket.emit(
         "pairResult",

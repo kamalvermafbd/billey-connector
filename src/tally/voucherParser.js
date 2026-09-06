@@ -125,7 +125,7 @@ const stockOutCount = inventory.filter(
         row.movementType === "OUT" ||
         row.materialMovement === "OUT"
 ).length;
-
+/*
 fs.appendFileSync(
     "./logs/STOCK-COUNT-CONNECTOR.jsonl",
     JSON.stringify({
@@ -135,7 +135,7 @@ fs.appendFileSync(
         stockOutCount
     }) + "\n"
 );
-
+*/
 const parsedVoucher = {
     header,
     ledgers,
