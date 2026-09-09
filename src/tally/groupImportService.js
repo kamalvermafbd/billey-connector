@@ -22,6 +22,7 @@ async function importGroups({
    // const requestXml = buildGroupRequest();
 const requestXml =
     buildGroupRequest({
+           company,
         masterIds
     });
     

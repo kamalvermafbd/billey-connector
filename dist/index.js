@@ -52672,6 +52672,7 @@ var require_groupImportService = __commonJS({
     }) {
       await selectCompany(company);
       const requestXml = buildGroupRequest({
+        company,
         masterIds
       });
       const responseXml = await sendToTally(requestXml);
