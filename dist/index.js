@@ -53297,7 +53297,7 @@ var require_voucherHeader = __commonJS({
         masterid: getValue(v.MASTERID),
         alterid: getValue(v.ALTERID),
         voucherType: getValue(v.VOUCHERTYPENAME),
-        //voucherTypeName: getValue(v.VOUCHERTYPENAME),
+        voucherTypeName: getValue(v.VOUCHERTYPENAME),
         voucherNumber: getValue(v.VOUCHERNUMBER),
         voucherDate: getValue(v.DATE),
         effectiveDate: getValue(v.EFFECTIVEDATE),
