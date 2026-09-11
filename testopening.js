@@ -20,7 +20,7 @@ const fs = require("fs");
 // ==========================================
 
 const COMPANY = "Sunil Ent(Client";
-const LEDGER_NAME = "Sudhir Traders";
+const LEDGER_NAME = "Rahul Trading";
 
 const BOOKS_BEGINNING_FROM = "2021-04-01";
 

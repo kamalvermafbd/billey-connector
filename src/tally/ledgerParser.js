@@ -20,6 +20,45 @@ function getValue(node) {
 
 }
 
+function calculateDueDate(billDate, creditPeriod) {
+
+    const dateText = String(billDate || "").trim();
+    const periodText = String(creditPeriod || "").trim();
+
+    if (!dateText || !periodText) return null;
+
+    const year = Number(dateText.slice(0, 4));
+    const month = Number(dateText.slice(4, 6));
+    const day = Number(dateText.slice(6, 8));
+
+    if (!year || !month || !day) return null;
+
+    const date = new Date(Date.UTC(year, month - 1, day));
+
+    const match = periodText.match(
+        /^(\d+)\s*(Day|Days|Month|Months|Year|Years)$/i
+    );
+
+    if (!match) return null;
+
+    const value = Number(match[1]);
+    const unit = match[2].toLowerCase();
+
+    if (unit === "day" || unit === "days") {
+        date.setUTCDate(date.getUTCDate() + value);
+    }
+
+    if (unit === "month" || unit === "months") {
+        date.setUTCMonth(date.getUTCMonth() + value);
+    }
+
+    if (unit === "year" || unit === "years") {
+        date.setUTCFullYear(date.getUTCFullYear() + value);
+    }
+
+    return date.toISOString().slice(0, 10);
+}
+
 function parseLedgerResponse(xml) {
 
     const parser = new XMLParser({
@@ -125,7 +164,11 @@ const openingBillAllocations =
         .map(bill => ({
             billName: getValue(bill.NAME),
             billDate: getValue(bill.BILLDATE),
-            dueDate: getValue(bill.BILLCREDITPERIOD),
+           // dueDate: getValue(bill.BILLCREDITPERIOD),
+           dueDate: calculateDueDate(
+                    getValue(bill.BILLDATE),
+                    getValue(bill.BILLCREDITPERIOD)
+                ),
             openingBalance: Number(
                 getValue(bill.OPENINGBALANCE) || 0
             )
