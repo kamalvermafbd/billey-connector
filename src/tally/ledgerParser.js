@@ -113,6 +113,28 @@ global.parentDebug.push({
 
     const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
 
+    const billAllocations =
+    Array.isArray(ledger["BILLALLOCATIONS.LIST"])
+        ? ledger["BILLALLOCATIONS.LIST"]
+        : ledger["BILLALLOCATIONS.LIST"]
+            ? [ledger["BILLALLOCATIONS.LIST"]]
+            : [];
+
+const openingBillAllocations =
+    billAllocations
+        .map(bill => ({
+            billName: getValue(bill.NAME),
+            billDate: getValue(bill.BILLDATE),
+            dueDate: getValue(bill.BILLCREDITPERIOD),
+            openingBalance: Number(
+                getValue(bill.OPENINGBALANCE) || 0
+            )
+        }))
+        .filter(bill =>
+            bill.billName &&
+            bill.openingBalance !== 0
+        );
+
     return {
 
     guid: getValue(ledger.GUID),
@@ -185,6 +207,8 @@ openingBalanceType:
             ? "CR"
             : "",
 
+            openingBillAllocations,
+            
     isBillWise:
         String(getValue(ledger.ISBILLWISEON)).toUpperCase() === "YES",
 

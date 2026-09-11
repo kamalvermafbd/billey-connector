@@ -54158,8 +54158,14 @@ var require_ledgerRequest = __commonJS({
 
                             OPENINGBALANCE,
                             OPENINGBALANCEON,
-
                             ISBILLWISEON,
+
+                            BILLALLOCATIONS.LIST,
+                            BILLALLOCATIONS.LIST.NAME,
+                            BILLALLOCATIONS.LIST.BILLDATE,
+                            BILLALLOCATIONS.LIST.BILLCREDITPERIOD,
+                            BILLALLOCATIONS.LIST.OPENINGBALANCE,
+
                             ISREVENUE,
                             ISDEEMEDPOSITIVE,
 
@@ -54291,6 +54297,17 @@ var require_ledgerParser = __commonJS({
           parentAlterId: getValue(ledger.PARENTALTERID)
         });
         const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
+        const billAllocations = Array.isArray(ledger["BILLALLOCATIONS.LIST"]) ? ledger["BILLALLOCATIONS.LIST"] : ledger["BILLALLOCATIONS.LIST"] ? [ledger["BILLALLOCATIONS.LIST"]] : [];
+        const openingBillAllocations = billAllocations.map((bill) => ({
+          billName: getValue(bill.NAME),
+          billDate: getValue(bill.BILLDATE),
+          dueDate: getValue(bill.BILLCREDITPERIOD),
+          openingBalance: Number(
+            getValue(bill.OPENINGBALANCE) || 0
+          )
+        })).filter(
+          (bill) => bill.billName && bill.openingBalance !== 0
+        );
         return {
           guid: getValue(ledger.GUID),
           masterId: getValue(ledger.MASTERID),
@@ -54327,6 +54344,7 @@ var require_ledgerParser = __commonJS({
           openingBalance,
           openingBalanceAmount: Math.abs(openingBalance),
           openingBalanceType: openingBalance < 0 ? "DR" : openingBalance > 0 ? "CR" : "",
+          openingBillAllocations,
           isBillWise: String(getValue(ledger.ISBILLWISEON)).toUpperCase() === "YES",
           isRevenue: String(getValue(ledger.ISREVENUE)).toUpperCase() === "YES",
           isDeemedPositive: String(getValue(ledger.ISDEEMEDPOSITIVE)).toUpperCase() === "YES",
