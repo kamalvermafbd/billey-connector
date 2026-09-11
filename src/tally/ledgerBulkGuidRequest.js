@@ -85,6 +85,11 @@ function buildLedgerBulkGuidRequest({
                         OPENINGBALANCEON,
 
                         ISBILLWISEON,
+                        BILLALLOCATIONS.LIST,
+                        BILLALLOCATIONS.LIST.NAME,
+                        BILLALLOCATIONS.LIST.BILLDATE,
+                        BILLALLOCATIONS.LIST.BILLCREDITPERIOD,
+                        BILLALLOCATIONS.LIST.OPENINGBALANCE,
                         ISREVENUE,
                         ISDEEMEDPOSITIVE,
                         LEDGSTREGDETAILS.LIST,
