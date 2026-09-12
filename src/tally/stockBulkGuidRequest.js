@@ -57,6 +57,10 @@ function buildStockBulkGuidRequest({
     NAME,
     PARENT,
     BASEUNITS,
+    OPENINGBALANCE,
+    OPENINGVALUE,
+    OPENINGRATE,
+
     GSTAPPLICABLE,
     GSTTYPEOFSUPPLY,
     HSNDETAILS.LIST,
@@ -64,7 +68,8 @@ function buildStockBulkGuidRequest({
 
     PARENTGUID,
     PARENTMASTERID,
-    PARENTALTERID
+    PARENTALTERID,
+    BATCHALLOCATIONS.LIST
 
 </FETCH>
 

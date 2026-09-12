@@ -13,7 +13,7 @@ const {
 (async () => {
 
     const company =
-        "Guru Kirpa Trading";
+        "Sunil Ent(Client";
 
 
     const logFile =
@@ -60,14 +60,15 @@ const {
         // ============================================
 
         const importedStocks =
-            await importStockBulkByGuid({
+    await importStockBulkByGuid({
 
-                company,
+        company,
 
-                stockGuids
+        stockGuids: [
+            stockGuids[0]
+        ]
 
-            });
-
+    });
 
         console.log(
             "Total Stocks Imported:",
@@ -120,24 +121,33 @@ const {
         // ============================================
 
         const returnedStocks =
-            importedStocks.map(stock => ({
+    importedStocks.map(stock => ({
 
-                name:
-                    stock.name,
+        name:
+            stock.name,
 
-                guid:
-                    stock.guid,
+        guid:
+            stock.guid,
 
-                masterId:
-                    stock.masterId,
+        masterId:
+            stock.masterId,
 
-                alterId:
-                    stock.alterId,
+        alterId:
+            stock.alterId,
 
-                parent:
-                    stock.parent
+        parent:
+            stock.parent,
 
-            }));
+        openingBalance:
+            stock.openingBalance,
+
+        openingRate:
+            stock.openingRate,
+
+        openingValue:
+            stock.openingValue
+
+    }));
 
 
         // ============================================

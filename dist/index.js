@@ -55018,12 +55018,18 @@ var require_stockRequest = __commonJS({
         PARENT,
         BASEUNITS,
         GSTAPPLICABLE,
+
+        OPENINGBALANCE,
+        OPENINGRATE,
+        OPENINGVALUE,
+
         GSTTYPEOFSUPPLY,
         HSNDETAILS.LIST,
         GSTDETAILS.LIST,
         PARENTGUID,
         PARENTMASTERID,
-        PARENTALTERID
+        PARENTALTERID,
+        BATCHALLOCATIONS.LIST
 
     </FETCH>
 
@@ -55117,9 +55123,19 @@ var require_stockParser = __commonJS({
           name: getValue(stock.NAME),
           parent: getValue(stock.PARENT),
           baseUnit: getValue(stock.BASEUNITS),
+          openingBalance: getValue(stock.OPENINGBALANCE),
+          openingRate: getValue(stock.OPENINGRATE),
+          openingValue: getValue(stock.OPENINGVALUE),
+          openingGodowns: (Array.isArray(stock["BATCHALLOCATIONS.LIST"]) ? stock["BATCHALLOCATIONS.LIST"] : stock["BATCHALLOCATIONS.LIST"] ? [stock["BATCHALLOCATIONS.LIST"]] : []).map((batch) => ({
+            godownName: getValue(batch.GODOWNNAME),
+            batchName: getValue(batch.BATCHNAME),
+            openingBalance: getValue(batch.OPENINGBALANCE),
+            openingValue: getValue(batch.OPENINGVALUE),
+            openingRate: getValue(batch.OPENINGRATE)
+          })),
           gstApplicable: getValue(stock.GSTAPPLICABLE),
           typeOfSupply: getValue(stock.GSTTYPEOFSUPPLY),
-          guid: getValue(stock.STOCKGUID),
+          guid: getValue(stock.GUID || stock.STOCKGUID),
           masterId: getValue(stock.STOCKMASTERID),
           alterId: getValue(stock.STOCKALTERID),
           taxability,
@@ -55250,6 +55266,10 @@ var require_stockBulkGuidRequest = __commonJS({
     NAME,
     PARENT,
     BASEUNITS,
+    OPENINGBALANCE,
+    OPENINGVALUE,
+    OPENINGRATE,
+
     GSTAPPLICABLE,
     GSTTYPEOFSUPPLY,
     HSNDETAILS.LIST,
@@ -55257,7 +55277,8 @@ var require_stockBulkGuidRequest = __commonJS({
 
     PARENTGUID,
     PARENTMASTERID,
-    PARENTALTERID
+    PARENTALTERID,
+    BATCHALLOCATIONS.LIST
 
 </FETCH>
 

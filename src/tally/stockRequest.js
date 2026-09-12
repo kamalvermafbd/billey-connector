@@ -47,12 +47,18 @@ function buildStockRequest({
         PARENT,
         BASEUNITS,
         GSTAPPLICABLE,
+
+        OPENINGBALANCE,
+        OPENINGRATE,
+        OPENINGVALUE,
+
         GSTTYPEOFSUPPLY,
         HSNDETAILS.LIST,
         GSTDETAILS.LIST,
         PARENTGUID,
         PARENTMASTERID,
-        PARENTALTERID
+        PARENTALTERID,
+        BATCHALLOCATIONS.LIST
 
     </FETCH>
 
