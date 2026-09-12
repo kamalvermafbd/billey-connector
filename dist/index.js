@@ -55023,6 +55023,15 @@ var require_stockRequest = __commonJS({
         OPENINGRATE,
         OPENINGVALUE,
 
+        REORDERPERIOD,
+        MINORDERPERIOD,
+        REORDERASHIGHER,
+        MINORDERASHIGHER,
+        REORDERPERIODLENGTH,
+        MINORDERPERIODLENGTH,
+        REORDERBASE,
+        MINIMUMORDERBASE,
+
         GSTTYPEOFSUPPLY,
         HSNDETAILS.LIST,
         GSTDETAILS.LIST,
@@ -55073,6 +55082,11 @@ var require_stockParser = __commonJS({
       if (typeof node === "object" && "#text" in node)
         return String(node["#text"]).trim();
       return "";
+    }
+    function parseNumeric(value) {
+      const raw = getValue(value);
+      const match = String(raw ?? "").trim().match(/^-?\d+(?:\.\d+)?/);
+      return match ? Number(match[0]) : null;
     }
     function first(item) {
       if (!item) return null;
@@ -55126,6 +55140,16 @@ var require_stockParser = __commonJS({
           openingBalance: getValue(stock.OPENINGBALANCE),
           openingRate: getValue(stock.OPENINGRATE),
           openingValue: getValue(stock.OPENINGVALUE),
+          reorderLevel: parseNumeric(stock.REORDERBASE),
+          minimumOrderQuantity: parseNumeric(stock.MINIMUMORDERBASE),
+          reorderPeriod: getValue(stock.REORDERPERIOD),
+          reorderPeriodLength: parseNumeric(stock.REORDERPERIODLENGTH),
+          minimumOrderPeriod: getValue(stock.MINORDERPERIOD),
+          minimumOrderPeriodLength: parseNumeric(stock.MINORDERPERIODLENGTH),
+          reorderAsHigher: String(getValue(stock.REORDERASHIGHER)).toLowerCase() === "yes",
+          minOrderAsHigher: String(getValue(stock.MINORDERASHIGHER)).toLowerCase() === "yes",
+          reorderCriteria: String(getValue(stock.REORDERASHIGHER)).toLowerCase() === "yes" ? "Higher" : "Lower",
+          minimumOrderCriteria: String(getValue(stock.MINORDERASHIGHER)).toLowerCase() === "yes" ? "Higher" : "Lower",
           openingGodowns: (Array.isArray(stock["BATCHALLOCATIONS.LIST"]) ? stock["BATCHALLOCATIONS.LIST"] : stock["BATCHALLOCATIONS.LIST"] ? [stock["BATCHALLOCATIONS.LIST"]] : []).map((batch) => ({
             godownName: getValue(batch.GODOWNNAME),
             batchName: getValue(batch.BATCHNAME),
@@ -55269,6 +55293,15 @@ var require_stockBulkGuidRequest = __commonJS({
     OPENINGBALANCE,
     OPENINGVALUE,
     OPENINGRATE,
+
+    REORDERPERIOD,
+    MINORDERPERIOD,
+    REORDERASHIGHER,
+    MINORDERASHIGHER,
+    REORDERPERIODLENGTH,
+    MINORDERPERIODLENGTH,
+    REORDERBASE,
+    MINIMUMORDERBASE,
 
     GSTAPPLICABLE,
     GSTTYPEOFSUPPLY,

@@ -20,6 +20,18 @@ function getValue(node) {
 
 }
 
+function parseNumeric(value) {
+    const raw = getValue(value);
+
+    const match = String(raw ?? "")
+        .trim()
+        .match(/^-?\d+(?:\.\d+)?/);
+
+    return match
+        ? Number(match[0])
+        : null;
+}
+
 function first(item) {
     if (!item) return null;
     return Array.isArray(item) ? item[0] : item;
@@ -107,13 +119,47 @@ return stockList.map(stock => {
     baseUnit: getValue(stock.BASEUNITS),
 
     openingBalance:
-    getValue(stock.OPENINGBALANCE),
+         getValue(stock.OPENINGBALANCE),
 
-openingRate:
-    getValue(stock.OPENINGRATE),
+    openingRate:
+        getValue(stock.OPENINGRATE),
 
-openingValue:
-    getValue(stock.OPENINGVALUE),
+    openingValue:
+        getValue(stock.OPENINGVALUE),
+    
+    reorderLevel:
+    parseNumeric(stock.REORDERBASE),
+
+    minimumOrderQuantity:
+        parseNumeric(stock.MINIMUMORDERBASE),
+
+    reorderPeriod:
+        getValue(stock.REORDERPERIOD),
+
+    reorderPeriodLength:
+        parseNumeric(stock.REORDERPERIODLENGTH),
+
+    minimumOrderPeriod:
+        getValue(stock.MINORDERPERIOD),
+
+    minimumOrderPeriodLength:
+        parseNumeric(stock.MINORDERPERIODLENGTH),
+
+    reorderAsHigher:
+        String(getValue(stock.REORDERASHIGHER)).toLowerCase() === "yes",
+
+    minOrderAsHigher:
+        String(getValue(stock.MINORDERASHIGHER)).toLowerCase() === "yes",
+
+    reorderCriteria:
+        String(getValue(stock.REORDERASHIGHER)).toLowerCase() === "yes"
+            ? "Higher"
+            : "Lower",
+
+    minimumOrderCriteria:
+        String(getValue(stock.MINORDERASHIGHER)).toLowerCase() === "yes"
+            ? "Higher"
+            : "Lower",
 
     openingGodowns:
     (Array.isArray(stock["BATCHALLOCATIONS.LIST"])
