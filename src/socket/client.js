@@ -33,6 +33,10 @@ const {
 } = require("../tally/importMasters");
 
 const {
+    importCompany
+} = require("../tally/companyImportService");
+
+const {
     importStockSummary
 } = require("../tally/stockSummaryImportService");
 
@@ -374,6 +378,38 @@ socket.on("getTallyCompanies", async () => {
 
         socket.emit(
             "getTallyCompaniesResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("getTallyCompanyInfo", async (data) => {
+
+    try {
+
+        const result = await importCompany({
+            company: data.company
+        });
+
+        socket.emit(
+            "getTallyCompanyInfoResult",
+            result
+        );
+
+    } catch (err) {
+
+        console.error(
+            "GET TALLY COMPANY INFO ERROR:",
+            err
+        );
+
+        socket.emit(
+            "getTallyCompanyInfoResult",
             {
                 success: false,
                 error: err.message

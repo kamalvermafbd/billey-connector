@@ -57664,6 +57664,9 @@ var require_client = __commonJS({
       importMasters
     } = require_importMasters();
     var {
+      importCompany
+    } = require_companyImportService();
+    var {
       importStockSummary
     } = require_stockSummaryImportService();
     var {
@@ -57789,6 +57792,29 @@ var require_client = __commonJS({
           );
           socket.emit(
             "getTallyCompaniesResult",
+            {
+              success: false,
+              error: err.message
+            }
+          );
+        }
+      });
+      socket.on("getTallyCompanyInfo", async (data) => {
+        try {
+          const result = await importCompany({
+            company: data.company
+          });
+          socket.emit(
+            "getTallyCompanyInfoResult",
+            result
+          );
+        } catch (err) {
+          console.error(
+            "GET TALLY COMPANY INFO ERROR:",
+            err
+          );
+          socket.emit(
+            "getTallyCompanyInfoResult",
             {
               success: false,
               error: err.message
