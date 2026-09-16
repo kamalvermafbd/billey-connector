@@ -84,6 +84,8 @@ function buildLedgerRequest({
                             OPENINGBALANCEON,
                             ISBILLWISEON,
 
+                            CREDITLIMIT,
+
                             BILLALLOCATIONS.LIST,
                             BILLALLOCATIONS.LIST.NAME,
                             BILLALLOCATIONS.LIST.BILLDATE,

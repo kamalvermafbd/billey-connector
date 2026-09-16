@@ -54160,6 +54160,8 @@ var require_ledgerRequest = __commonJS({
                             OPENINGBALANCEON,
                             ISBILLWISEON,
 
+                            CREDITLIMIT,
+
                             BILLALLOCATIONS.LIST,
                             BILLALLOCATIONS.LIST.NAME,
                             BILLALLOCATIONS.LIST.BILLDATE,
@@ -54323,6 +54325,10 @@ var require_ledgerParser = __commonJS({
           parentAlterId: getValue(ledger.PARENTALTERID)
         });
         const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
+        const creditLimitRaw = Number(
+          getValue(ledger.CREDITLIMIT) || 0
+        );
+        const creditLimit = Math.abs(creditLimitRaw);
         const billAllocations = Array.isArray(ledger["BILLALLOCATIONS.LIST"]) ? ledger["BILLALLOCATIONS.LIST"] : ledger["BILLALLOCATIONS.LIST"] ? [ledger["BILLALLOCATIONS.LIST"]] : [];
         const openingBillAllocations = billAllocations.map((bill) => ({
           billName: getValue(bill.NAME),
@@ -54372,6 +54378,7 @@ var require_ledgerParser = __commonJS({
             ledger.CONTACTPERSON || contactDetails?.NAME
           ),
           openingBalance,
+          creditLimit,
           openingBalanceAmount: Math.abs(openingBalance),
           openingBalanceType: openingBalance < 0 ? "DR" : openingBalance > 0 ? "CR" : "",
           openingBillAllocations,
@@ -54604,6 +54611,7 @@ var require_ledgerBulkGuidRequest = __commonJS({
                         OPENINGBALANCEON,
 
                         ISBILLWISEON,
+                        CREDITLIMIT,
                         BILLALLOCATIONS.LIST,
                         BILLALLOCATIONS.LIST.NAME,
                         BILLALLOCATIONS.LIST.BILLDATE,

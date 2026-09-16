@@ -152,6 +152,12 @@ global.parentDebug.push({
 
     const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
 
+    const creditLimitRaw = Number(
+        getValue(ledger.CREDITLIMIT) || 0
+    );
+
+    const creditLimit = Math.abs(creditLimitRaw);
+
     const billAllocations =
     Array.isArray(ledger["BILLALLOCATIONS.LIST"])
         ? ledger["BILLALLOCATIONS.LIST"]
@@ -192,9 +198,9 @@ const openingBillAllocations =
 
     parentGroupGuid: getValue(ledger.PARENTGUID),
 
-parentGroupMasterId: getValue(ledger.PARENTMASTERID),
+    parentGroupMasterId: getValue(ledger.PARENTMASTERID),
 
-parentGroupAlterId: getValue(ledger.PARENTALTERID),
+    parentGroupAlterId: getValue(ledger.PARENTALTERID),
 
 
     reservedName: getValue(ledger.RESERVEDNAME),
@@ -209,25 +215,25 @@ parentGroupAlterId: getValue(ledger.PARENTALTERID),
         mailingDetails?.MAILINGNAME || ledger.MAILINGNAME
     ),
 
-address: Array.isArray(mailingDetails?.["ADDRESS.LIST"]?.ADDRESS)
-    ? mailingDetails["ADDRESS.LIST"].ADDRESS.map(getValue).join(", ")
-    : getValue(
-        mailingDetails?.["ADDRESS.LIST"]?.ADDRESS ||
-        ledger["ADDRESS.LIST"]?.ADDRESS
-    ),
+    address: Array.isArray(mailingDetails?.["ADDRESS.LIST"]?.ADDRESS)
+        ? mailingDetails["ADDRESS.LIST"].ADDRESS.map(getValue).join(", ")
+        : getValue(
+            mailingDetails?.["ADDRESS.LIST"]?.ADDRESS ||
+            ledger["ADDRESS.LIST"]?.ADDRESS
+        ),
 
-stateName: getValue(mailingDetails?.STATE),
+        stateName: getValue(mailingDetails?.STATE),
 
-country: getValue(mailingDetails?.COUNTRY),
+        country: getValue(mailingDetails?.COUNTRY),
 
-pinCode: getValue(
-    mailingDetails?.PINCODE || ledger.PINCODE
-),
+        pinCode: getValue(
+            mailingDetails?.PINCODE || ledger.PINCODE
+        ),
 
-phone: getValue(
-    ledger.LEDGERMOBILE ||
-    contactDetails?.PHONENUMBER
-),
+        phone: getValue(
+            ledger.LEDGERMOBILE ||
+            contactDetails?.PHONENUMBER
+        ),
 
    email: getValue(
     ledger.EMAIL ||
@@ -240,6 +246,8 @@ phone: getValue(
 ),
 
    openingBalance,
+
+   creditLimit,
 
 openingBalanceAmount: Math.abs(openingBalance),
 
