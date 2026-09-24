@@ -2099,6 +2099,7 @@ async function getGroups(company) {
     GUID,
     MASTERID,
     ALTERID,
+    PARENTGUID,
     RESERVEDNAME,
     GSTREGISTRATIONTYPE,
     GSTIN,
@@ -2142,6 +2143,7 @@ const groups =
         ? [groupsRaw]
         : [];
 
+        /*240926
 return groups.map(group => ({
 
     name: group.NAME,
@@ -2155,12 +2157,79 @@ return groups.map(group => ({
     alterId:
         getValue(group.ALTERID),
 
+    parentGuid:
+    getValue(group.PARENTGUID),
+
     parent: getValue(group.PARENT),
 
     reservedName: group.RESERVEDNAME || ""
 
 }));
     
+*/
+
+const normalizedGroups = groups.map(group => ({
+
+    name: getValue(group.NAME),
+
+    guid:
+        getValue(group.GUID),
+
+    masterId:
+        getValue(group.MASTERID),
+
+    alterId:
+        getValue(group.ALTERID),
+
+    parentGuid:
+        getValue(group.PARENTGUID),
+
+    parent: getValue(group.PARENT),
+
+    reservedName:
+        getValue(group.RESERVEDNAME)
+
+}));
+
+
+const groupGuidByName = new Map();
+
+for (const group of normalizedGroups) {
+
+    if (!group.name || !group.guid) {
+        continue;
+    }
+
+    groupGuidByName.set(
+        group.name.trim(),
+        group.guid
+    );
+}
+
+
+for (const group of normalizedGroups) {
+
+    if (group.parentGuid) {
+        continue;
+    }
+
+    const parentName =
+        String(group.parent || "")
+            .replace(/\u0004/g, "")
+            .trim();
+
+    if (!parentName || parentName === "Primary") {
+        group.parentGuid = null;
+        continue;
+    }
+
+    group.parentGuid =
+        groupGuidByName.get(parentName) || null;
+}
+
+
+return normalizedGroups;
+
 
 }
 

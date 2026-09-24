@@ -50854,6 +50854,7 @@ ${useAlterIdFilter ? `
     GUID,
     MASTERID,
     ALTERID,
+    PARENTGUID,
     RESERVEDNAME,
     GSTREGISTRATIONTYPE,
     GSTIN,
@@ -50884,14 +50885,37 @@ ${useAlterIdFilter ? `
       const json = parser.parse(result);
       const groupsRaw = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP;
       const groups = Array.isArray(groupsRaw) ? groupsRaw : groupsRaw ? [groupsRaw] : [];
-      return groups.map((group) => ({
-        name: group.NAME,
+      const normalizedGroups = groups.map((group) => ({
+        name: getValue(group.NAME),
         guid: getValue(group.GUID),
         masterId: getValue(group.MASTERID),
         alterId: getValue(group.ALTERID),
+        parentGuid: getValue(group.PARENTGUID),
         parent: getValue(group.PARENT),
-        reservedName: group.RESERVEDNAME || ""
+        reservedName: getValue(group.RESERVEDNAME)
       }));
+      const groupGuidByName = /* @__PURE__ */ new Map();
+      for (const group of normalizedGroups) {
+        if (!group.name || !group.guid) {
+          continue;
+        }
+        groupGuidByName.set(
+          group.name.trim(),
+          group.guid
+        );
+      }
+      for (const group of normalizedGroups) {
+        if (group.parentGuid) {
+          continue;
+        }
+        const parentName = String(group.parent || "").replace(/\u0004/g, "").trim();
+        if (!parentName || parentName === "Primary") {
+          group.parentGuid = null;
+          continue;
+        }
+        group.parentGuid = groupGuidByName.get(parentName) || null;
+      }
+      return normalizedGroups;
     }
     function getRootGroup(groupName, groupTree) {
       let current = groupName;
