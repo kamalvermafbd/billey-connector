@@ -52652,7 +52652,7 @@ var require_groupParser = __commonJS({
       const json = parser.parse(xml);
       const groups = json?.ENVELOPE?.BODY?.DATA?.COLLECTION?.GROUP || [];
       const groupList = Array.isArray(groups) ? groups : [groups];
-      return groupList.map((group) => ({
+      const normalizedGroups = groupList.map((group) => ({
         guid: getValue(group.GUID),
         masterId: getValue(group.MASTERID) || null,
         alterId: getValue(group.ALTERID) || null,
@@ -52670,6 +52670,23 @@ var require_groupParser = __commonJS({
         isCondensed: String(getValue(group.ISCONDENSED)).toUpperCase() === "YES",
         raw: group
       }));
+      const groupGuidByName = /* @__PURE__ */ new Map();
+      for (const group of normalizedGroups) {
+        const name = String(group.name || "").replace(/\u0004/g, "").trim();
+        const guid = String(group.guid || "").trim();
+        if (!name || !guid) continue;
+        groupGuidByName.set(name, guid);
+      }
+      for (const group of normalizedGroups) {
+        if (group.parentGuid) continue;
+        const parentName = String(group.parent || "").replace(/\u0004/g, "").trim();
+        if (!parentName || parentName === "Primary") {
+          group.parentGuid = null;
+          continue;
+        }
+        group.parentGuid = groupGuidByName.get(parentName) || null;
+      }
+      return normalizedGroups;
     }
     module2.exports = {
       parseGroupResponse
