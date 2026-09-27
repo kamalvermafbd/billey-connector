@@ -86,6 +86,7 @@ function buildLedgerBulkGuidRequest({
 
                         ISBILLWISEON,
                         CREDITLIMIT,
+                        BILLCREDITPERIOD,
                         BILLALLOCATIONS.LIST,
                         BILLALLOCATIONS.LIST.NAME,
                         BILLALLOCATIONS.LIST.BILLDATE,

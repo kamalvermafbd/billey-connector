@@ -6,14 +6,17 @@ const {
     importCompany
 } = require("./src/tally/companyImportService");
 
+const {
+    buildLedgerRequest
+} = require("./src/tally/ledgerRequest");
+
 const { XMLParser } =
     require("fast-xml-parser");
 
 const fs = require("fs");
 
-const COMPANY = "Guru Kirpa Trading";
-const LEDGER_NAME = "NEW TECH CHEMICALS";
-
+const COMPANY = "Sunil Ent(Client";
+const LEDGER_NAME = "RB Computers";
 
 const parser = new XMLParser({
     ignoreAttributes: false,
@@ -22,135 +25,16 @@ const parser = new XMLParser({
     trimValues: true
 });
 
-
-// ==========================================
-// BUILD LEDGER REQUEST
-// ==========================================
-
-function buildTestXml({
-    company,
-    booksBeginningFrom
-}) {
-
-return `
-<ENVELOPE>
-
-    <HEADER>
-
-        <VERSION>1</VERSION>
-
-        <TALLYREQUEST>Export</TALLYREQUEST>
-
-        <TYPE>Collection</TYPE>
-
-        <ID>LedgerOpeningTest</ID>
-
-    </HEADER>
-
-    <BODY>
-
-        <DESC>
-
-            <STATICVARIABLES>
-
-                <SVCURRENTCOMPANY>
-                    ${company}
-                </SVCURRENTCOMPANY>
-
-                <SVEXPORTFORMAT>
-                    $$SysName:XML
-                </SVEXPORTFORMAT>
-
-                <SVFROMDATE TYPE="Date">
-                    ${booksBeginningFrom}
-                </SVFROMDATE>
-
-                <SVTODATE TYPE="Date">
-                    ${booksBeginningFrom}
-                </SVTODATE>
-
-            </STATICVARIABLES>
-
-            <TDL>
-
-                <TDLMESSAGE>
-
-                    <COLLECTION
-                        NAME="LedgerOpeningTest">
-
-                        <TYPE>Ledger</TYPE>
-
-                        <FILTER>
-                            LedgerOpeningTestFilter
-                        </FILTER>
-
-                        <FETCH>
-
-                            NAME,
-                            GUID,
-                            MASTERID,
-                            ALTERID,
-                            OPENINGBALANCE,
-                            OPENINGBALANCEON
-
-                        </FETCH>
-
-                    </COLLECTION>
-
-
-                    <SYSTEM
-                        TYPE="Formulae"
-                        NAME="LedgerOpeningTestFilter">
-
-                        $NAME = "${LEDGER_NAME}"
-
-                    </SYSTEM>
-
-                </TDLMESSAGE>
-
-            </TDL>
-
-        </DESC>
-
-    </BODY>
-
-</ENVELOPE>
-`;
-}
-
-
-// ==========================================
-// TEST
-// ==========================================
-
 async function test() {
 
-    console.log(
-        "======================================"
-    );
-
-    console.log(
-        "LEDGER OPENING BALANCE TEST"
-    );
-
-    console.log(
-        "COMPANY :",
-        COMPANY
-    );
-
-    console.log(
-        "LEDGER  :",
-        LEDGER_NAME
-    );
-
-    console.log(
-        "======================================"
-    );
-
+    console.log("======================================");
+    console.log("LEDGER CREDIT PERIOD TEST");
+    console.log("COMPANY :", COMPANY);
+    console.log("LEDGER  :", LEDGER_NAME);
+    console.log("======================================");
 
     // ======================================
     // GET ACTUAL BOOKS BEGINNING
-    // FROM EXISTING COMPANY FLOW
     // ======================================
 
     const companyData =
@@ -158,91 +42,80 @@ async function test() {
             company: COMPANY
         });
 
-
     const booksBeginningFrom =
         companyData.booksBeginningFrom;
 
+    console.log("COMPANY FROM TALLY :",
+        companyData.companyName);
 
-    console.log(
-        "======================================"
-    );
-
-    console.log(
-        "COMPANY FROM TALLY :",
-        companyData.companyName
-    );
-
-    console.log(
-        "BOOKS BEGINNING FROM :",
-        booksBeginningFrom
-    );
-
-    console.log(
-        "======================================"
-    );
-
+    console.log("BOOKS BEGINNING FROM :",
+        booksBeginningFrom);
 
     if (!booksBeginningFrom) {
-
         throw new Error(
             "BOOKSFROM missing from importCompany"
         );
-
     }
 
-
     // ======================================
-    // COMPANY ALREADY SELECTED BY
-    // importCompany()
+    // BUILD EXACT MAIN LEDGER REQUEST
     // ======================================
 
     const xml =
-        buildTestXml({
-
-            company:
-                COMPANY,
-
+        buildLedgerRequest({
+            company: COMPANY,
             booksBeginningFrom
-
         });
 
-
     fs.writeFileSync(
-        "./ledger-opening-test-request.xml",
+        "./ledger-credit-period-test-request.xml",
         xml,
         "utf8"
     );
 
-
     console.log(
-        "Sending ledger request with BOOKSFROM:",
-        booksBeginningFrom
+        "Sending MAIN ledgerRequest.js request..."
     );
 
+    // ======================================
+    // SEND TO TALLY
+    // ======================================
 
     const response =
         await sendToTally(xml);
 
-
     fs.writeFileSync(
-        "./ledger-opening-test-response.xml",
+        "./ledger-credit-period-test-response.xml",
         String(response),
         "utf8"
     );
 
+    // ======================================
+    // PARSE
+    // ======================================
 
     const json =
         parser.parse(response);
 
-
-    const ledger =
+    const collection =
         json
             ?.ENVELOPE
             ?.BODY
             ?.DATA
-            ?.COLLECTION
-            ?.LEDGER;
+            ?.COLLECTION;
 
+    const ledgers = collection?.LEDGER;
+
+    // ======================================
+    // HANDLE SINGLE / MULTIPLE LEDGER
+    // ======================================
+
+    const ledger =
+        Array.isArray(ledgers)
+            ? ledgers.find(
+                l => l?.NAME === LEDGER_NAME
+            )
+            : ledgers;
 
     console.log(
         "======================================"
@@ -261,16 +134,67 @@ async function test() {
 
     console.log(
         "======================================"
-
     );
 
-}
+    // ======================================
+    // EXTRACT CREDIT PERIOD
+    // ======================================
 
+    const creditPeriod =
+        ledger?.BILLCREDITPERIOD?.["#text"]
+        ??
+        ledger?.BILLCREDITPERIOD
+        ??
+        null;
+
+    console.log(
+        "======================================"
+    );
+
+    console.log(
+        "LEDGER CREDIT PERIOD :",
+        creditPeriod
+    );
+
+    console.log(
+        "======================================"
+    );
+
+    // ======================================
+    // FINAL CONFIRMATION
+    // ======================================
+
+    if (
+        String(creditPeriod)
+            .trim()
+            .toLowerCase() === "120 days"
+    ) {
+
+        console.log(
+            "✅ CONFIRMED: RB Computers credit period = 120 Days"
+        );
+
+    } else {
+
+        console.log(
+            "❌ NOT CONFIRMED"
+        );
+
+        console.log(
+            "Expected : 120 Days"
+        );
+
+        console.log(
+            "Received :",
+            creditPeriod
+        );
+    }
+}
 
 test().catch(error => {
 
     console.error(
-        "LEDGER OPENING TEST FAILED"
+        "LEDGER CREDIT PERIOD TEST FAILED"
     );
 
     console.error(error);

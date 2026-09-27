@@ -1,0 +1,116 @@
+
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Ledger Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    Sunil Ent(Client
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+                <SVFROMDATE TYPE="Date">
+                    20160401
+                </SVFROMDATE>
+                
+
+                <SVTODATE TYPE="Date">
+                    20160401
+                </SVTODATE>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Ledger Collection">
+
+                        <TYPE>Ledger</TYPE>
+
+                        
+
+                        <FETCH>
+
+                            NAME,
+                            GUID,
+                            MASTERID,
+                            ALTERID,
+
+                            PARENT,
+                            RESERVEDNAME,
+
+                            GSTAPPLICABLE,
+                            GSTREGISTRATIONTYPE,
+                            GSTIN,
+
+                            MAILINGNAME,
+                            ADDRESS,
+                            STATENAME,
+                            COUNTRY,
+                            PINCODE,
+
+                            LEDGERMOBILE,
+                            EMAIL,
+                            CONTACTPERSON,
+
+                            OPENINGBALANCE,
+                            OPENINGBALANCEON,
+                            ISBILLWISEON,
+
+                            CREDITLIMIT,
+                            BILLCREDITPERIOD,
+
+                            BILLALLOCATIONS.LIST,
+                            BILLALLOCATIONS.LIST.NAME,
+                            BILLALLOCATIONS.LIST.BILLDATE,
+                            BILLALLOCATIONS.LIST.BILLCREDITPERIOD,
+                            BILLALLOCATIONS.LIST.OPENINGBALANCE,
+
+                            ISREVENUE,
+                            ISDEEMEDPOSITIVE,
+
+                            LEDGSTREGDETAILS.LIST,
+                            LEDMAILINGDETAILS.LIST,
+                            CONTACTDETAILS.LIST,
+
+                            TYPEOFDUTYTAX,
+                            TAXTYPE,
+                            GSTDUTYHEAD,
+                            RATEOFTAXCALCULATION,
+                            GSTRATE,
+
+                            PARENTGUID,
+                            PARENTMASTERID,
+                            PARENTALTERID
+
+                        </FETCH>
+
+                       
+
+                    </COLLECTION>
+
+                    
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
