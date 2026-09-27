@@ -54202,6 +54202,7 @@ var require_ledgerRequest = __commonJS({
                             ISBILLWISEON,
 
                             CREDITLIMIT,
+                            BILLCREDITPERIOD,
 
                             BILLALLOCATIONS.LIST,
                             BILLALLOCATIONS.LIST.NAME,
@@ -54653,6 +54654,7 @@ var require_ledgerBulkGuidRequest = __commonJS({
 
                         ISBILLWISEON,
                         CREDITLIMIT,
+                        BILLCREDITPERIOD,
                         BILLALLOCATIONS.LIST,
                         BILLALLOCATIONS.LIST.NAME,
                         BILLALLOCATIONS.LIST.BILLDATE,
