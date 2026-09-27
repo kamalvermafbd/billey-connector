@@ -249,6 +249,8 @@ const openingBillAllocations =
 
    creditLimit,
 
+   creditPeriod: getValue(ledger.BILLCREDITPERIOD),
+
 openingBalanceAmount: Math.abs(openingBalance),
 
 openingBalanceType:
