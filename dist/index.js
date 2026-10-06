@@ -51945,6 +51945,7 @@ var require_ProtocolEvents = __commonJS({
       RECEIVED: "protocol:received",
       COMPLETE: "protocol:complete",
       COMPLETED: "protocol:completed",
+      HEARTBEAT: "protocol:heartbeat",
       ERROR: "protocol:error"
     };
   }
@@ -54421,6 +54422,7 @@ var require_ledgerParser = __commonJS({
           ),
           openingBalance,
           creditLimit,
+          creditPeriod: getValue(ledger.BILLCREDITPERIOD),
           openingBalanceAmount: Math.abs(openingBalance),
           openingBalanceType: openingBalance < 0 ? "DR" : openingBalance > 0 ? "CR" : "",
           openingBillAllocations,
@@ -57778,6 +57780,12 @@ var require_client = __commonJS({
         socket
       );
       socket.on("connect", async () => {
+        if (socket.heartbeatInterval) clearInterval(socket.heartbeatInterval);
+        socket.heartbeatInterval = setInterval(() => {
+          if (socket.connected) {
+            socket.emit("protocol:heartbeat", { timestamp: Date.now() });
+          }
+        }, 15e3);
         console.log("================================");
         console.log("Connected to Billey Server");
         console.log("Socket ID :", socket.id);
@@ -57811,6 +57819,10 @@ var require_client = __commonJS({
         }
       });
       socket.on("disconnect", (reason) => {
+        if (socket.heartbeatInterval) {
+          clearInterval(socket.heartbeatInterval);
+          socket.heartbeatInterval = null;
+        }
         console.log("=================================");
         console.log("\u274C Disconnected from Billey Server");
         console.log("Reason :", reason);

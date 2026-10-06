@@ -10,6 +10,8 @@ module.exports = {
 
     COMPLETED: "protocol:completed",
 
+    HEARTBEAT: "protocol:heartbeat",
+
     ERROR: "protocol:error"
 
 };

@@ -272,6 +272,14 @@ socket.on("connect", async () => {
 
 socket.on("connect", async () => {
 
+    if (socket.heartbeatInterval) clearInterval(socket.heartbeatInterval);
+
+socket.heartbeatInterval = setInterval(() => {
+    if (socket.connected) {
+        socket.emit("protocol:heartbeat", { timestamp: Date.now() });
+    }
+}, 15000);
+
     console.log("================================");
     console.log("Connected to Billey Server");
     console.log("Socket ID :", socket.id);
@@ -329,6 +337,11 @@ socket.on("connect", async () => {
 
 
 socket.on("disconnect", (reason) => {
+
+    if (socket.heartbeatInterval) {
+    clearInterval(socket.heartbeatInterval);
+    socket.heartbeatInterval = null;
+}
 
     console.log("=================================");
     console.log("❌ Disconnected from Billey Server");
