@@ -170,6 +170,8 @@ function splitQuantity(value) {
 
 async function sendToTally(xml) {
 
+    const monitor = getTallyMonitorContext();
+
   try {
 
     // Har API call pe purani log clear
@@ -188,7 +190,7 @@ console.log(">>> Tally request started");
 console.trace("Called From");
 console.log("====================================");
 
-const monitor = getTallyMonitorContext();
+
 
 if (monitor?.onTallyRequestStart) {
   monitor.onTallyRequestStart();

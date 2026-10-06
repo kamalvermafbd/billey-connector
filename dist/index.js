@@ -49918,14 +49918,14 @@ var require_tallyService = __commonJS({
       };
     }
     async function sendToTally(xml) {
+      const monitor = getTallyMonitorContext();
       try {
         console.log("====================================");
         console.log(">>> Tally request started");
         console.trace("Called From");
         console.log("====================================");
-        const monitor2 = getTallyMonitorContext();
-        if (monitor2?.onTallyRequestStart) {
-          monitor2.onTallyRequestStart();
+        if (monitor?.onTallyRequestStart) {
+          monitor.onTallyRequestStart();
         }
         const response = await axios.post(
           TALLY_URL,
@@ -49940,8 +49940,8 @@ var require_tallyService = __commonJS({
         console.log(response.data);
         console.log("========== END RAW TALLY RESPONSE ==========");
         console.log("<<< Tally response received");
-        if (monitor2?.onTallyRequestEnd) {
-          monitor2.onTallyRequestEnd();
+        if (monitor?.onTallyRequestEnd) {
+          monitor.onTallyRequestEnd();
         }
         return response.data;
       } catch (err) {
