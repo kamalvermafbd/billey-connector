@@ -10,9 +10,10 @@ const {
 
 const {
     sendToTally,
+    runWithTallyMonitor,
     getTallyCompanies,
     getTallyMappingData,
-     getSalesVouchers
+    getSalesVouchers
 } = require("../tally/tallyService");
 
 const {
@@ -117,6 +118,13 @@ function connectServer() {
         reconnectionDelay: 5000
 
     });
+
+    socket.on("connect_error", (err) => {
+    console.error("❌ SOCKET CONNECT ERROR");
+    console.error("MESSAGE:", err.message);
+    console.error("DESCRIPTION:", err.description);
+    console.error("CONTEXT:", err.context);
+});
 
     const protocolController =
     new ConnectorProtocolController(
@@ -602,13 +610,12 @@ socket.on("getSalesVouchers", async (data) => {
 
 });
 
-function sendProgress(stage) {
-
+function sendProgress(stage, batchId) {
     socket.emit("getMastersProgress", {
         stage,
+        batchId,
         timestamp: Date.now()
     });
-
 }
 
 // ==========================================
@@ -723,13 +730,59 @@ socket.on("getMasters", async (data) => {
 
     try {
 
-        const result = await importMasters({
-            company: data.company,
-            lastAlterId: data.lastAlterId,
-            lastStockAlterId: data.lastStockAlterId,
-            lastLedgerAlterId: data.lastLedgerAlterId
-        });
+        // MONITORING ONLY
+        socket.tallyOperationActive = true;
+        socket.lastTallyActivity = Date.now();
 
+        const result = await runWithTallyMonitor({
+
+           onTallyRequestStart: () => {
+                socket.tallyRequestActive = true;
+                socket.tallyRequestStartedAt = Date.now();
+                socket.lastTallyActivity = Date.now();
+
+                socket.emit("tally:request:start", {
+                    batchId: data.batchId,
+                    timestamp: socket.tallyRequestStartedAt
+                });
+            },
+
+            onTallyRequestEnd: () => {
+                socket.tallyRequestActive = false;
+                socket.tallyRequestStartedAt = 0;
+                socket.lastTallyActivity = Date.now();
+
+                socket.emit("tally:request:end", {
+                    batchId: data.batchId,
+                    timestamp: Date.now()
+                });
+            },
+
+           onTallyRequestError: () => {
+                socket.tallyRequestActive = false;
+                socket.tallyRequestStartedAt = 0;
+                socket.lastTallyActivity = Date.now();
+
+                socket.emit("tally:request:error", {
+                    batchId: data.batchId,
+                    timestamp: Date.now()
+                });
+            }
+
+        }, async () => {
+
+            return await importMasters({
+                company: data.company,
+                lastAlterId: data.lastAlterId,
+                lastStockAlterId: data.lastStockAlterId,
+                lastLedgerAlterId: data.lastLedgerAlterId,
+
+                onProgress: (progressData) => {
+                    sendProgress(progressData.stage, data.batchId);
+                }
+            });
+
+        });
         // ===========================
         // Debug Analysis
         // ===========================
@@ -979,7 +1032,15 @@ await protocolController.sendMasters(
     result
 );
 
+// MONITORING ONLY
+socket.tallyOperationActive = false;
+socket.lastTallyActivity = Date.now();
+
     } catch (err) {
+
+        socket.tallyOperationActive = false;
+        socket.tallyRequestActive = false;
+        socket.tallyRequestStartedAt = 0;   
 
         console.error("GET MASTERS ERROR");
         console.error(err);

@@ -77,12 +77,23 @@ const {
 } = require("./lookupCache");
 
 ///----
+// SYNC PROGRESS CALLBACK
+function reportProgress(onProgress, stage, progress) {
+    if (typeof onProgress === "function") {
+        onProgress({
+            stage,
+            progress,
+            timestamp: Date.now()
+        });
+    }
+}
 
 async function importMasters({
     company,
     lastAlterId = null,
     lastStockAlterId = null,
     lastLedgerAlterId = null,
+     onProgress = null
     
 }) {
 
@@ -104,6 +115,8 @@ console.log("After importCompany");
     console.log(
         `✓ Company Imported : ${companyInfo.companyName}`
     );
+
+    reportProgress(onProgress, "COMPANY");
 
     if (!companyInfo.booksBeginningFrom) {
     throw new Error(
@@ -137,6 +150,8 @@ for (const batch of masterBatches) {
     console.log(
         `✓ Groups Imported : ${groups.length}`
     );
+
+  reportProgress(onProgress, "GROUPS");
 
     console.log("######## AFTER GROUPS ########");
 
@@ -172,6 +187,8 @@ for (const batch of masterBatches) {
     });
 
     console.log(`✓ Units Imported : ${units.length}`);
+
+    reportProgress(onProgress, "UNITS");
 
 /*
     console.log("Importing Ledgers...");
@@ -248,6 +265,8 @@ console.log(
     });
 
     console.log(`✓ Full Ledger Lookup Imported : ${allLedgers.length}`);
+    reportProgress(onProgress, "LEDGERS");
+
     console.log("######## AFTER ALL LEDGERS ########");
 
  
@@ -263,6 +282,8 @@ console.log(
     });
 
     console.log(`✓ Stock Groups Imported : ${stockGroups.length}`);
+
+    reportProgress(onProgress, "STOCK_GROUPS");
 
     const stockLookups = buildTallyLookups({
 
@@ -335,6 +356,9 @@ console.log(
 });
 
     console.log(`✓ All Stocks Imported : ${allStocks.length}`);
+
+    reportProgress(onProgress, "STOCKS");
+
     console.log("######## AFTER ALL STOCKS ########");
 
   const lookups = buildTallyLookups({
@@ -374,12 +398,17 @@ console.log(
 
     console.log(`✓ Godowns Imported : ${godowns.length}`);
 
+    reportProgress(onProgress, "GODOWNS");
+
     console.log("Importing Cost Centres...");
 const costCentres = await importCostCentres({
     company
 });
 
 console.log(`✓ Cost Centres Imported : ${costCentres.length}`);
+
+reportProgress(onProgress, "COST_CENTRES");
+
 console.log("######## AFTER COST CENTRES ########");
 
 console.log("Importing Vouchers...");

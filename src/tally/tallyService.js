@@ -1,5 +1,17 @@
 const axios = require("axios");
 
+const { AsyncLocalStorage } = require("async_hooks");
+
+const tallyMonitorStorage = new AsyncLocalStorage();
+
+function runWithTallyMonitor(monitorContext, callback) {
+  return tallyMonitorStorage.run(monitorContext, callback);
+}
+
+function getTallyMonitorContext() {
+  return tallyMonitorStorage.getStore();
+}
+
 const {
 
   XMLParser
@@ -176,6 +188,11 @@ console.log(">>> Tally request started");
 console.trace("Called From");
 console.log("====================================");
 
+const monitor = getTallyMonitorContext();
+
+if (monitor?.onTallyRequestStart) {
+  monitor.onTallyRequestStart();
+}
 
     const response = await axios.post(
       TALLY_URL,
@@ -199,6 +216,9 @@ console.log("========== END RAW TALLY RESPONSE ==========");
     );
     */
 console.log("<<< Tally response received");
+if (monitor?.onTallyRequestEnd) {
+  monitor.onTallyRequestEnd();
+}
 
     return response.data;
 
@@ -214,6 +234,9 @@ console.error(err);
  //     "\n"
  //   );
 
+ if (monitor?.onTallyRequestError) {
+  monitor.onTallyRequestError(err);
+}
     throw err;
 
   }
@@ -3265,6 +3288,7 @@ creditPeriod,
 module.exports = {
 
   sendToTally,
+    runWithTallyMonitor,
   fetchTallyCollection,
 
   // =========================

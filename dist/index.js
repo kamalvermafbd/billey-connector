@@ -57776,6 +57776,12 @@ var require_client = __commonJS({
         reconnectionAttempts: Infinity,
         reconnectionDelay: 5e3
       });
+      socket.on("connect_error", (err) => {
+        console.error("\u274C SOCKET CONNECT ERROR");
+        console.error("MESSAGE:", err.message);
+        console.error("DESCRIPTION:", err.description);
+        console.error("CONTEXT:", err.context);
+      });
       const protocolController = new ConnectorProtocolController(
         socket
       );
