@@ -49837,6 +49837,14 @@ var require_ledgerClassifier = __commonJS({
 var require_tallyService = __commonJS({
   "src/tally/tallyService.js"(exports2, module2) {
     var axios = require_axios();
+    var { AsyncLocalStorage } = require("async_hooks");
+    var tallyMonitorStorage = new AsyncLocalStorage();
+    function runWithTallyMonitor(monitorContext, callback) {
+      return tallyMonitorStorage.run(monitorContext, callback);
+    }
+    function getTallyMonitorContext() {
+      return tallyMonitorStorage.getStore();
+    }
     var {
       XMLParser
     } = require_fxp();
@@ -49915,6 +49923,10 @@ var require_tallyService = __commonJS({
         console.log(">>> Tally request started");
         console.trace("Called From");
         console.log("====================================");
+        const monitor2 = getTallyMonitorContext();
+        if (monitor2?.onTallyRequestStart) {
+          monitor2.onTallyRequestStart();
+        }
         const response = await axios.post(
           TALLY_URL,
           xml,
@@ -49928,10 +49940,16 @@ var require_tallyService = __commonJS({
         console.log(response.data);
         console.log("========== END RAW TALLY RESPONSE ==========");
         console.log("<<< Tally response received");
+        if (monitor2?.onTallyRequestEnd) {
+          monitor2.onTallyRequestEnd();
+        }
         return response.data;
       } catch (err) {
         console.log(">>> Tally request failed");
         console.error(err);
+        if (monitor?.onTallyRequestError) {
+          monitor.onTallyRequestError(err);
+        }
         throw err;
       }
     }
@@ -51545,6 +51563,7 @@ ${useAlterIdFilter ? `
     }
     module2.exports = {
       sendToTally,
+      runWithTallyMonitor,
       fetchTallyCollection,
       // =========================
       // MASTER FLOW
@@ -55861,11 +55880,21 @@ var require_importMasters = __commonJS({
     var {
       setLookups
     } = require_lookupCache();
+    function reportProgress(onProgress, stage, progress) {
+      if (typeof onProgress === "function") {
+        onProgress({
+          stage,
+          progress,
+          timestamp: Date.now()
+        });
+      }
+    }
     async function importMasters({
       company,
       lastAlterId = null,
       lastStockAlterId = null,
-      lastLedgerAlterId = null
+      lastLedgerAlterId = null,
+      onProgress = null
     }) {
       console.log("======================================");
       console.log("Starting Tally Master Import");
@@ -55879,6 +55908,7 @@ var require_importMasters = __commonJS({
       console.log(
         `\u2713 Company Imported : ${companyInfo.companyName}`
       );
+      reportProgress(onProgress, "COMPANY");
       if (!companyInfo.booksBeginningFrom) {
         throw new Error(
           `Books Beginning From not found for company: ${company}`
@@ -55902,6 +55932,7 @@ var require_importMasters = __commonJS({
       console.log(
         `\u2713 Groups Imported : ${groups.length}`
       );
+      reportProgress(onProgress, "GROUPS");
       console.log("######## AFTER GROUPS ########");
       const masterLookups = buildTallyLookups({
         groups,
@@ -55917,6 +55948,7 @@ var require_importMasters = __commonJS({
         company
       });
       console.log(`\u2713 Units Imported : ${units.length}`);
+      reportProgress(onProgress, "UNITS");
       console.log("Importing Ledgers...");
       const changedLedgers = await importLedgers({
         company,
@@ -55945,6 +55977,7 @@ var require_importMasters = __commonJS({
         lastLedgerAlterId: null
       });
       console.log(`\u2713 Full Ledger Lookup Imported : ${allLedgers.length}`);
+      reportProgress(onProgress, "LEDGERS");
       console.log("######## AFTER ALL LEDGERS ########");
       console.log(
         "ledgerLookupDebug.json generated"
@@ -55954,6 +55987,7 @@ var require_importMasters = __commonJS({
         company
       });
       console.log(`\u2713 Stock Groups Imported : ${stockGroups.length}`);
+      reportProgress(onProgress, "STOCK_GROUPS");
       const stockLookups = buildTallyLookups({
         groups,
         ledgers: [],
@@ -55987,6 +56021,7 @@ var require_importMasters = __commonJS({
         lastStockAlterId: null
       });
       console.log(`\u2713 All Stocks Imported : ${allStocks.length}`);
+      reportProgress(onProgress, "STOCKS");
       console.log("######## AFTER ALL STOCKS ########");
       const lookups = buildTallyLookups({
         groups,
@@ -56009,11 +56044,13 @@ var require_importMasters = __commonJS({
         company
       });
       console.log(`\u2713 Godowns Imported : ${godowns.length}`);
+      reportProgress(onProgress, "GODOWNS");
       console.log("Importing Cost Centres...");
       const costCentres = await importCostCentres({
         company
       });
       console.log(`\u2713 Cost Centres Imported : ${costCentres.length}`);
+      reportProgress(onProgress, "COST_CENTRES");
       console.log("######## AFTER COST CENTRES ########");
       console.log("Importing Vouchers...");
       console.log("Importing Full Voucher GUIDs...");
@@ -57700,6 +57737,7 @@ var require_client = __commonJS({
     var config = require_config();
     var {
       sendToTally,
+      runWithTallyMonitor,
       getTallyCompanies,
       getTallyMappingData,
       getSalesVouchers
@@ -57995,9 +58033,10 @@ var require_client = __commonJS({
           );
         }
       });
-      function sendProgress(stage) {
+      function sendProgress(stage, batchId) {
         socket.emit("getMastersProgress", {
           stage,
+          batchId,
           timestamp: Date.now()
         });
       }
@@ -58053,11 +58092,46 @@ var require_client = __commonJS({
       });
       socket.on("getMasters", async (data) => {
         try {
-          const result = await importMasters({
-            company: data.company,
-            lastAlterId: data.lastAlterId,
-            lastStockAlterId: data.lastStockAlterId,
-            lastLedgerAlterId: data.lastLedgerAlterId
+          socket.tallyOperationActive = true;
+          socket.lastTallyActivity = Date.now();
+          const result = await runWithTallyMonitor({
+            onTallyRequestStart: () => {
+              socket.tallyRequestActive = true;
+              socket.tallyRequestStartedAt = Date.now();
+              socket.lastTallyActivity = Date.now();
+              socket.emit("tally:request:start", {
+                batchId: data.batchId,
+                timestamp: socket.tallyRequestStartedAt
+              });
+            },
+            onTallyRequestEnd: () => {
+              socket.tallyRequestActive = false;
+              socket.tallyRequestStartedAt = 0;
+              socket.lastTallyActivity = Date.now();
+              socket.emit("tally:request:end", {
+                batchId: data.batchId,
+                timestamp: Date.now()
+              });
+            },
+            onTallyRequestError: () => {
+              socket.tallyRequestActive = false;
+              socket.tallyRequestStartedAt = 0;
+              socket.lastTallyActivity = Date.now();
+              socket.emit("tally:request:error", {
+                batchId: data.batchId,
+                timestamp: Date.now()
+              });
+            }
+          }, async () => {
+            return await importMasters({
+              company: data.company,
+              lastAlterId: data.lastAlterId,
+              lastStockAlterId: data.lastStockAlterId,
+              lastLedgerAlterId: data.lastLedgerAlterId,
+              onProgress: (progressData) => {
+                sendProgress(progressData.stage, data.batchId);
+              }
+            });
           });
           const collections = {
             groups: result.groups,
@@ -58122,7 +58196,12 @@ var require_client = __commonJS({
           await protocolController.sendMasters(
             result
           );
+          socket.tallyOperationActive = false;
+          socket.lastTallyActivity = Date.now();
         } catch (err) {
+          socket.tallyOperationActive = false;
+          socket.tallyRequestActive = false;
+          socket.tallyRequestStartedAt = 0;
           console.error("GET MASTERS ERROR");
           console.error(err);
           socket.emit(
