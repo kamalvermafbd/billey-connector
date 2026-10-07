@@ -32545,15 +32545,18 @@ var require_cjs5 = __commonJS({
 var require_syncTracker = __commonJS({
   "utils/syncTracker.js"(exports2, module2) {
     var fs = require("fs");
-    var path = require("path");
-    var LOG_DIR = path.join(__dirname, "..", "logs");
-    var LOG_FILE = path.join(LOG_DIR, "sync-tracking.json");
+    var LOG_DIR = "./logs";
+    var LOG_FILE = "./logs/sync-tracking.json";
     function ensureLogFile() {
       if (!fs.existsSync(LOG_DIR)) {
         fs.mkdirSync(LOG_DIR, { recursive: true });
       }
       if (!fs.existsSync(LOG_FILE)) {
-        fs.writeFileSync(LOG_FILE, "[]", "utf8");
+        fs.writeFileSync(
+          LOG_FILE,
+          "[]",
+          "utf8"
+        );
       }
     }
     function trackSyncEvent({
@@ -32565,9 +32568,12 @@ var require_syncTracker = __commonJS({
     } = {}) {
       try {
         ensureLogFile();
-        const raw = fs.readFileSync(LOG_FILE, "utf8");
         let logs = [];
         try {
+          const raw = fs.readFileSync(
+            LOG_FILE,
+            "utf8"
+          );
           logs = JSON.parse(raw);
           if (!Array.isArray(logs)) {
             logs = [];
@@ -32585,7 +32591,11 @@ var require_syncTracker = __commonJS({
         });
         fs.writeFileSync(
           LOG_FILE,
-          JSON.stringify(logs, null, 2),
+          JSON.stringify(
+            logs,
+            null,
+            2
+          ),
           "utf8"
         );
       } catch (err) {
