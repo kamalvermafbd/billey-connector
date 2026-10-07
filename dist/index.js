@@ -58240,6 +58240,11 @@ var require_client = __commonJS({
         }
       });
       function sendProgress(stage, progress, batchId) {
+        console.log("\u{1F4CA} PROGRESS:", {
+          stage,
+          progress,
+          batchId
+        });
         socket.emit("getMastersProgress", {
           stage,
           progress,

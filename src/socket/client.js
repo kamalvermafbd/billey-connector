@@ -1,12 +1,11 @@
 const io = require("socket.io-client");
 const os = require("os");
 const config = require("../config/config");
-/*060926
+
 const {
-    loadConfig,
-    saveConfig
-} = require("../config/connectorConfig");
-*/
+    trackSyncEvent
+} = require("./utils/syncTracker");
+
 
 const {
     sendToTally,
@@ -629,6 +628,13 @@ function sendProgress(stage, progress, batchId) {
         stage,
         progress,
         batchId
+    });
+
+    trackSyncEvent({
+        batchId,
+        stage,
+        progress,
+        event: "SYNC_PROGRESS"
     });
 
     socket.emit("getMastersProgress", {
