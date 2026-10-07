@@ -32545,20 +32545,7 @@ var require_cjs5 = __commonJS({
 var require_syncTracker = __commonJS({
   "utils/syncTracker.js"(exports2, module2) {
     var fs = require("fs");
-    var LOG_DIR = "./logs";
-    var LOG_FILE = "./logs/sync-tracking.json";
-    function ensureLogFile() {
-      if (!fs.existsSync(LOG_DIR)) {
-        fs.mkdirSync(LOG_DIR, { recursive: true });
-      }
-      if (!fs.existsSync(LOG_FILE)) {
-        fs.writeFileSync(
-          LOG_FILE,
-          "[]",
-          "utf8"
-        );
-      }
-    }
+    var LOG_FILE = "C:\\Users\\15FC0704AU\\Downloads\\connector\\logs\\sync-tracking.json";
     function trackSyncEvent({
       batchId = null,
       stage = null,
@@ -32567,35 +32554,17 @@ var require_syncTracker = __commonJS({
       details = null
     } = {}) {
       try {
-        ensureLogFile();
-        let logs = [];
-        try {
-          const raw = fs.readFileSync(
-            LOG_FILE,
-            "utf8"
-          );
-          logs = JSON.parse(raw);
-          if (!Array.isArray(logs)) {
-            logs = [];
-          }
-        } catch {
-          logs = [];
-        }
-        logs.push({
+        const entry = {
           timestamp: (/* @__PURE__ */ new Date()).toISOString(),
           batchId,
           event,
           stage,
           progress,
           details
-        });
-        fs.writeFileSync(
+        };
+        fs.appendFileSync(
           LOG_FILE,
-          JSON.stringify(
-            logs,
-            null,
-            2
-          ),
+          JSON.stringify(entry) + "\n",
           "utf8"
         );
       } catch (err) {
