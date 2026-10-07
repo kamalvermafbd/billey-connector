@@ -771,14 +771,20 @@ socket.on("getMasters", async (data) => {
                 });
             },
 
-           onTallyRequestError: () => {
+           onTallyRequestError: (err) => {
+
+                console.error("🔥 TALLY REQUEST ACTUAL ERROR:");
+                console.error("CODE:", err?.code);
+                console.error("MESSAGE:", err?.message);
+                console.error("ERROR:", err);
                 socket.tallyRequestActive = false;
                 socket.tallyRequestStartedAt = 0;
                 socket.lastTallyActivity = Date.now();
 
                 socket.emit("tally:request:error", {
                     batchId: data.batchId,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    error: err?.code || err?.message || "TALLY_REQUEST_ERROR"
                 });
             }
 
