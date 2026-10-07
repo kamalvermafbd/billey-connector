@@ -771,22 +771,31 @@ socket.on("getMasters", async (data) => {
                 });
             },
 
-           onTallyRequestError: (err) => {
+          onTallyRequestError: (err) => {
 
-                console.error("🔥 TALLY REQUEST ACTUAL ERROR:");
-                console.error("CODE:", err?.code);
-                console.error("MESSAGE:", err?.message);
-                console.error("ERROR:", err);
-                socket.tallyRequestActive = false;
-                socket.tallyRequestStartedAt = 0;
-                socket.lastTallyActivity = Date.now();
+            socket.tallyRequestActive = false;
+            socket.tallyRequestStartedAt = 0;
+            socket.lastTallyActivity = Date.now();
 
-                socket.emit("tally:request:error", {
-                    batchId: data.batchId,
-                    timestamp: Date.now(),
-                    error: err?.code || err?.message || "TALLY_REQUEST_ERROR"
-                });
-            }
+            const tallyErrorCode =
+                err?.code ||
+                err?.cause?.code ||
+                "";
+
+            const isTallyOffline =
+                tallyErrorCode === "ECONNREFUSED" ||
+                tallyErrorCode === "ECONNRESET" ||
+                err?.message === "socket hang up";
+
+            socket.emit("tally:request:error", {
+                batchId: data.batchId,
+                timestamp: Date.now(),
+                error:
+                    isTallyOffline
+                        ? "TALLY_OFFLINE"
+                        : (tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR")
+            });
+        }
 
         }, async () => {
 
@@ -1055,24 +1064,37 @@ await protocolController.sendMasters(
 socket.tallyOperationActive = false;
 socket.lastTallyActivity = Date.now();
 
-    } catch (err) {
+   } catch (err) {
 
-        socket.tallyOperationActive = false;
-        socket.tallyRequestActive = false;
-        socket.tallyRequestStartedAt = 0;   
+    socket.tallyOperationActive = false;
+    socket.tallyRequestActive = false;
+    socket.tallyRequestStartedAt = 0;
 
-        console.error("GET MASTERS ERROR");
-        console.error(err);
+    console.error("GET MASTERS ERROR");
+    console.error(err);
 
-        socket.emit(
-            "getMastersResult",
-            {
-                success: false,
-                error: err.message
-            }
-        );
+    const tallyErrorCode =
+        err?.code ||
+        err?.cause?.code ||
+        "";
 
-    }
+    const isTallyOffline =
+        tallyErrorCode === "ECONNREFUSED" ||
+        tallyErrorCode === "ECONNRESET" ||
+        err?.message === "socket hang up";
+
+    socket.emit(
+        "getMastersResult",
+        {
+            success: false,
+
+            error:
+                isTallyOffline
+                    ? "TALLY_OFFLINE"
+                    : err.message
+        }
+    );
+}
 
 });
 
