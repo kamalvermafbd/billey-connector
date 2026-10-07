@@ -623,9 +623,10 @@ socket.on("getSalesVouchers", async (data) => {
 
 });
 
-function sendProgress(stage, batchId) {
+function sendProgress(stage, progress, batchId) {
     socket.emit("getMastersProgress", {
         stage,
+        progress,
         batchId,
         timestamp: Date.now()
     });
@@ -806,7 +807,11 @@ socket.on("getMasters", async (data) => {
                 lastLedgerAlterId: data.lastLedgerAlterId,
 
                 onProgress: (progressData) => {
-                    sendProgress(progressData.stage, data.batchId);
+                    sendProgress(
+                        progressData.stage,
+                        progressData.progress,
+                        data.batchId
+                    );
                 }
             });
 
@@ -1097,10 +1102,15 @@ socket.lastTallyActivity = Date.now();
 }
 
 });
-
 socket.on("getMastersVoucherGuids", async (data) => {
 
     try {
+
+        sendProgress(
+            "VOUCHER_GUID_DISCOVERY",
+            null,
+            data.batchId
+        );
 
         console.log("GUID REQUEST DATES:", {
             fromDate: data.fromDate,
@@ -1108,7 +1118,7 @@ socket.on("getMastersVoucherGuids", async (data) => {
         });
 
         console.log("=== GUID REQUEST DEBUG ===");
-        
+
         console.log({
             company: data.company,
             fromDate: data.fromDate,
@@ -1119,16 +1129,22 @@ socket.on("getMastersVoucherGuids", async (data) => {
             syncPeriod: data.syncPeriod
         });
 
-       const voucherGuids =
-        await importVoucherGuids({
-            company: data.company,
-            fromDate: data.fromDate,
-            toDate: data.toDate,
-            booksBeginningFrom: data.booksBeginningFrom,
-            lastAlterId: data.lastAlterId,
-            syncMode: data.syncMode,
-            syncPeriod: data.syncPeriod
-        });
+        const voucherGuids =
+            await importVoucherGuids({
+                company: data.company,
+                fromDate: data.fromDate,
+                toDate: data.toDate,
+                booksBeginningFrom: data.booksBeginningFrom,
+                lastAlterId: data.lastAlterId,
+                syncMode: data.syncMode,
+                syncPeriod: data.syncPeriod
+            });
+
+        sendProgress(
+            "VOUCHER_GUIDS_RECEIVED",
+            null,
+            data.batchId
+        );
 
         console.log(
             "VOUCHER GUIDS RECEIVED FROM TALLY:",
@@ -1148,6 +1164,12 @@ socket.on("getMastersVoucherGuids", async (data) => {
 
         if (voucherGuids.length > 0) {
 
+            sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+            );
+
             await sendChunkedResponse(
                 socket,
                 "getMastersVoucherGuids",
@@ -1158,22 +1180,28 @@ socket.on("getMastersVoucherGuids", async (data) => {
                 "✅ Voucher GUID chunks sent"
             );
 
-       } else {
+        } else {
 
-    console.log(
-        "No voucher GUIDs found"
-    );
+            console.log(
+                "No voucher GUIDs found"
+            );
 
-    await sendChunkedResponse(
-        socket,
-        "getMastersVoucherGuids",
-        []
-    );
+            sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+            );
 
-    console.log(
-        "✅ Empty Voucher GUID collection completed"
-    );
-}
+            await sendChunkedResponse(
+                socket,
+                "getMastersVoucherGuids",
+                []
+            );
+
+            console.log(
+                "✅ Empty Voucher GUID collection completed"
+            );
+        }
 
     } catch (err) {
 
@@ -1545,6 +1573,12 @@ socket.on("voucherByGuidChunk", (data) => {
 
     try {
 
+        sendProgress(
+    "VOUCHER_CHUNK_RECEIVE",
+    null,
+    data.batchId
+);
+
         addChunk(data);
 
         socket.emit("voucherByGuidChunkAck", {
@@ -1806,7 +1840,6 @@ socket.on("ledgerByGuidComplete", async (data) => {
 
 });
 
-
 socket.on("voucherByGuidComplete", async (data) => {
 
     try {
@@ -1822,10 +1855,16 @@ socket.on("voucherByGuidComplete", async (data) => {
         const voucherGuids =
             complete(data.batchId);
 
+        sendProgress(
+            "VOUCHER_IMPORT",
+            null,
+            data.batchId
+        );
+
         console.log(
-    "BULK GUID INPUT:",
-    voucherGuids
-);
+            "BULK GUID INPUT:",
+            voucherGuids
+        );
 
         socket.emit(
             "voucherByGuidCompleteAck",
@@ -1848,36 +1887,54 @@ socket.on("voucherByGuidComplete", async (data) => {
 
         });
 
-socket.emit(
-    "voucherByGuidResult",
-    {
-        success: true,
-        collectionName: "vouchers",
-        voucherCount: vouchers.length
-    }
-);
+        socket.emit(
+            "voucherByGuidResult",
+            {
+                success: true,
+                collectionName: "vouchers",
+                voucherCount: vouchers.length
+            }
+        );
 
-if (vouchers.length > 0) {
+        if (vouchers.length > 0) {
 
-    await sendChunkedResponse(
+            sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+            );
 
-        socket,
+            await sendChunkedResponse(
 
-        "voucherByGuid",
+                socket,
 
-        vouchers
+                "voucherByGuid",
 
-    );
+                vouchers
 
-} else {
+            );
 
-    await sendChunkedResponse(
-        socket,
-        "voucherByGuid",
-        []
-    );
+        } else {
 
-}
+            sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+            );
+
+            await sendChunkedResponse(
+                socket,
+                "voucherByGuid",
+                []
+            );
+
+        }
+
+        sendProgress(
+            "VOUCHER_COMPLETE",
+            null,
+            data.batchId
+        );
 
         // Abhi sirf test
         console.log("✅ Request Chunking Working");

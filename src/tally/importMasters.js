@@ -116,7 +116,7 @@ console.log("After importCompany");
         `✓ Company Imported : ${companyInfo.companyName}`
     );
 
-    reportProgress(onProgress, "COMPANY");
+    reportProgress(onProgress, "COMPANY", 5);
 
     if (!companyInfo.booksBeginningFrom) {
     throw new Error(
@@ -151,7 +151,7 @@ for (const batch of masterBatches) {
         `✓ Groups Imported : ${groups.length}`
     );
 
-  reportProgress(onProgress, "GROUPS");
+ reportProgress(onProgress, "GROUPS", 15);
 
     console.log("######## AFTER GROUPS ########");
 
@@ -188,7 +188,7 @@ for (const batch of masterBatches) {
 
     console.log(`✓ Units Imported : ${units.length}`);
 
-    reportProgress(onProgress, "UNITS");
+    reportProgress(onProgress, "UNITS", 25);
 
 /*
     console.log("Importing Ledgers...");
@@ -265,7 +265,7 @@ console.log(
     });
 
     console.log(`✓ Full Ledger Lookup Imported : ${allLedgers.length}`);
-    reportProgress(onProgress, "LEDGERS");
+    reportProgress(onProgress, "LEDGERS", 40);
 
     console.log("######## AFTER ALL LEDGERS ########");
 
@@ -283,7 +283,7 @@ console.log(
 
     console.log(`✓ Stock Groups Imported : ${stockGroups.length}`);
 
-    reportProgress(onProgress, "STOCK_GROUPS");
+    reportProgress(onProgress, "STOCK_GROUPS", 50);
 
     const stockLookups = buildTallyLookups({
 
@@ -357,7 +357,7 @@ console.log(
 
     console.log(`✓ All Stocks Imported : ${allStocks.length}`);
 
-    reportProgress(onProgress, "STOCKS");
+    reportProgress(onProgress, "STOCKS", 65);
 
     console.log("######## AFTER ALL STOCKS ########");
 
@@ -398,7 +398,7 @@ console.log(
 
     console.log(`✓ Godowns Imported : ${godowns.length}`);
 
-    reportProgress(onProgress, "GODOWNS");
+    reportProgress(onProgress, "GODOWNS", 75);
 
     console.log("Importing Cost Centres...");
 const costCentres = await importCostCentres({
@@ -407,7 +407,7 @@ const costCentres = await importCostCentres({
 
 console.log(`✓ Cost Centres Imported : ${costCentres.length}`);
 
-reportProgress(onProgress, "COST_CENTRES");
+reportProgress(onProgress, "COST_CENTRES", 85);
 
 console.log("######## AFTER COST CENTRES ########");
 

@@ -56107,7 +56107,7 @@ var require_importMasters = __commonJS({
       console.log(
         `\u2713 Company Imported : ${companyInfo.companyName}`
       );
-      reportProgress(onProgress, "COMPANY");
+      reportProgress(onProgress, "COMPANY", 5);
       if (!companyInfo.booksBeginningFrom) {
         throw new Error(
           `Books Beginning From not found for company: ${company}`
@@ -56131,7 +56131,7 @@ var require_importMasters = __commonJS({
       console.log(
         `\u2713 Groups Imported : ${groups.length}`
       );
-      reportProgress(onProgress, "GROUPS");
+      reportProgress(onProgress, "GROUPS", 15);
       console.log("######## AFTER GROUPS ########");
       const masterLookups = buildTallyLookups({
         groups,
@@ -56147,7 +56147,7 @@ var require_importMasters = __commonJS({
         company
       });
       console.log(`\u2713 Units Imported : ${units.length}`);
-      reportProgress(onProgress, "UNITS");
+      reportProgress(onProgress, "UNITS", 25);
       console.log("Importing Ledgers...");
       const changedLedgers = await importLedgers({
         company,
@@ -56176,7 +56176,7 @@ var require_importMasters = __commonJS({
         lastLedgerAlterId: null
       });
       console.log(`\u2713 Full Ledger Lookup Imported : ${allLedgers.length}`);
-      reportProgress(onProgress, "LEDGERS");
+      reportProgress(onProgress, "LEDGERS", 40);
       console.log("######## AFTER ALL LEDGERS ########");
       console.log(
         "ledgerLookupDebug.json generated"
@@ -56186,7 +56186,7 @@ var require_importMasters = __commonJS({
         company
       });
       console.log(`\u2713 Stock Groups Imported : ${stockGroups.length}`);
-      reportProgress(onProgress, "STOCK_GROUPS");
+      reportProgress(onProgress, "STOCK_GROUPS", 50);
       const stockLookups = buildTallyLookups({
         groups,
         ledgers: [],
@@ -56220,7 +56220,7 @@ var require_importMasters = __commonJS({
         lastStockAlterId: null
       });
       console.log(`\u2713 All Stocks Imported : ${allStocks.length}`);
-      reportProgress(onProgress, "STOCKS");
+      reportProgress(onProgress, "STOCKS", 65);
       console.log("######## AFTER ALL STOCKS ########");
       const lookups = buildTallyLookups({
         groups,
@@ -56243,13 +56243,13 @@ var require_importMasters = __commonJS({
         company
       });
       console.log(`\u2713 Godowns Imported : ${godowns.length}`);
-      reportProgress(onProgress, "GODOWNS");
+      reportProgress(onProgress, "GODOWNS", 75);
       console.log("Importing Cost Centres...");
       const costCentres = await importCostCentres({
         company
       });
       console.log(`\u2713 Cost Centres Imported : ${costCentres.length}`);
-      reportProgress(onProgress, "COST_CENTRES");
+      reportProgress(onProgress, "COST_CENTRES", 85);
       console.log("######## AFTER COST CENTRES ########");
       console.log("Importing Vouchers...");
       console.log("Importing Full Voucher GUIDs...");
@@ -58239,9 +58239,10 @@ var require_client = __commonJS({
           );
         }
       });
-      function sendProgress(stage, batchId) {
+      function sendProgress(stage, progress, batchId) {
         socket.emit("getMastersProgress", {
           stage,
+          progress,
           batchId,
           timestamp: Date.now()
         });
@@ -58338,7 +58339,11 @@ var require_client = __commonJS({
               lastStockAlterId: data.lastStockAlterId,
               lastLedgerAlterId: data.lastLedgerAlterId,
               onProgress: (progressData) => {
-                sendProgress(progressData.stage, data.batchId);
+                sendProgress(
+                  progressData.stage,
+                  progressData.progress,
+                  data.batchId
+                );
               }
             });
           });
@@ -58426,6 +58431,11 @@ var require_client = __commonJS({
       });
       socket.on("getMastersVoucherGuids", async (data) => {
         try {
+          sendProgress(
+            "VOUCHER_GUID_DISCOVERY",
+            null,
+            data.batchId
+          );
           console.log("GUID REQUEST DATES:", {
             fromDate: data.fromDate,
             toDate: data.toDate
@@ -58449,6 +58459,11 @@ var require_client = __commonJS({
             syncMode: data.syncMode,
             syncPeriod: data.syncPeriod
           });
+          sendProgress(
+            "VOUCHER_GUIDS_RECEIVED",
+            null,
+            data.batchId
+          );
           console.log(
             "VOUCHER GUIDS RECEIVED FROM TALLY:",
             voucherGuids.length
@@ -58463,6 +58478,11 @@ var require_client = __commonJS({
             }
           );
           if (voucherGuids.length > 0) {
+            sendProgress(
+              "VOUCHER_CHUNK_SEND",
+              null,
+              data.batchId
+            );
             await sendChunkedResponse(
               socket,
               "getMastersVoucherGuids",
@@ -58474,6 +58494,11 @@ var require_client = __commonJS({
           } else {
             console.log(
               "No voucher GUIDs found"
+            );
+            sendProgress(
+              "VOUCHER_CHUNK_SEND",
+              null,
+              data.batchId
             );
             await sendChunkedResponse(
               socket,
@@ -58729,6 +58754,11 @@ var require_client = __commonJS({
       });
       socket.on("voucherByGuidChunk", (data) => {
         try {
+          sendProgress(
+            "VOUCHER_CHUNK_RECEIVE",
+            null,
+            data.batchId
+          );
           addChunk(data);
           socket.emit("voucherByGuidChunkAck", {
             batchId: data.batchId,
@@ -58920,6 +58950,11 @@ var require_client = __commonJS({
             );
           }
           const voucherGuids = complete(data.batchId);
+          sendProgress(
+            "VOUCHER_IMPORT",
+            null,
+            data.batchId
+          );
           console.log(
             "BULK GUID INPUT:",
             voucherGuids
@@ -58948,18 +58983,33 @@ var require_client = __commonJS({
             }
           );
           if (vouchers.length > 0) {
+            sendProgress(
+              "VOUCHER_CHUNK_SEND",
+              null,
+              data.batchId
+            );
             await sendChunkedResponse(
               socket,
               "voucherByGuid",
               vouchers
             );
           } else {
+            sendProgress(
+              "VOUCHER_CHUNK_SEND",
+              null,
+              data.batchId
+            );
             await sendChunkedResponse(
               socket,
               "voucherByGuid",
               []
             );
           }
+          sendProgress(
+            "VOUCHER_COMPLETE",
+            null,
+            data.batchId
+          );
           console.log("\u2705 Request Chunking Working");
         } catch (err) {
           console.error(err);
