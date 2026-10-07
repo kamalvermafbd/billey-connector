@@ -624,6 +624,13 @@ socket.on("getSalesVouchers", async (data) => {
 });
 
 function sendProgress(stage, progress, batchId) {
+
+    console.log("📊 PROGRESS:", {
+        stage,
+        progress,
+        batchId
+    });
+
     socket.emit("getMastersProgress", {
         stage,
         progress,
