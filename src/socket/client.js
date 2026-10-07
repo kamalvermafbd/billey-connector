@@ -4,8 +4,7 @@ const config = require("../config/config");
 
 const {
     trackSyncEvent
-} = require("./utils/syncTracker");
-
+} = require("../../utils/syncTracker");
 
 const {
     sendToTally,

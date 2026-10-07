@@ -32541,6 +32541,67 @@ var require_cjs5 = __commonJS({
   }
 });
 
+// utils/syncTracker.js
+var require_syncTracker = __commonJS({
+  "utils/syncTracker.js"(exports2, module2) {
+    var fs = require("fs");
+    var path = require("path");
+    var LOG_DIR = path.join(__dirname, "..", "logs");
+    var LOG_FILE = path.join(LOG_DIR, "sync-tracking.json");
+    function ensureLogFile() {
+      if (!fs.existsSync(LOG_DIR)) {
+        fs.mkdirSync(LOG_DIR, { recursive: true });
+      }
+      if (!fs.existsSync(LOG_FILE)) {
+        fs.writeFileSync(LOG_FILE, "[]", "utf8");
+      }
+    }
+    function trackSyncEvent({
+      batchId = null,
+      stage = null,
+      progress = null,
+      event = null,
+      details = null
+    } = {}) {
+      try {
+        ensureLogFile();
+        const raw = fs.readFileSync(LOG_FILE, "utf8");
+        let logs = [];
+        try {
+          logs = JSON.parse(raw);
+          if (!Array.isArray(logs)) {
+            logs = [];
+          }
+        } catch {
+          logs = [];
+        }
+        logs.push({
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          batchId,
+          event,
+          stage,
+          progress,
+          details
+        });
+        fs.writeFileSync(
+          LOG_FILE,
+          JSON.stringify(logs, null, 2),
+          "utf8"
+        );
+      } catch (err) {
+        console.error(
+          "\u274C SYNC TRACKER ERROR:",
+          err.message
+        );
+      }
+    }
+    module2.exports = {
+      trackSyncEvent,
+      LOG_FILE
+    };
+  }
+});
+
 // node_modules/delayed-stream/lib/delayed_stream.js
 var require_delayed_stream = __commonJS({
   "node_modules/delayed-stream/lib/delayed_stream.js"(exports2, module2) {
@@ -57935,6 +57996,9 @@ var require_client = __commonJS({
     var os = require("os");
     var config = require_config();
     var {
+      trackSyncEvent
+    } = require_syncTracker();
+    var {
       sendToTally,
       runWithTallyMonitor,
       getTallyCompanies,
@@ -58244,6 +58308,12 @@ var require_client = __commonJS({
           stage,
           progress,
           batchId
+        });
+        trackSyncEvent({
+          batchId,
+          stage,
+          progress,
+          event: "SYNC_PROGRESS"
         });
         socket.emit("getMastersProgress", {
           stage,
