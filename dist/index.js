@@ -49920,10 +49920,12 @@ var require_tallyService = __commonJS({
     async function sendToTally(xml) {
       const monitor = getTallyMonitorContext();
       try {
-        console.log("====================================");
-        console.log(">>> Tally request started");
-        console.trace("Called From");
-        console.log("====================================");
+        if (monitor?.isHealthCheck !== true) {
+          console.log("====================================");
+          console.log(">>> Tally request started");
+          console.trace("Called From");
+          console.log("====================================");
+        }
         if (monitor?.onTallyRequestStart) {
           monitor.onTallyRequestStart();
         }
@@ -49936,17 +49938,21 @@ var require_tallyService = __commonJS({
             }
           }
         );
-        console.log("========== RAW TALLY RESPONSE ==========");
-        console.log(response.data);
-        console.log("========== END RAW TALLY RESPONSE ==========");
-        console.log("<<< Tally response received");
+        if (monitor?.isHealthCheck !== true) {
+          console.log("========== RAW TALLY RESPONSE ==========");
+          console.log(response.data);
+          console.log("========== END RAW TALLY RESPONSE ==========");
+          console.log("<<< Tally response received");
+        }
         if (monitor?.onTallyRequestEnd) {
           monitor.onTallyRequestEnd();
         }
         return response.data;
       } catch (err) {
-        console.log(">>> Tally request failed");
-        console.error(err);
+        if (monitor?.isHealthCheck !== true) {
+          console.log(">>> Tally request failed");
+          console.error(err);
+        }
         if (monitor?.onTallyRequestError) {
           monitor.onTallyRequestError(err);
         }
@@ -50779,10 +50785,13 @@ ${useAlterIdFilter ? `
       })).filter(
         (company) => company.name
       );
-      console.log(
-        "TALLY COMPANIES:",
-        companies
-      );
+      const monitor = getTallyMonitorContext();
+      if (monitor?.isHealthCheck !== true) {
+        console.log(
+          "TALLY COMPANIES:",
+          companies
+        );
+      }
       return {
         success: true,
         companies
@@ -51600,6 +51609,196 @@ ${useAlterIdFilter ? `
       getGroups,
       buildGroupTree
       // getStockMasters
+    };
+  }
+});
+
+// src/socket/tallyMonitor.js
+var require_tallyMonitor = __commonJS({
+  "src/socket/tallyMonitor.js"(exports2, module2) {
+    var {
+      getTallyCompanies,
+      runWithTallyMonitor
+    } = require_tallyService();
+    var MONITOR_INTERVAL_MS = 5e3;
+    function startTallyMonitor(socket) {
+      if (!socket) {
+        throw new Error("Tally monitor requires socket");
+      }
+      if (socket.tallyMonitorInterval) {
+        console.log("\u26A0\uFE0F TALLY MONITOR ALREADY RUNNING");
+        return;
+      }
+      let checking = false;
+      let lastStatus = "UNKNOWN";
+      let lastCompanies = /* @__PURE__ */ new Map();
+      function createCompanyMap(companies) {
+        const map = /* @__PURE__ */ new Map();
+        for (const company of companies) {
+          const guid = String(
+            company?.guid || ""
+          ).trim();
+          if (!guid) {
+            continue;
+          }
+          map.set(guid, {
+            name: company?.name || "",
+            guid
+          });
+        }
+        return map;
+      }
+      function getNewCompanies(currentCompanies) {
+        const newCompanies = [];
+        for (const [guid, company] of currentCompanies) {
+          if (!lastCompanies.has(guid)) {
+            newCompanies.push(company);
+          }
+        }
+        return newCompanies;
+      }
+      function companyNames(companies) {
+        return companies.map((company) => company?.name || company?.guid).filter(Boolean);
+      }
+      async function checkTally() {
+        if (checking) {
+          return;
+        }
+        if (!socket.connected) {
+          return;
+        }
+        if (socket.tallyOperationActive || socket.tallyRequestActive) {
+          return;
+        }
+        checking = true;
+        try {
+          const result = await runWithTallyMonitor(
+            {
+              isHealthCheck: true
+            },
+            () => getTallyCompanies()
+          );
+          if (!result?.success) {
+            throw new Error(
+              result?.error || "Unable to read Tally companies"
+            );
+          }
+          const companies = Array.isArray(result.companies) ? result.companies : [];
+          const currentCompanies = createCompanyMap(
+            companies
+          );
+          const companyGuids = [
+            ...currentCompanies.keys()
+          ];
+          socket.tallyStatus = "ONLINE";
+          socket.lastTallyStatusAt = Date.now();
+          socket.tallyCompanies = companies;
+          socket.emit("tally:status", {
+            status: "ONLINE",
+            companies,
+            company_guids: companyGuids,
+            timestamp: Date.now()
+          });
+          if (lastStatus !== "ONLINE") {
+            if (companyGuids.length > 0) {
+              socket.emit(
+                "identifyConnector",
+                {
+                  company_guids: companyGuids
+                }
+              );
+              console.log(
+                "\u{1F4E1} TALLY COMPANIES IDENTIFIED:",
+                companyNames(companies)
+              );
+            }
+            if (lastStatus === "OFFLINE") {
+              console.log(
+                "\u{1F7E2} TALLY ONLINE"
+              );
+            } else {
+              console.log(
+                "\u{1F7E2} TALLY ONLINE"
+              );
+            }
+          } else {
+            const newCompanies = getNewCompanies(currentCompanies);
+            const closedCompanies = [];
+            for (const [guid, company] of lastCompanies) {
+              if (!currentCompanies.has(guid)) {
+                closedCompanies.push(company);
+              }
+            }
+            if (closedCompanies.length > 0) {
+              console.log(
+                "\u{1F534} TALLY COMPANY CLOSED:",
+                companyNames(closedCompanies)
+              );
+            }
+            if (newCompanies.length > 0) {
+              const newGuids = newCompanies.map(
+                (company) => company.guid
+              );
+              console.log(
+                "\u{1F195} NEW TALLY COMPANY:",
+                companyNames(newCompanies)
+              );
+              socket.emit(
+                "identifyConnector",
+                {
+                  company_guids: newGuids
+                }
+              );
+              console.log(
+                "\u{1F4E1} NEW COMPANY IDENTIFIED:",
+                newGuids
+              );
+            }
+          }
+          lastCompanies = currentCompanies;
+          lastStatus = "ONLINE";
+        } catch (err) {
+          socket.tallyStatus = "OFFLINE";
+          socket.lastTallyStatusAt = Date.now();
+          socket.tallyCompanies = [];
+          socket.emit("tally:status", {
+            status: "OFFLINE",
+            companies: [],
+            company_guids: [],
+            timestamp: Date.now()
+          });
+          if (lastStatus !== "OFFLINE") {
+            console.log("\u{1F534} TALLY OFFLINE");
+          }
+          lastCompanies = /* @__PURE__ */ new Map();
+          lastStatus = "OFFLINE";
+        } finally {
+          checking = false;
+        }
+      }
+      checkTally();
+      socket.tallyMonitorInterval = setInterval(
+        checkTally,
+        MONITOR_INTERVAL_MS
+      );
+      console.log(
+        "\u{1FA7A} TALLY MONITOR STARTED | CHECK EVERY 5 SEC"
+      );
+    }
+    function stopTallyMonitor(socket) {
+      if (socket?.tallyMonitorInterval) {
+        clearInterval(
+          socket.tallyMonitorInterval
+        );
+        socket.tallyMonitorInterval = null;
+        console.log(
+          "\u{1F6D1} TALLY MONITOR STOPPED"
+        );
+      }
+    }
+    module2.exports = {
+      startTallyMonitor,
+      stopTallyMonitor
     };
   }
 });
@@ -57743,6 +57942,10 @@ var require_client = __commonJS({
       getSalesVouchers
     } = require_tallyService();
     var {
+      startTallyMonitor,
+      stopTallyMonitor
+    } = require_tallyMonitor();
+    var {
       sendChunkedResponse
     } = require_sendChunkedResponse();
     var ConnectorProtocolController = require_ConnectorProtocolController();
@@ -57860,6 +58063,8 @@ var require_client = __commonJS({
             "\u274C CONNECTOR IDENTIFICATION ERROR:",
             err
           );
+        } finally {
+          startTallyMonitor(socket);
         }
       });
       socket.on("disconnect", (reason) => {
@@ -57867,6 +58072,7 @@ var require_client = __commonJS({
           clearInterval(socket.heartbeatInterval);
           socket.heartbeatInterval = null;
         }
+        stopTallyMonitor(socket);
         console.log("=================================");
         console.log("\u274C Disconnected from Billey Server");
         console.log("Reason :", reason);

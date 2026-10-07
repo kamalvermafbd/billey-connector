@@ -17,6 +17,11 @@ const {
 } = require("../tally/tallyService");
 
 const {
+    startTallyMonitor,
+    stopTallyMonitor
+} = require("./tallyMonitor");
+
+const {
     sendChunkedResponse
 } = require("../../utils/sendChunkedResponse");
 
@@ -339,6 +344,12 @@ socket.heartbeatInterval = setInterval(() => {
             err
         );
 
+        } finally {
+
+        // Tally health + company monitoring start
+        startTallyMonitor(socket);
+
+
     }
 //
 });
@@ -350,6 +361,8 @@ socket.on("disconnect", (reason) => {
     clearInterval(socket.heartbeatInterval);
     socket.heartbeatInterval = null;
 }
+
+    stopTallyMonitor(socket);
 
     console.log("=================================");
     console.log("❌ Disconnected from Billey Server");

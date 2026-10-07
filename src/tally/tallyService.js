@@ -185,10 +185,12 @@ async function sendToTally(xml) {
      "\n\n"
     );
     */
-console.log("====================================");
-console.log(">>> Tally request started");
-console.trace("Called From");
-console.log("====================================");
+if (monitor?.isHealthCheck !== true) {
+    console.log("====================================");
+    console.log(">>> Tally request started");
+    console.trace("Called From");
+    console.log("====================================");
+}
 
 
 
@@ -205,19 +207,15 @@ if (monitor?.onTallyRequestStart) {
         }
       }
     );
-console.log("========== RAW TALLY RESPONSE ==========");
-console.log(response.data);
-console.log("========== END RAW TALLY RESPONSE ==========");
+if (monitor?.isHealthCheck !== true) {
+    console.log("========== RAW TALLY RESPONSE ==========");
+    console.log(response.data);
+    console.log("========== END RAW TALLY RESPONSE ==========");
 
-    // Tally response save
- /*   fs.appendFileSync(
-      DEBUG_FILE,
-      "\n========== TALLY RESPONSE ==========\n\n" +
-      response.data +
-      "\n"
-    );
-    */
-console.log("<<< Tally response received");
+    console.log("<<< Tally response received");
+}
+
+
 if (monitor?.onTallyRequestEnd) {
   monitor.onTallyRequestEnd();
 }
@@ -226,8 +224,10 @@ if (monitor?.onTallyRequestEnd) {
 
   } catch (err) {
 
+if (monitor?.isHealthCheck !== true) {
     console.log(">>> Tally request failed");
-console.error(err);
+    console.error(err);
+}
 
  //   fs.appendFileSync(
   //    DEBUG_FILE,
@@ -1987,10 +1987,14 @@ async function getTallyCompanies() {
         company.name
       );
 
-  console.log(
-    "TALLY COMPANIES:",
-    companies
-  );
+const monitor = getTallyMonitorContext();
+
+if (monitor?.isHealthCheck !== true) {
+    console.log(
+        "TALLY COMPANIES:",
+        companies
+    );
+}
 
   return {
 
