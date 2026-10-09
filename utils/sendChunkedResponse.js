@@ -308,6 +308,7 @@ await completeAckPromise;
             `Sending chunk ${chunk.chunkIndex}/${chunk.totalChunks} (${chunk.payloadSize} bytes)`
         );
 
+        /* 091026
         socket.emit(chunkEvent, {
 
             batchId,
@@ -342,6 +343,31 @@ await completeAckPromise;
 
         );
 
+        */
+
+        
+        const ackPromise = waitForAck(
+            socket,
+            ackEvent,
+            batchId,
+            chunk.chunkIndex
+        );
+
+        socket.emit(chunkEvent, {
+            batchId,
+            chunkIndex: chunk.chunkIndex,
+            totalChunks: chunk.totalChunks,
+            payloadSize: chunk.payloadSize,
+            data: chunk.data
+        });
+
+        console.log(
+            `Chunk ${chunk.chunkIndex}/${chunk.totalChunks} sent`
+        );
+
+        await ackPromise;
+
+        
         console.log(
             `ACK received for chunk ${chunk.chunkIndex}/${chunk.totalChunks}`
         );
