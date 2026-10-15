@@ -24319,6 +24319,8 @@ var require_config = __commonJS({
       // SERVER_URL: "https://webthaali-api.onrender.com",
       //  SERVER_URL: "http://localhost:5000",
       SERVER_URL: "https://api.billey.in",
+      // New API — separate test connection
+      SECOND_SERVER_URL: "https://sync-api.billey.in",
       CONNECTOR_VERSION: "1.0.0",
       CONNECTOR_NAME: "Billey Connector"
     };
@@ -52134,6 +52136,12 @@ var require_sendChunkedResponse = __commonJS({
           console.log(
             `Sending chunk ${chunk.chunkIndex}/${chunk.totalChunks} (${chunk.payloadSize} bytes)`
           );
+          const ackPromise = waitForAck(
+            socket,
+            ackEvent,
+            batchId,
+            chunk.chunkIndex
+          );
           socket.emit(chunkEvent, {
             batchId,
             chunkIndex: chunk.chunkIndex,
@@ -52144,12 +52152,7 @@ var require_sendChunkedResponse = __commonJS({
           console.log(
             `Chunk ${chunk.chunkIndex}/${chunk.totalChunks} sent`
           );
-          await waitForAck(
-            socket,
-            ackEvent,
-            batchId,
-            chunk.chunkIndex
-          );
+          await ackPromise;
           console.log(
             `ACK received for chunk ${chunk.chunkIndex}/${chunk.totalChunks}`
           );
@@ -58060,6 +58063,45 @@ var require_client = __commonJS({
         reconnectionAttempts: Infinity,
         reconnectionDelay: 5e3
       });
+      let syncSocket = null;
+      let syncProtocolController = null;
+      function connectSyncServer() {
+        if (syncSocket) {
+          return syncSocket;
+        }
+        const syncServerUrl = config.SYNC_SERVER_URL;
+        if (!syncServerUrl) {
+          console.error("\u274C SYNC_SERVER_URL is not configured");
+          return null;
+        }
+        syncSocket = io(syncServerUrl, {
+          transports: ["websocket"],
+          reconnection: true,
+          reconnectionAttempts: Infinity,
+          reconnectionDelay: 5e3
+        });
+        syncProtocolController = new ConnectorProtocolController(syncSocket);
+        syncSocket.on("connect", () => {
+          console.log(
+            "\u2705 Connected to Second Sync Server",
+            syncSocket.id
+          );
+        });
+        syncSocket.on("connect_error", (err) => {
+          console.error(
+            "\u274C Second Sync Server connection error:",
+            err.message
+          );
+        });
+        syncSocket.on("disconnect", (reason) => {
+          console.log(
+            "\u274C Disconnected from Second Sync Server:",
+            reason
+          );
+        });
+        return syncSocket;
+      }
+      connectSyncServer();
       socket.on("connect_error", (err) => {
         console.error("\u274C SOCKET CONNECT ERROR");
         console.error("MESSAGE:", err.message);

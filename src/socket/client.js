@@ -122,6 +122,58 @@ function connectServer() {
 
     });
 
+    // Dedicated socket for Tally → Billey sync 141026
+let syncSocket = null;
+let syncProtocolController = null;
+
+function connectSyncServer() {
+    if (syncSocket) {
+        return syncSocket;
+    }
+
+    const syncServerUrl = config.SYNC_SERVER_URL;
+
+    if (!syncServerUrl) {
+        console.error("❌ SYNC_SERVER_URL is not configured");
+        return null;
+    }
+
+    syncSocket = io(syncServerUrl, {
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 5000
+    });
+
+    syncProtocolController =
+        new ConnectorProtocolController(syncSocket);
+
+    syncSocket.on("connect", () => {
+        console.log(
+            "✅ Connected to Second Sync Server",
+            syncSocket.id
+        );
+    });
+
+    syncSocket.on("connect_error", (err) => {
+        console.error(
+            "❌ Second Sync Server connection error:",
+            err.message
+        );
+    });
+
+    syncSocket.on("disconnect", (reason) => {
+        console.log(
+            "❌ Disconnected from Second Sync Server:",
+            reason
+        );
+    });
+
+    return syncSocket;
+}
+
+connectSyncServer();
+
     socket.on("connect_error", (err) => {
     console.error("❌ SOCKET CONNECT ERROR");
     console.error("MESSAGE:", err.message);
