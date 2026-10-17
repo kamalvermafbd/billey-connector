@@ -96,6 +96,7 @@ const {
 
 
 let socket = null;
+let identifiedCompanyGuids = [];
 
 function connectServer() {
 
@@ -148,12 +149,22 @@ function connectSyncServer() {
     syncProtocolController =
         new ConnectorProtocolController(syncSocket);
 
-    syncSocket.on("connect", () => {
+    
+syncSocket.on("connect", () => {
+    console.log("✅ Connected to Second Sync Server", syncSocket.id);
+
+    if (identifiedCompanyGuids.length > 0) {
+        syncSocket.emit("identifyConnector", {
+            company_guids: identifiedCompanyGuids
+        });
+
         console.log(
-            "✅ Connected to Second Sync Server",
-            syncSocket.id
+            "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
+            identifiedCompanyGuids.length
         );
-    });
+    }
+});
+
 
     syncSocket.on("connect_error", (err) => {
         console.error(
@@ -382,7 +393,8 @@ socket.heartbeatInterval = setInterval(() => {
             company_guids
         );
 
-        
+        identifiedCompanyGuids = company_guids;
+
 socket.emit(
     "identifyConnector",
     {
@@ -390,14 +402,11 @@ socket.emit(
     }
 );
 
-// Register the same Tally companies on the second sync server
-if (syncSocket) {
-    syncSocket.emit(
-        "identifyConnector",
-        {
-            company_guids
-        }
-    );
+// Register on sync server when its socket is connected
+if (syncSocket && syncSocket.connected) {
+    syncSocket.emit("identifyConnector", {
+        company_guids
+    });
 }
 
 
