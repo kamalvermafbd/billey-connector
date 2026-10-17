@@ -4,7 +4,9 @@ const express = require("express");
 
 const config = require("./config/config");
 
-const { connectServer } = require("./socket/client");
+//const { connectServer } = require("./socket/client");
+
+const { connectServer } = require("./socket/secondSyncClientEvents");
 
 const {
   getTallyCompanies,

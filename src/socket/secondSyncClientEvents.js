@@ -410,22 +410,18 @@ if (syncSocket && syncSocket.connected) {
 }
 
 
+ 
     } catch (err) {
-
         console.error(
             "❌ CONNECTOR IDENTIFICATION ERROR:",
             err
         );
-
-        } finally {
-
+    } finally {
         // Tally health + company monitoring start
         startTallyMonitor(socket);
-
-
     }
-//
 });
+
 
 
 socket.on("disconnect", (reason) => {
