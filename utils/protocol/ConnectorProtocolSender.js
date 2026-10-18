@@ -66,7 +66,7 @@ class ConnectorProtocolSender {
 
         };
 
-        this.socket.once(
+        this.socket.on(
             event,
             onReady
         );
@@ -145,7 +145,7 @@ async waitForReceived(
 
         };
 
-        this.socket.once(
+        this.socket.on(
             event,
             onReceived
         );
@@ -222,7 +222,7 @@ async waitForCompleted(
 
         };
 
-        this.socket.once(
+        this.socket.on(
             event,
             onCompleted
         );
@@ -325,7 +325,7 @@ async sendCollection(
     batchId,
     chunk.chunkIndex
 );
-
+/* 181026
         this.socket.emit(
 
            EVENTS.CHUNK,
@@ -368,6 +368,34 @@ async sendCollection(
             chunk.chunkIndex
 
         );
+*/
+
+const ackPromise = this.waitForReceived(
+    collection,
+    batchId,
+    chunk.chunkIndex
+);
+
+this.socket.emit(
+    EVENTS.CHUNK,
+    {
+        collection,
+        batchId,
+        chunkIndex: chunk.chunkIndex,
+        totalChunks: chunk.totalChunks,
+        payloadSize: chunk.payloadSize,
+        data: chunk.data
+    }
+);
+
+console.log(
+    "⏳ CONNECTOR WAITING ACK:",
+    collection,
+    batchId,
+    chunk.chunkIndex
+);
+
+await ackPromise;
 
         this.session.nextChunk();
 
@@ -377,7 +405,7 @@ async sendCollection(
     "Sending COMPLETE",
     collection
 );
-
+/* 181026
         this.socket.emit(
 
         EVENTS.COMPLETE,
@@ -405,6 +433,24 @@ async sendCollection(
         batchId
 
     );
+    */
+
+    const completedPromise = this.waitForCompleted(
+    collection,
+    batchId
+);
+
+this.socket.emit(
+    EVENTS.COMPLETE,
+    {
+        collection,
+        batchId,
+        totalChunks: chunks.length,
+        totalItems: items.length
+    }
+);
+
+await completedPromise;
 
     console.log(
     "COMPLETED ACK",

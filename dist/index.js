@@ -57971,9 +57971,9 @@ var require_reportService = __commonJS({
   }
 });
 
-// src/socket/client.js
-var require_client = __commonJS({
-  "src/socket/client.js"(exports2, module2) {
+// src/socket/secondSyncClientEvents.js
+var require_secondSyncClientEvents = __commonJS({
+  "src/socket/secondSyncClientEvents.js"(exports2, module2) {
     var io = require_cjs5();
     var os = require("os");
     var config = require_config();
@@ -58046,6 +58046,7 @@ var require_client = __commonJS({
       getTrialBalance
     } = require_reportService();
     var socket = null;
+    var identifiedCompanyGuids = [];
     function connectServer() {
       console.log(
         "\u{1F525} CONNECTSERVER CALLED",
@@ -58069,7 +58070,7 @@ var require_client = __commonJS({
         if (syncSocket) {
           return syncSocket;
         }
-        const syncServerUrl = config.SYNC_SERVER_URL;
+        const syncServerUrl = config.SECOND_SERVER_URL;
         if (!syncServerUrl) {
           console.error("\u274C SYNC_SERVER_URL is not configured");
           return null;
@@ -58082,10 +58083,16 @@ var require_client = __commonJS({
         });
         syncProtocolController = new ConnectorProtocolController(syncSocket);
         syncSocket.on("connect", () => {
-          console.log(
-            "\u2705 Connected to Second Sync Server",
-            syncSocket.id
-          );
+          console.log("\u2705 Connected to Second Sync Server", syncSocket.id);
+          if (identifiedCompanyGuids.length > 0) {
+            syncSocket.emit("identifyConnector", {
+              company_guids: identifiedCompanyGuids
+            });
+            console.log(
+              "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
+              identifiedCompanyGuids.length
+            );
+          }
         });
         syncSocket.on("connect_error", (err) => {
           console.error(
@@ -58137,12 +58144,18 @@ var require_client = __commonJS({
             "IDENTIFY CONNECTOR GUIDS:",
             company_guids
           );
+          identifiedCompanyGuids = company_guids;
           socket.emit(
             "identifyConnector",
             {
               company_guids
             }
           );
+          if (syncSocket && syncSocket.connected) {
+            syncSocket.emit("identifyConnector", {
+              company_guids
+            });
+          }
         } catch (err) {
           console.error(
             "\u274C CONNECTOR IDENTIFICATION ERROR:",
@@ -58336,944 +58349,973 @@ var require_client = __commonJS({
           progress,
           event: "SYNC_PROGRESS"
         });
-        socket.emit("getMastersProgress", {
+        syncSocket.emit("getMastersProgress", {
           stage,
           progress,
           batchId,
           timestamp: Date.now()
         });
       }
-      socket.on("getStockGodownSummary", async (data) => {
-        try {
-          console.log("=================================");
-          console.log("\u{1F4E6} STOCK GODOWN SUMMARY REQUEST");
-          console.log("=================================");
-          console.log(
-            "Company :",
-            data.company
-          );
-          console.log(
-            "Books Beginning From :",
-            data.booksBeginningFrom
-          );
-          const stockGodownSummary = await importStockSummary({
-            company: data.company,
-            booksBeginningFrom: data.booksBeginningFrom
-          });
-          const stockGodownRows = stockGodownSummary.data || [];
-          console.log(
-            "Godown-wise stock rows :",
-            stockGodownRows.length
-          );
-          socket.emit(
-            "getStockGodownSummaryResult",
-            {
-              success: true,
-              collectionName: "stockGodownBalances",
-              stockGodownCount: stockGodownRows.length
-            }
-          );
-          await protocolController.sendStockGodownSummary(
-            stockGodownRows
-          );
-          console.log(
-            "\u2705 Stock Godown Summary sent through protocol"
-          );
-        } catch (err) {
-          console.error(
-            "STOCK GODOWN SUMMARY ERROR"
-          );
-          console.error(err);
-          socket.emit(
-            "getStockGodownSummaryResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("getMasters", async (data) => {
-        try {
-          socket.tallyOperationActive = true;
-          socket.lastTallyActivity = Date.now();
-          const result = await runWithTallyMonitor({
-            onTallyRequestStart: () => {
-              socket.tallyRequestActive = true;
-              socket.tallyRequestStartedAt = Date.now();
-              socket.lastTallyActivity = Date.now();
-              socket.emit("tally:request:start", {
-                batchId: data.batchId,
-                timestamp: socket.tallyRequestStartedAt
-              });
-            },
-            onTallyRequestEnd: () => {
-              socket.tallyRequestActive = false;
-              socket.tallyRequestStartedAt = 0;
-              socket.lastTallyActivity = Date.now();
-              socket.emit("tally:request:end", {
-                batchId: data.batchId,
-                timestamp: Date.now()
-              });
-            },
-            onTallyRequestError: (err) => {
-              socket.tallyRequestActive = false;
-              socket.tallyRequestStartedAt = 0;
-              socket.lastTallyActivity = Date.now();
-              const tallyErrorCode = err?.code || err?.cause?.code || "";
-              const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
-              socket.emit("tally:request:error", {
-                batchId: data.batchId,
-                timestamp: Date.now(),
-                error: isTallyOffline ? "TALLY_OFFLINE" : tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR"
-              });
-            }
-          }, async () => {
-            return await importMasters({
+      if (syncSocket) {
+        syncSocket.on("getStockGodownSummary", async (data) => {
+          try {
+            console.log("=================================");
+            console.log("\u{1F4E6} STOCK GODOWN SUMMARY REQUEST");
+            console.log("=================================");
+            console.log(
+              "Company :",
+              data.company
+            );
+            console.log(
+              "Books Beginning From :",
+              data.booksBeginningFrom
+            );
+            const stockGodownSummary = await importStockSummary({
               company: data.company,
-              lastAlterId: data.lastAlterId,
-              lastStockAlterId: data.lastStockAlterId,
-              lastLedgerAlterId: data.lastLedgerAlterId,
-              onProgress: (progressData) => {
-                sendProgress(
-                  progressData.stage,
-                  progressData.progress,
-                  data.batchId
-                );
-              }
+              booksBeginningFrom: data.booksBeginningFrom
             });
-          });
-          const collections = {
-            groups: result.groups,
-            units: result.units,
-            ledgers: result.ledgers,
-            stockGroups: result.stockGroups,
-            stocks: result.stocks,
-            godowns: result.godowns,
-            costCentres: result.costCentres,
-            vouchers: result.vouchers
-          };
-          console.log("========== RECORD COUNT ==========");
-          for (const [name, value] of Object.entries(collections)) {
+            const stockGodownRows = stockGodownSummary.data || [];
             console.log(
-              `${name}:`,
-              Array.isArray(value) ? value.length : 0
+              "Godown-wise stock rows :",
+              stockGodownRows.length
             );
-          }
-          console.log("========== PAYLOAD ANALYSIS ==========");
-          for (const [name, value] of Object.entries(collections)) {
-            const size = Buffer.byteLength(
-              JSON.stringify(value || [])
+            syncSocket.emit(
+              "getStockGodownSummaryResult",
+              {
+                success: true,
+                collectionName: "stockGodownBalances",
+                stockGodownCount: stockGodownRows.length
+              }
+            );
+            await syncProtocolController.sendStockGodownSummary(
+              stockGodownRows
             );
             console.log(
-              `${name}: ${size} bytes (${(size / 1024).toFixed(2)} KB)`
+              "\u2705 Stock Godown Summary sent through protocol"
+            );
+          } catch (err) {
+            console.error(
+              "STOCK GODOWN SUMMARY ERROR"
+            );
+            console.error(err);
+            syncSocket.emit(
+              "getStockGodownSummaryResult",
+              {
+                success: false,
+                error: err.message
+              }
             );
           }
-          if (result.vouchers && result.vouchers.length > 0) {
-            const voucher = result.vouchers[0];
-            console.log("========== FIRST VOUCHER KEYS ==========");
-            console.log(Object.keys(voucher));
-            console.log("========== FIRST VOUCHER FIELD SIZE ==========");
-            for (const [key, value] of Object.entries(voucher)) {
+        });
+        syncSocket.on("getMasters", async (data) => {
+          try {
+            syncSocket.tallyOperationActive = true;
+            syncSocket.lastTallyActivity = Date.now();
+            const result = await runWithTallyMonitor({
+              onTallyRequestStart: () => {
+                syncSocket.tallyRequestActive = true;
+                syncSocket.tallyRequestStartedAt = Date.now();
+                syncSocket.lastTallyActivity = Date.now();
+                syncSocket.emit("tally:request:start", {
+                  batchId: data.batchId,
+                  timestamp: syncSocket.tallyRequestStartedAt
+                });
+              },
+              onTallyRequestEnd: () => {
+                syncSocket.tallyRequestActive = false;
+                syncSocket.tallyRequestStartedAt = 0;
+                syncSocket.lastTallyActivity = Date.now();
+                syncSocket.emit("tally:request:end", {
+                  batchId: data.batchId,
+                  timestamp: Date.now()
+                });
+              },
+              onTallyRequestError: (err) => {
+                syncSocket.tallyRequestActive = false;
+                syncSocket.tallyRequestStartedAt = 0;
+                syncSocket.lastTallyActivity = Date.now();
+                const tallyErrorCode = err?.code || err?.cause?.code || "";
+                const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
+                syncSocket.emit("tally:request:error", {
+                  batchId: data.batchId,
+                  timestamp: Date.now(),
+                  error: isTallyOffline ? "TALLY_OFFLINE" : tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR"
+                });
+              }
+            }, async () => {
+              return await importMasters({
+                company: data.company,
+                lastAlterId: data.lastAlterId,
+                lastStockAlterId: data.lastStockAlterId,
+                lastLedgerAlterId: data.lastLedgerAlterId,
+                onProgress: (progressData) => {
+                  sendProgress(
+                    progressData.stage,
+                    progressData.progress,
+                    data.batchId
+                  );
+                }
+              });
+            });
+            const collections = {
+              groups: result.groups,
+              units: result.units,
+              ledgers: result.ledgers,
+              stockGroups: result.stockGroups,
+              stocks: result.stocks,
+              godowns: result.godowns,
+              costCentres: result.costCentres,
+              vouchers: result.vouchers
+            };
+            console.log("========== RECORD COUNT ==========");
+            for (const [name, value] of Object.entries(collections)) {
+              console.log(
+                `${name}:`,
+                Array.isArray(value) ? value.length : 0
+              );
+            }
+            console.log("========== PAYLOAD ANALYSIS ==========");
+            for (const [name, value] of Object.entries(collections)) {
               const size = Buffer.byteLength(
-                JSON.stringify(value ?? null)
+                JSON.stringify(value || [])
               );
               console.log(
-                `${key}: ${(size / 1024).toFixed(2)} KB`
+                `${name}: ${size} bytes (${(size / 1024).toFixed(2)} KB)`
               );
             }
-          }
-          const masterPayload = {
-            success: true,
-            summary: result.summary,
-            voucherCount: (result.vouchers || []).length,
-            voucherGuidCount: (result.voucherGuids || []).length
-          };
-          console.log(
-            "Master Payload Size :",
-            (Buffer.byteLength(
-              JSON.stringify(masterPayload)
-            ) / 1024).toFixed(2),
-            "KB"
-          );
-          socket.emit(
-            "getMastersResult",
-            masterPayload
-          );
-          console.log(
-            "\u2705 Master payload sent"
-          );
-          await protocolController.sendMasters(
-            result
-          );
-          socket.tallyOperationActive = false;
-          socket.lastTallyActivity = Date.now();
-        } catch (err) {
-          socket.tallyOperationActive = false;
-          socket.tallyRequestActive = false;
-          socket.tallyRequestStartedAt = 0;
-          console.error("GET MASTERS ERROR");
-          console.error(err);
-          const tallyErrorCode = err?.code || err?.cause?.code || "";
-          const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
-          socket.emit(
-            "getMastersResult",
-            {
-              success: false,
-              error: isTallyOffline ? "TALLY_OFFLINE" : err.message
+            if (result.vouchers && result.vouchers.length > 0) {
+              const voucher = result.vouchers[0];
+              console.log("========== FIRST VOUCHER KEYS ==========");
+              console.log(Object.keys(voucher));
+              console.log("========== FIRST VOUCHER FIELD SIZE ==========");
+              for (const [key, value] of Object.entries(voucher)) {
+                const size = Buffer.byteLength(
+                  JSON.stringify(value ?? null)
+                );
+                console.log(
+                  `${key}: ${(size / 1024).toFixed(2)} KB`
+                );
+              }
             }
-          );
-        }
-      });
-      socket.on("getMastersVoucherGuids", async (data) => {
-        try {
-          sendProgress(
-            "VOUCHER_GUID_DISCOVERY",
-            null,
-            data.batchId
-          );
-          console.log("GUID REQUEST DATES:", {
-            fromDate: data.fromDate,
-            toDate: data.toDate
-          });
-          console.log("=== GUID REQUEST DEBUG ===");
-          console.log({
-            company: data.company,
-            fromDate: data.fromDate,
-            toDate: data.toDate,
-            booksBeginningFrom: data.booksBeginningFrom,
-            lastAlterId: data.lastAlterId,
-            syncMode: data.syncMode,
-            syncPeriod: data.syncPeriod
-          });
-          const voucherGuids = await importVoucherGuids({
-            company: data.company,
-            fromDate: data.fromDate,
-            toDate: data.toDate,
-            booksBeginningFrom: data.booksBeginningFrom,
-            lastAlterId: data.lastAlterId,
-            syncMode: data.syncMode,
-            syncPeriod: data.syncPeriod
-          });
-          sendProgress(
-            "VOUCHER_GUIDS_RECEIVED",
-            null,
-            data.batchId
-          );
-          console.log(
-            "VOUCHER GUIDS RECEIVED FROM TALLY:",
-            voucherGuids.length
-          );
-          console.log("=== END GUID REQUEST DEBUG ===");
-          socket.emit(
-            "getMastersVoucherGuidsResult",
-            {
+            const masterPayload = {
               success: true,
-              collectionName: "voucherGuids",
-              voucherGuidCount: voucherGuids.length
-            }
-          );
-          if (voucherGuids.length > 0) {
+              summary: result.summary,
+              voucherCount: (result.vouchers || []).length,
+              voucherGuidCount: (result.voucherGuids || []).length
+            };
+            console.log(
+              "Master Payload Size :",
+              (Buffer.byteLength(
+                JSON.stringify(masterPayload)
+              ) / 1024).toFixed(2),
+              "KB"
+            );
+            syncSocket.emit(
+              "getMastersResult",
+              masterPayload
+            );
+            console.log(
+              "\u2705 Master payload sent"
+            );
+            await syncProtocolController.sendMasters(
+              result
+            );
+            syncSocket.tallyOperationActive = false;
+            syncSocket.lastTallyActivity = Date.now();
+          } catch (err) {
+            syncSocket.tallyOperationActive = false;
+            syncSocket.tallyRequestActive = false;
+            syncSocket.tallyRequestStartedAt = 0;
+            console.error("GET MASTERS ERROR");
+            console.error(err);
+            const tallyErrorCode = err?.code || err?.cause?.code || "";
+            const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
+            syncSocket.emit(
+              "getMastersResult",
+              {
+                success: false,
+                error: isTallyOffline ? "TALLY_OFFLINE" : err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersVoucherGuids", async (data) => {
+          try {
             sendProgress(
-              "VOUCHER_CHUNK_SEND",
+              "VOUCHER_GUID_DISCOVERY",
               null,
               data.batchId
             );
+            console.log("GUID REQUEST DATES:", {
+              fromDate: data.fromDate,
+              toDate: data.toDate
+            });
+            console.log("=== GUID REQUEST DEBUG ===");
+            console.log({
+              company: data.company,
+              fromDate: data.fromDate,
+              toDate: data.toDate,
+              booksBeginningFrom: data.booksBeginningFrom,
+              lastAlterId: data.lastAlterId,
+              syncMode: data.syncMode,
+              syncPeriod: data.syncPeriod
+            });
+            const voucherGuids = await importVoucherGuids({
+              company: data.company,
+              fromDate: data.fromDate,
+              toDate: data.toDate,
+              booksBeginningFrom: data.booksBeginningFrom,
+              lastAlterId: data.lastAlterId,
+              syncMode: data.syncMode,
+              syncPeriod: data.syncPeriod
+            });
+            sendProgress(
+              "VOUCHER_GUIDS_RECEIVED",
+              null,
+              data.batchId
+            );
+            console.log(
+              "VOUCHER GUIDS RECEIVED FROM TALLY:",
+              voucherGuids.length
+            );
+            console.log("=== END GUID REQUEST DEBUG ===");
+            syncSocket.emit(
+              "getMastersVoucherGuidsResult",
+              {
+                success: true,
+                collectionName: "voucherGuids",
+                voucherGuidCount: voucherGuids.length
+              }
+            );
+            if (voucherGuids.length > 0) {
+              sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+              );
+              await sendChunkedResponse(
+                syncSocket,
+                "getMastersVoucherGuids",
+                voucherGuids
+              );
+              console.log(
+                "\u2705 Voucher GUID chunks sent"
+              );
+            } else {
+              console.log(
+                "No voucher GUIDs found"
+              );
+              sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+              );
+              await sendChunkedResponse(
+                syncSocket,
+                "getMastersVoucherGuids",
+                []
+              );
+              console.log(
+                "\u2705 Empty Voucher GUID collection completed"
+              );
+            }
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersVoucherGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersGroupGuids", async (data) => {
+          try {
+            const groupGuids = await importGroupGuids({
+              company: data.company
+            });
+            syncSocket.emit(
+              "getMastersGroupGuidsResult",
+              {
+                success: true,
+                collectionName: "groupGuids",
+                groupGuidCount: groupGuids.length
+              }
+            );
+            if (groupGuids.length > 0) {
+              await sendChunkedResponse(
+                syncSocket,
+                "getMastersGroupGuids",
+                groupGuids
+              );
+              console.log(
+                "\u2705 Group GUID chunks sent"
+              );
+            } else {
+              console.log(
+                "No Group GUIDs found"
+              );
+              await sendChunkedResponse(
+                syncSocket,
+                "getMastersGroupGuids",
+                []
+              );
+              console.log(
+                "\u2705 Empty Group GUID collection completed"
+              );
+            }
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersGroupGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersLedgerGuids", async (data) => {
+          try {
+            const ledgerGuids = await importLedgerGuids({
+              company: data.company
+            });
+            syncSocket.emit(
+              "getMastersLedgerGuidsResult",
+              {
+                success: true,
+                collectionName: "ledgerGuids",
+                ledgerGuidCount: ledgerGuids.length
+              }
+            );
+            if (ledgerGuids.length > 0) {
+              await sendChunkedResponse(
+                syncSocket,
+                "getMastersLedgerGuids",
+                ledgerGuids
+              );
+              console.log(
+                "\u2705 Ledger GUID chunks sent"
+              );
+            } else {
+              console.log(
+                "No Ledger GUIDs found"
+              );
+              await sendChunkedResponse(
+                syncSocket,
+                "getMastersLedgerGuids",
+                []
+              );
+              console.log(
+                "\u2705 Empty Ledger GUID collection completed"
+              );
+            }
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersLedgerGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersStockGroupGuids", async (data) => {
+          try {
+            const stockGroupGuids = await importStockGroupGuids({
+              company: data.company
+            });
+            syncSocket.emit(
+              "getMastersStockGroupGuidsResult",
+              {
+                success: true,
+                collectionName: "stockGroupGuids",
+                stockGroupGuidCount: stockGroupGuids.length
+              }
+            );
             await sendChunkedResponse(
-              socket,
-              "getMastersVoucherGuids",
+              syncSocket,
+              "getMastersStockGroupGuids",
+              stockGroupGuids
+            );
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersStockGroupGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersStockGuids", async (data) => {
+          try {
+            const stockGuids = await importStockGuids({
+              company: data.company
+            });
+            syncSocket.emit(
+              "getMastersStockGuidsResult",
+              {
+                success: true,
+                collectionName: "stockGuids",
+                stockGuidCount: stockGuids.length
+              }
+            );
+            await sendChunkedResponse(
+              syncSocket,
+              "getMastersStockGuids",
+              stockGuids
+            );
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersStockGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersUnitGuids", async (data) => {
+          try {
+            const unitGuids = await importUnitGuids({
+              company: data.company
+            });
+            syncSocket.emit(
+              "getMastersUnitGuidsResult",
+              {
+                success: true,
+                collectionName: "unitGuids",
+                unitGuidCount: unitGuids.length
+              }
+            );
+            await sendChunkedResponse(
+              syncSocket,
+              "getMastersUnitGuids",
+              unitGuids
+            );
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersUnitGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersGodownGuids", async (data) => {
+          try {
+            const godownGuids = await importGodownGuids({
+              company: data.company
+            });
+            syncSocket.emit(
+              "getMastersGodownGuidsResult",
+              {
+                success: true,
+                collectionName: "godownGuids",
+                godownGuidCount: godownGuids.length
+              }
+            );
+            await sendChunkedResponse(
+              syncSocket,
+              "getMastersGodownGuids",
+              godownGuids
+            );
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersGodownGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getMastersCostCentreGuids", async (data) => {
+          try {
+            const costCentreGuids = await importCostCentreGuids({
+              company: data.company
+            });
+            syncSocket.emit(
+              "getMastersCostCentreGuidsResult",
+              {
+                success: true,
+                collectionName: "costCentreGuids",
+                costCentreGuidCount: costCentreGuids.length
+              }
+            );
+            await sendChunkedResponse(
+              syncSocket,
+              "getMastersCostCentreGuids",
+              costCentreGuids
+            );
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit(
+              "getMastersCostCentreGuidsResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("voucherByGuidChunk", (data) => {
+          try {
+            sendProgress(
+              "VOUCHER_CHUNK_RECEIVE",
+              null,
+              data.batchId
+            );
+            addChunk(data);
+            syncSocket.emit("voucherByGuidChunkAck", {
+              batchId: data.batchId,
+              chunkIndex: data.chunkIndex,
+              success: true
+            });
+            console.log(
+              `Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
+            );
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit("voucherByGuidChunkAck", {
+              batchId: data.batchId,
+              chunkIndex: data.chunkIndex,
+              success: false,
+              error: err.message
+            });
+          }
+        });
+        syncSocket.on("stockByGuidChunk", (data) => {
+          try {
+            addChunk(data);
+            syncSocket.emit("stockByGuidChunkAck", {
+              batchId: data.batchId,
+              chunkIndex: data.chunkIndex,
+              success: true
+            });
+            console.log(
+              `Stock Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
+            );
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit("stockByGuidChunkAck", {
+              batchId: data.batchId,
+              chunkIndex: data.chunkIndex,
+              success: false,
+              error: err.message
+            });
+          }
+        });
+        syncSocket.on("stockByGuidComplete", async (data) => {
+          try {
+            if (!isComplete(data.batchId)) {
+              throw new Error(
+                "Missing stock request chunks"
+              );
+            }
+            const stockGuids = complete(data.batchId);
+            syncSocket.emit(
+              "stockByGuidCompleteAck",
+              {
+                batchId: data.batchId,
+                success: true
+              }
+            );
+            console.log(
+              "Merged Stock GUIDs :",
+              stockGuids.length
+            );
+            const stocks = await importStockBulkByGuid({
+              company: data.company,
+              stockGuids
+            });
+            syncSocket.emit(
+              "stockByGuidResult",
+              {
+                success: true,
+                collectionName: "stocks",
+                stockCount: stocks.length
+              }
+            );
+            if (stocks.length > 0) {
+              await sendChunkedResponse(
+                syncSocket,
+                "stockByGuid",
+                stocks
+              );
+              console.log(
+                "\u2705 Missing Stock chunks sent"
+              );
+            } else {
+              await sendChunkedResponse(
+                syncSocket,
+                "stockByGuid",
+                []
+              );
+              console.log(
+                "\u2705 Empty Stock collection completed"
+              );
+            }
+          } catch (err) {
+            console.error(
+              "STOCK BY GUID ERROR",
+              err
+            );
+            syncSocket.emit(
+              "stockByGuidResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("ledgerByGuidChunk", (data) => {
+          try {
+            addChunk(data);
+            syncSocket.emit("ledgerByGuidChunkAck", {
+              batchId: data.batchId,
+              chunkIndex: data.chunkIndex,
+              success: true
+            });
+          } catch (err) {
+            console.error(err);
+            syncSocket.emit("ledgerByGuidChunkAck", {
+              batchId: data.batchId,
+              chunkIndex: data.chunkIndex,
+              success: false,
+              error: err.message
+            });
+          }
+        });
+        syncSocket.on("ledgerByGuidComplete", async (data) => {
+          try {
+            if (!isComplete(data.batchId)) {
+              throw new Error(
+                "Missing ledger request chunks"
+              );
+            }
+            const ledgerGuids = complete(data.batchId);
+            syncSocket.emit(
+              "ledgerByGuidCompleteAck",
+              {
+                batchId: data.batchId,
+                success: true
+              }
+            );
+            console.log(
+              "Merged Ledger GUIDs :",
+              ledgerGuids.length
+            );
+            const ledgers = await importLedgerBulkByGuid({
+              company: data.company,
+              ledgerGuids
+            });
+            syncSocket.emit(
+              "ledgerByGuidResult",
+              {
+                success: true,
+                collectionName: "ledgers",
+                ledgerCount: ledgers.length
+              }
+            );
+            if (ledgers.length > 0) {
+              await sendChunkedResponse(
+                syncSocket,
+                "ledgerByGuid",
+                ledgers
+              );
+              console.log(
+                "\u2705 Missing Ledger chunks sent"
+              );
+            } else {
+              await sendChunkedResponse(
+                syncSocket,
+                "ledgerByGuid",
+                []
+              );
+              console.log(
+                "\u2705 Empty Ledger collection completed"
+              );
+            }
+          } catch (err) {
+            console.error(
+              "LEDGER BY GUID ERROR",
+              err
+            );
+            syncSocket.emit(
+              "ledgerByGuidResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("voucherByGuidComplete", async (data) => {
+          try {
+            if (!isComplete(data.batchId)) {
+              throw new Error(
+                "Missing request chunks"
+              );
+            }
+            const voucherGuids = complete(data.batchId);
+            sendProgress(
+              "VOUCHER_IMPORT",
+              null,
+              data.batchId
+            );
+            console.log(
+              "BULK GUID INPUT:",
               voucherGuids
             );
-            console.log(
-              "\u2705 Voucher GUID chunks sent"
+            syncSocket.emit(
+              "voucherByGuidCompleteAck",
+              {
+                batchId: data.batchId,
+                success: true
+              }
             );
-          } else {
             console.log(
-              "No voucher GUIDs found"
+              "Merged GUIDs :",
+              voucherGuids.length
             );
+            const vouchers = await importVoucherBulkByGuid({
+              company: data.company,
+              voucherGuids
+            });
+            syncSocket.emit(
+              "voucherByGuidResult",
+              {
+                success: true,
+                collectionName: "vouchers",
+                voucherCount: vouchers.length
+              }
+            );
+            if (vouchers.length > 0) {
+              sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+              );
+              await sendChunkedResponse(
+                syncSocket,
+                "voucherByGuid",
+                vouchers
+              );
+            } else {
+              sendProgress(
+                "VOUCHER_CHUNK_SEND",
+                null,
+                data.batchId
+              );
+              await sendChunkedResponse(
+                syncSocket,
+                "voucherByGuid",
+                []
+              );
+            }
             sendProgress(
-              "VOUCHER_CHUNK_SEND",
+              "VOUCHER_COMPLETE",
               null,
               data.batchId
             );
-            await sendChunkedResponse(
-              socket,
-              "getMastersVoucherGuids",
-              []
+            console.log("\u2705 Request Chunking Working");
+          } catch (err) {
+            console.error(
+              "VOUCHER BY GUID COMPLETE ERROR",
+              err
             );
-            console.log(
-              "\u2705 Empty Voucher GUID collection completed"
-            );
-          }
-        } catch (err) {
-          console.error(err);
-          socket.emit(
-            "getMastersVoucherGuidsResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("getMastersGroupGuids", async (data) => {
-        try {
-          const groupGuids = await importGroupGuids({
-            company: data.company
-          });
-          socket.emit(
-            "getMastersGroupGuidsResult",
-            {
-              success: true,
-              collectionName: "groupGuids",
-              groupGuidCount: groupGuids.length
-            }
-          );
-          if (groupGuids.length > 0) {
-            await sendChunkedResponse(
-              socket,
-              "getMastersGroupGuids",
-              groupGuids
-            );
-            console.log(
-              "\u2705 Group GUID chunks sent"
-            );
-          } else {
-            console.log(
-              "No Group GUIDs found"
-            );
-            await sendChunkedResponse(
-              socket,
-              "getMastersGroupGuids",
-              []
-            );
-            console.log(
-              "\u2705 Empty Group GUID collection completed"
+            syncSocket.emit(
+              "voucherByGuidResult",
+              {
+                success: false,
+                error: err.message
+              }
             );
           }
-        } catch (err) {
-          console.error(err);
-          socket.emit(
-            "getMastersGroupGuidsResult",
-            {
-              success: false,
-              error: err.message
+        });
+        syncSocket.on("voucherByGuid", async (data) => {
+          try {
+            const vouchers = await importVoucherBulkByGuid({
+              company: data.company,
+              voucherGuids: data.voucherGuids
+            });
+            syncSocket.emit(
+              "voucherByGuidResult",
+              {
+                success: true,
+                collectionName: "vouchers",
+                voucherCount: vouchers.length
+              }
+            );
+            if (vouchers.length > 0) {
+              await sendChunkedResponse(
+                syncSocket,
+                "voucherByGuid",
+                vouchers
+              );
+              console.log(
+                "\u2705 Missing Voucher chunks sent"
+              );
+            } else {
+              await sendChunkedResponse(
+                syncSocket,
+                "voucherByGuid",
+                []
+              );
             }
-          );
-        }
-      });
-      socket.on("getMastersLedgerGuids", async (data) => {
-        try {
-          const ledgerGuids = await importLedgerGuids({
-            company: data.company
-          });
-          socket.emit(
-            "getMastersLedgerGuidsResult",
-            {
-              success: true,
-              collectionName: "ledgerGuids",
-              ledgerGuidCount: ledgerGuids.length
-            }
-          );
-          if (ledgerGuids.length > 0) {
-            await sendChunkedResponse(
-              socket,
-              "getMastersLedgerGuids",
-              ledgerGuids
+          } catch (err) {
+            console.error(
+              "VOUCHER BY GUID ERROR",
+              err
             );
-            console.log(
-              "\u2705 Ledger GUID chunks sent"
-            );
-          } else {
-            console.log(
-              "No Ledger GUIDs found"
-            );
-            await sendChunkedResponse(
-              socket,
-              "getMastersLedgerGuids",
-              []
-            );
-            console.log(
-              "\u2705 Empty Ledger GUID collection completed"
+            syncSocket.emit(
+              "voucherByGuidResult",
+              {
+                success: false,
+                error: err.message
+              }
             );
           }
-        } catch (err) {
-          console.error(err);
-          socket.emit(
-            "getMastersLedgerGuidsResult",
-            {
-              success: false,
-              error: err.message
+        });
+        syncSocket.on("stockByGuid", async (data) => {
+          try {
+            const stocks = await importStockBulkByGuid({
+              company: data.company,
+              stockGuids: data.stockGuids
+            });
+            syncSocket.emit(
+              "stockByGuidResult",
+              {
+                success: true,
+                collectionName: "stocks",
+                stockCount: stocks.length
+              }
+            );
+            if (stocks.length > 0) {
+              await sendChunkedResponse(
+                syncSocket,
+                "stockByGuid",
+                stocks
+              );
+              console.log(
+                "\u2705 Missing Stock chunks sent"
+              );
+            } else {
+              await sendChunkedResponse(
+                syncSocket,
+                "stockByGuid",
+                []
+              );
             }
-          );
-        }
-      });
-      socket.on("getMastersStockGroupGuids", async (data) => {
-        try {
-          const stockGroupGuids = await importStockGroupGuids({
-            company: data.company
-          });
-          socket.emit(
-            "getMastersStockGroupGuidsResult",
-            {
-              success: true,
-              collectionName: "stockGroupGuids",
-              stockGroupGuidCount: stockGroupGuids.length
-            }
-          );
-          await sendChunkedResponse(
-            socket,
-            "getMastersStockGroupGuids",
-            stockGroupGuids
-          );
-        } catch (err) {
-          socket.emit(
-            "getMastersStockGroupGuidsResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("getMastersStockGuids", async (data) => {
-        try {
-          const stockGuids = await importStockGuids({
-            company: data.company
-          });
-          socket.emit(
-            "getMastersStockGuidsResult",
-            {
-              success: true,
-              collectionName: "stockGuids",
-              stockGuidCount: stockGuids.length
-            }
-          );
-          await sendChunkedResponse(
-            socket,
-            "getMastersStockGuids",
-            stockGuids
-          );
-        } catch (err) {
-          socket.emit(
-            "getMastersStockGuidsResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("getMastersUnitGuids", async (data) => {
-        try {
-          const unitGuids = await importUnitGuids({
-            company: data.company
-          });
-          socket.emit(
-            "getMastersUnitGuidsResult",
-            {
-              success: true,
-              collectionName: "unitGuids",
-              unitGuidCount: unitGuids.length
-            }
-          );
-          await sendChunkedResponse(
-            socket,
-            "getMastersUnitGuids",
-            unitGuids
-          );
-        } catch (err) {
-          socket.emit(
-            "getMastersUnitGuidsResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("getMastersGodownGuids", async (data) => {
-        try {
-          const godownGuids = await importGodownGuids({
-            company: data.company
-          });
-          socket.emit(
-            "getMastersGodownGuidsResult",
-            {
-              success: true,
-              collectionName: "godownGuids",
-              godownGuidCount: godownGuids.length
-            }
-          );
-          await sendChunkedResponse(
-            socket,
-            "getMastersGodownGuids",
-            godownGuids
-          );
-        } catch (err) {
-          socket.emit(
-            "getMastersGodownGuidsResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("getMastersCostCentreGuids", async (data) => {
-        try {
-          const costCentreGuids = await importCostCentreGuids({
-            company: data.company
-          });
-          socket.emit(
-            "getMastersCostCentreGuidsResult",
-            {
-              success: true,
-              collectionName: "costCentreGuids",
-              costCentreGuidCount: costCentreGuids.length
-            }
-          );
-          await sendChunkedResponse(
-            socket,
-            "getMastersCostCentreGuids",
-            costCentreGuids
-          );
-        } catch (err) {
-          socket.emit(
-            "getMastersCostCentreGuidsResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("voucherByGuidChunk", (data) => {
-        try {
-          sendProgress(
-            "VOUCHER_CHUNK_RECEIVE",
-            null,
-            data.batchId
-          );
-          addChunk(data);
-          socket.emit("voucherByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: true
-          });
-          console.log(
-            `Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
-          );
-        } catch (err) {
-          socket.emit("voucherByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: false,
-            error: err.message
-          });
-        }
-      });
-      socket.on("stockByGuidChunk", (data) => {
-        try {
-          addChunk(data);
-          socket.emit("stockByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: true
-          });
-          console.log(
-            `Stock Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
-          );
-        } catch (err) {
-          socket.emit("stockByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: false,
-            error: err.message
-          });
-        }
-      });
-      socket.on("stockByGuidComplete", async (data) => {
-        try {
-          if (!isComplete(data.batchId)) {
-            throw new Error(
-              "Missing stock request chunks"
+          } catch (err) {
+            console.error(
+              "STOCK BY GUID ERROR",
+              err
+            );
+            syncSocket.emit(
+              "stockByGuidResult",
+              {
+                success: false,
+                error: err.message
+              }
             );
           }
-          const stockGuids = complete(data.batchId);
-          socket.emit(
-            "stockByGuidCompleteAck",
-            {
-              batchId: data.batchId,
-              success: true
+        });
+        syncSocket.on("ledgerByGuid", async (data) => {
+          try {
+            const ledgers = await importLedgerBulkByGuid({
+              company: data.company,
+              ledgerGuids: data.ledgerGuids
+            });
+            syncSocket.emit(
+              "ledgerByGuidResult",
+              {
+                success: true,
+                collectionName: "ledgers",
+                ledgerCount: ledgers.length
+              }
+            );
+            if (ledgers.length > 0) {
+              await sendChunkedResponse(
+                syncSocket,
+                "ledgerByGuid",
+                ledgers
+              );
+            } else {
+              await sendChunkedResponse(
+                syncSocket,
+                "ledgerByGuid",
+                []
+              );
+              console.log(
+                "\u2705 Empty Ledger collection completed"
+              );
             }
-          );
-          console.log(
-            "Merged Stock GUIDs :",
-            stockGuids.length
-          );
-          const stocks = await importStockBulkByGuid({
-            company: data.company,
-            stockGuids
-          });
-          socket.emit(
-            "stockByGuidResult",
-            {
-              success: true,
-              collectionName: "stocks",
-              stockCount: stocks.length
-            }
-          );
-          if (stocks.length > 0) {
-            await sendChunkedResponse(
-              socket,
-              "stockByGuid",
-              stocks
+          } catch (err) {
+            console.error(
+              "LEDGER BY GUID ERROR",
+              err
+            );
+            syncSocket.emit(
+              "ledgerByGuidResult",
+              {
+                success: false,
+                error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("getTrialBalance", async (data) => {
+          try {
+            const result = await getTrialBalance({
+              company: data.company,
+              asOnDate: data.asOnDate,
+              booksBeginningFrom: data.booksBeginningFrom
+            });
+            const trialBalanceRows = Array.isArray(result) ? result : result?.data || [];
+            console.log(
+              "Trial Balance Rows :",
+              trialBalanceRows.length
+            );
+            syncSocket.emit(
+              "getTrialBalanceResult",
+              {
+                success: true,
+                collectionName: "trialBalance",
+                trialBalanceCount: trialBalanceRows.length
+              }
+            );
+            await syncProtocolController.sendTrialBalance(
+              trialBalanceRows
             );
             console.log(
-              "\u2705 Missing Stock chunks sent"
+              "\u2705 Trial Balance sent through protocol"
             );
-          } else {
-            await sendChunkedResponse(
-              socket,
-              "stockByGuid",
-              []
+          } catch (err) {
+            console.error(
+              "GET TRIAL BALANCE ERROR",
+              err
             );
-            console.log(
-              "\u2705 Empty Stock collection completed"
-            );
-          }
-        } catch (err) {
-          console.error(
-            "STOCK BY GUID ERROR",
-            err
-          );
-          socket.emit(
-            "stockByGuidResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("ledgerByGuidChunk", (data) => {
-        try {
-          addChunk(data);
-          socket.emit("ledgerByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: true
-          });
-        } catch (err) {
-          socket.emit("ledgerByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: false,
-            error: err.message
-          });
-        }
-      });
-      socket.on("ledgerByGuidComplete", async (data) => {
-        try {
-          if (!isComplete(data.batchId)) {
-            throw new Error(
-              "Missing ledger request chunks"
+            syncSocket.emit(
+              "getTrialBalanceResult",
+              {
+                success: false,
+                error: err.message
+              }
             );
           }
-          const ledgerGuids = complete(data.batchId);
-          socket.emit(
-            "ledgerByGuidCompleteAck",
-            {
-              batchId: data.batchId,
-              success: true
-            }
-          );
-          console.log(
-            "Merged Ledger GUIDs :",
-            ledgerGuids.length
-          );
-          const ledgers = await importLedgerBulkByGuid({
-            company: data.company,
-            ledgerGuids
-          });
-          socket.emit(
-            "ledgerByGuidResult",
-            {
-              success: true,
-              collectionName: "ledgers",
-              ledgerCount: ledgers.length
-            }
-          );
-          if (ledgers.length > 0) {
-            await sendChunkedResponse(
-              socket,
-              "ledgerByGuid",
-              ledgers
-            );
-            console.log(
-              "\u2705 Missing Ledger chunks sent"
-            );
-          } else {
-            await sendChunkedResponse(
-              socket,
-              "ledgerByGuid",
-              []
-            );
-            console.log(
-              "\u2705 Empty Ledger collection completed"
-            );
-          }
-        } catch (err) {
-          console.error(
-            "LEDGER BY GUID ERROR",
-            err
-          );
-          socket.emit(
-            "ledgerByGuidResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("voucherByGuidComplete", async (data) => {
-        try {
-          if (!isComplete(data.batchId)) {
-            throw new Error(
-              "Missing request chunks"
-            );
-          }
-          const voucherGuids = complete(data.batchId);
-          sendProgress(
-            "VOUCHER_IMPORT",
-            null,
-            data.batchId
-          );
-          console.log(
-            "BULK GUID INPUT:",
-            voucherGuids
-          );
-          socket.emit(
-            "voucherByGuidCompleteAck",
-            {
-              batchId: data.batchId,
-              success: true
-            }
-          );
-          console.log(
-            "Merged GUIDs :",
-            voucherGuids.length
-          );
-          const vouchers = await importVoucherBulkByGuid({
-            company: data.company,
-            voucherGuids
-          });
-          socket.emit(
-            "voucherByGuidResult",
-            {
-              success: true,
-              collectionName: "vouchers",
-              voucherCount: vouchers.length
-            }
-          );
-          if (vouchers.length > 0) {
-            sendProgress(
-              "VOUCHER_CHUNK_SEND",
-              null,
-              data.batchId
-            );
-            await sendChunkedResponse(
-              socket,
-              "voucherByGuid",
-              vouchers
-            );
-          } else {
-            sendProgress(
-              "VOUCHER_CHUNK_SEND",
-              null,
-              data.batchId
-            );
-            await sendChunkedResponse(
-              socket,
-              "voucherByGuid",
-              []
-            );
-          }
-          sendProgress(
-            "VOUCHER_COMPLETE",
-            null,
-            data.batchId
-          );
-          console.log("\u2705 Request Chunking Working");
-        } catch (err) {
-          console.error(err);
-        }
-      });
-      socket.on("voucherByGuid", async (data) => {
-        try {
-          const vouchers = await importVoucherBulkByGuid({
-            company: data.company,
-            voucherGuids: data.voucherGuids
-          });
-          socket.emit(
-            "voucherByGuidResult",
-            {
-              success: true,
-              collectionName: "vouchers",
-              voucherCount: vouchers.length
-            }
-          );
-          if (vouchers.length > 0) {
-            await sendChunkedResponse(
-              socket,
-              "voucherByGuid",
-              vouchers
-            );
-            console.log(
-              "\u2705 Missing Voucher chunks sent"
-            );
-          } else {
-            await sendChunkedResponse(
-              socket,
-              "voucherByGuid",
-              []
-            );
-          }
-        } catch (err) {
-          console.error(err);
-          socket.emit(
-            "voucherByGuidResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("stockByGuid", async (data) => {
-        try {
-          const stocks = await importStockBulkByGuid({
-            company: data.company,
-            stockGuids: data.stockGuids
-          });
-          socket.emit(
-            "stockByGuidResult",
-            {
-              success: true,
-              collectionName: "stocks",
-              stockCount: stocks.length
-            }
-          );
-          if (stocks.length > 0) {
-            await sendChunkedResponse(
-              socket,
-              "stockByGuid",
-              stocks
-            );
-            console.log(
-              "\u2705 Missing Stock chunks sent"
-            );
-          } else {
-            await sendChunkedResponse(
-              socket,
-              "stockByGuid",
-              []
-            );
-          }
-        } catch (err) {
-          console.error(err);
-          socket.emit(
-            "stockByGuidResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("ledgerByGuid", async (data) => {
-        try {
-          const ledgers = await importLedgerBulkByGuid({
-            company: data.company,
-            ledgerGuids: data.ledgerGuids
-          });
-          socket.emit(
-            "ledgerByGuidResult",
-            {
-              success: true,
-              collectionName: "ledgers",
-              ledgerCount: ledgers.length
-            }
-          );
-          if (ledgers.length > 0) {
-            await sendChunkedResponse(
-              socket,
-              "ledgerByGuid",
-              ledgers
-            );
-          } else {
-            await sendChunkedResponse(
-              socket,
-              "ledgerByGuid",
-              []
-            );
-            console.log(
-              "\u2705 Empty Ledger collection completed"
-            );
-          }
-        } catch (err) {
-          console.error(err);
-          socket.emit(
-            "ledgerByGuidResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
-      socket.on("getTrialBalance", async (data) => {
-        try {
-          const result = await getTrialBalance({
-            company: data.company,
-            asOnDate: data.asOnDate,
-            booksBeginningFrom: data.booksBeginningFrom
-          });
-          const trialBalanceRows = Array.isArray(result) ? result : result?.data || [];
-          console.log(
-            "Trial Balance Rows :",
-            trialBalanceRows.length
-          );
-          socket.emit(
-            "getTrialBalanceResult",
-            {
-              success: true,
-              collectionName: "trialBalance",
-              trialBalanceCount: trialBalanceRows.length
-            }
-          );
-          await protocolController.sendTrialBalance(
-            trialBalanceRows
-          );
-          console.log(
-            "\u2705 Trial Balance sent through protocol"
-          );
-        } catch (err) {
-          console.error(
-            "GET TRIAL BALANCE ERROR"
-          );
-          console.error(err);
-          socket.emit(
-            "getTrialBalanceResult",
-            {
-              success: false,
-              error: err.message
-            }
-          );
-        }
-      });
+        });
+      }
       socket.on("connect_error", (err) => {
         console.log("=================================");
         console.log("\u274C Connection Failed");
@@ -59336,7 +59378,7 @@ var require_src3 = __commonJS({
     var cors = require_lib();
     var express = require_express2();
     var config = require_config();
-    var { connectServer } = require_client();
+    var { connectServer } = require_secondSyncClientEvents();
     var {
       getTallyCompanies,
       getTallyMappingData
