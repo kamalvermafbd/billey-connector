@@ -1970,13 +1970,14 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
             voucherGuids
         );
 
-        syncSocket.emit(
-            "voucherByGuidCompleteAck",
-            {
-                batchId: data.batchId,
-                success: true
-            }
-        );
+       syncSocket.emit(
+    "voucherByGuidCompleteAck",
+    {
+        batchId: data.batchId,
+        requestId: data.requestId,
+        success: true
+    }
+);
 
         console.log(
             "Merged GUIDs :",

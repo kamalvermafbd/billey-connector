@@ -52080,7 +52080,7 @@ var require_sendChunkedResponse = __commonJS({
         );
       });
     }
-    async function sendChunkedResponse(socket, baseEvent, items, maxChunkSize) {
+    async function sendChunkedResponse(socket, baseEvent, items, maxChunkSize, requestId) {
       let heartbeat;
       function startHeartbeat() {
         heartbeat = setInterval(() => {
@@ -52110,6 +52110,7 @@ var require_sendChunkedResponse = __commonJS({
         );
         socket.emit(`${baseEvent}Complete`, {
           batchId,
+          ...requestId ? { requestId } : {},
           totalChunks: 0,
           totalItems: 0,
           completedAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -52144,6 +52145,7 @@ var require_sendChunkedResponse = __commonJS({
           );
           socket.emit(chunkEvent, {
             batchId,
+            ...requestId ? { requestId } : {},
             chunkIndex: chunk.chunkIndex,
             totalChunks: chunk.totalChunks,
             payloadSize: chunk.payloadSize,
@@ -52175,6 +52177,7 @@ var require_sendChunkedResponse = __commonJS({
           completeEvent,
           {
             batchId,
+            ...requestId ? { requestId } : {},
             totalChunks: chunks.length,
             totalItems: items.length,
             completedAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -59097,6 +59100,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "voucherByGuidResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "vouchers",
                 voucherCount: vouchers.length
@@ -59111,7 +59115,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                vouchers
+                vouchers,
+                void 0,
+                data.requestId
               );
             } else {
               sendProgress(
@@ -59122,7 +59128,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                []
+                [],
+                void 0,
+                data.requestId
               );
             }
             sendProgress(
@@ -59139,6 +59147,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "voucherByGuidResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -59154,6 +59163,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "voucherByGuidResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "vouchers",
                 voucherCount: vouchers.length
@@ -59163,7 +59173,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                vouchers
+                vouchers,
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Missing Voucher chunks sent"
@@ -59172,7 +59184,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                []
+                [],
+                void 0,
+                data.requestId
               );
             }
           } catch (err) {
@@ -59183,6 +59197,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "voucherByGuidResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
