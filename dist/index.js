@@ -52293,7 +52293,7 @@ var require_ConnectorProtocolSender = __commonJS({
               )
             );
           };
-          this.socket.once(
+          this.socket.on(
             event,
             onReady
           );
@@ -52343,7 +52343,7 @@ var require_ConnectorProtocolSender = __commonJS({
               )
             );
           };
-          this.socket.once(
+          this.socket.on(
             event,
             onReceived
           );
@@ -52394,7 +52394,7 @@ var require_ConnectorProtocolSender = __commonJS({
               )
             );
           };
-          this.socket.once(
+          this.socket.on(
             event,
             onCompleted
           );
@@ -52451,6 +52451,11 @@ var require_ConnectorProtocolSender = __commonJS({
             batchId,
             chunk.chunkIndex
           );
+          const ackPromise = this.waitForReceived(
+            collection,
+            batchId,
+            chunk.chunkIndex
+          );
           this.socket.emit(
             EVENTS.CHUNK,
             {
@@ -52468,16 +52473,16 @@ var require_ConnectorProtocolSender = __commonJS({
             batchId,
             chunk.chunkIndex
           );
-          await this.waitForReceived(
-            collection,
-            batchId,
-            chunk.chunkIndex
-          );
+          await ackPromise;
           this.session.nextChunk();
         }
         console.log(
           "Sending COMPLETE",
           collection
+        );
+        const completedPromise = this.waitForCompleted(
+          collection,
+          batchId
         );
         this.socket.emit(
           EVENTS.COMPLETE,
@@ -52488,10 +52493,7 @@ var require_ConnectorProtocolSender = __commonJS({
             totalItems: items.length
           }
         );
-        await this.waitForCompleted(
-          collection,
-          batchId
-        );
+        await completedPromise;
         console.log(
           "COMPLETED ACK",
           collection

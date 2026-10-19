@@ -1991,9 +1991,10 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
 
         });
 
-        syncSocket.emit(
-            "voucherByGuidResult",
+       syncSocket.emit(
+    "voucherByGuidResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "vouchers",
                 voucherCount: vouchers.length
@@ -2011,7 +2012,9 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                vouchers
+                vouchers,
+                undefined,
+                data.requestId
             );
 
         } else {
@@ -2025,7 +2028,9 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                []
+                [],
+                undefined,
+                data.requestId
             );
 
         }
@@ -2046,9 +2051,10 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
             err
         );
 
-        syncSocket.emit(
+       syncSocket.emit(
             "voucherByGuidResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -2073,9 +2079,10 @@ syncSocket.on("voucherByGuid", async (data) => {
 
             });
 
-        syncSocket.emit(
+       syncSocket.emit(
             "voucherByGuidResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "vouchers",
                 voucherCount: vouchers.length
@@ -2087,7 +2094,9 @@ syncSocket.on("voucherByGuid", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                vouchers
+                vouchers,
+                undefined,
+                data.requestId
             );
 
             console.log(
@@ -2099,7 +2108,9 @@ syncSocket.on("voucherByGuid", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "voucherByGuid",
-                []
+                [],
+                undefined,
+                data.requestId
             );
 
         }
@@ -2111,13 +2122,14 @@ syncSocket.on("voucherByGuid", async (data) => {
             err
         );
 
-        syncSocket.emit(
-            "voucherByGuidResult",
-            {
-                success: false,
-                error: err.message
-            }
-        );
+       syncSocket.emit(
+                "voucherByGuidResult",
+                {
+                    requestId: data?.requestId,
+                    success: false,
+                    error: err.message
+                }
+            );
 
     }
 

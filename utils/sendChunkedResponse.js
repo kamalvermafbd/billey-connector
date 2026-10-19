@@ -210,7 +210,8 @@ async function sendChunkedResponse(
     socket,
     baseEvent,
     items,
-    maxChunkSize
+    maxChunkSize,
+    requestId
 ) {
 
     let heartbeat;
@@ -262,11 +263,11 @@ function startHeartbeat() {
 
 socket.emit(`${baseEvent}Complete`, {
     batchId,
+    ...(requestId ? { requestId } : {}),
     totalChunks: 0,
     totalItems: 0,
     completedAt: new Date().toISOString()
 });
-
 await completeAckPromise;
 
     console.log("Empty collection completed");
@@ -354,12 +355,13 @@ await completeAckPromise;
         );
 
         socket.emit(chunkEvent, {
-            batchId,
-            chunkIndex: chunk.chunkIndex,
-            totalChunks: chunk.totalChunks,
-            payloadSize: chunk.payloadSize,
-            data: chunk.data
-        });
+    batchId,
+    ...(requestId ? { requestId } : {}),
+    chunkIndex: chunk.chunkIndex,
+    totalChunks: chunk.totalChunks,
+    payloadSize: chunk.payloadSize,
+    data: chunk.data
+});
 
         console.log(
             `Chunk ${chunk.chunkIndex}/${chunk.totalChunks} sent`
@@ -397,6 +399,7 @@ socket.emit(
     completeEvent,
     {
         batchId,
+        ...(requestId ? { requestId } : {}),
         totalChunks: chunks.length,
         totalItems: items.length,
         completedAt: new Date().toISOString()
