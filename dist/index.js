@@ -51946,7 +51946,7 @@ var require_sendChunkedResponse = __commonJS({
     var { buildChunks } = require_ChunkBuilder();
     var ACK_TIMEOUT = 15 * 60 * 1e3;
     var HEARTBEAT_INTERVAL = 5e3;
-    async function waitForAck(socket, ackEvent, batchId, chunkIndex) {
+    async function waitForAck(socket, ackEvent, batchId, chunkIndex, requestId) {
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           socket.off(
@@ -51971,7 +51971,16 @@ var require_sendChunkedResponse = __commonJS({
           }
           console.log("ACK EVENT RECEIVED");
           console.log(data);
-          if (data.batchId !== batchId || data.chunkIndex !== chunkIndex) {
+          if (data.batchId !== batchId || data.requestId !== requestId || data.chunkIndex !== chunkIndex) {
+            console.warn("Ignoring mismatched Chunk ACK:", {
+              ackEvent,
+              expectedBatchId: batchId,
+              receivedBatchId: data.batchId,
+              expectedRequestId: requestId,
+              receivedRequestId: data.requestId,
+              expectedChunkIndex: chunkIndex,
+              receivedChunkIndex: data.chunkIndex
+            });
             return;
           }
           clearTimeout(timeout);
@@ -52010,7 +52019,7 @@ var require_sendChunkedResponse = __commonJS({
         );
       });
     }
-    async function waitForCompleteAck(socket, completeAckEvent, batchId) {
+    async function waitForCompleteAck(socket, completeAckEvent, batchId, requestId) {
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           socket.off(
@@ -52033,7 +52042,14 @@ var require_sendChunkedResponse = __commonJS({
           if (!data) {
             return;
           }
-          if (data.batchId !== batchId) {
+          if (data.batchId !== batchId || data.requestId !== requestId) {
+            console.warn("Ignoring mismatched Complete ACK:", {
+              completeAckEvent,
+              expectedBatchId: batchId,
+              receivedBatchId: data.batchId,
+              expectedRequestId: requestId,
+              receivedRequestId: data.requestId
+            });
             return;
           }
           clearTimeout(timeout);
@@ -52106,7 +52122,8 @@ var require_sendChunkedResponse = __commonJS({
         const completeAckPromise = waitForCompleteAck(
           socket,
           `${baseEvent}CompleteAck`,
-          batchId
+          batchId,
+          requestId
         );
         socket.emit(`${baseEvent}Complete`, {
           batchId,
@@ -52141,7 +52158,8 @@ var require_sendChunkedResponse = __commonJS({
             socket,
             ackEvent,
             batchId,
-            chunk.chunkIndex
+            chunk.chunkIndex,
+            requestId
           );
           socket.emit(chunkEvent, {
             batchId,
@@ -52171,7 +52189,8 @@ var require_sendChunkedResponse = __commonJS({
         const completeAckPromise = waitForCompleteAck(
           socket,
           completeAckEvent,
-          batchId
+          batchId,
+          requestId
         );
         socket.emit(
           completeEvent,
@@ -52268,47 +52287,64 @@ var require_ConnectorProtocolSender = __commonJS({
         this.socket = socket;
         this.session = new ConnectorProtocolSession(socket);
       }
-      async waitForReady(collection) {
+      async waitForReady(collection, requestId) {
         return new Promise((resolve, reject) => {
           const event = EVENTS.READY;
+          const cleanup = () => {
+            clearTimeout(timeout);
+            this.socket.off(event, onReady);
+            this.socket.off("disconnect", onDisconnect);
+          };
           const onReady = (data) => {
-            if (!data || data.collection !== collection) {
+            if (!data || data.collection !== collection || !requestId || data.requestId !== requestId) {
               return;
             }
-            this.socket.off(
-              event,
-              onReady
-            );
-            this.socket.off(
-              "disconnect",
-              onDisconnect
-            );
+            cleanup();
             resolve(data);
           };
           const onDisconnect = () => {
-            this.socket.off(
-              event,
-              onReady
-            );
+            cleanup();
+            reject(new Error("Socket disconnected"));
+          };
+          const timeout = setTimeout(() => {
+            cleanup();
             reject(
               new Error(
-                "Socket disconnected"
+                `Protocol READY timeout: ${collection}, request ${requestId}`
+              )
+            );
+          }, 120 * 1e3);
+          this.socket.on(event, onReady);
+          this.socket.once("disconnect", onDisconnect);
+        });
+      }
+      async waitForReceived(collection, batchId, chunkIndex, requestId) {
+        return new Promise((resolve, reject) => {
+          const event = EVENTS.RECEIVED;
+          const ackTimeout = setTimeout(() => {
+            this.socket.off(event, onReceived);
+            this.socket.off(EVENTS.ERROR, onProtocolError);
+            this.socket.off("disconnect", onDisconnect);
+            reject(
+              new Error(
+                `Protocol ACK timeout: ${collection}, chunk ${chunkIndex}`
+              )
+            );
+          }, 120 * 1e3);
+          const onProtocolError = (data) => {
+            if (!data || data.collection !== collection || data.requestId !== requestId || data.batchId && data.batchId !== batchId) {
+              return;
+            }
+            clearTimeout(ackTimeout);
+            this.socket.off(event, onReceived);
+            this.socket.off(EVENTS.ERROR, onProtocolError);
+            this.socket.off("disconnect", onDisconnect);
+            reject(
+              new Error(
+                data.error || "Protocol chunk rejected by server"
               )
             );
           };
-          this.socket.on(
-            event,
-            onReady
-          );
-          this.socket.once(
-            "disconnect",
-            onDisconnect
-          );
-        });
-      }
-      async waitForReceived(collection, batchId, chunkIndex) {
-        return new Promise((resolve, reject) => {
-          const event = EVENTS.RECEIVED;
           const onReceived = (data) => {
             if (!data) {
               return;
@@ -52316,7 +52352,7 @@ var require_ConnectorProtocolSender = __commonJS({
             if (data.collection !== collection) {
               return;
             }
-            if (data.batchId !== batchId || data.chunkIndex !== chunkIndex) {
+            if (data.batchId !== batchId || data.chunkIndex !== chunkIndex || !requestId || data.requestId !== requestId) {
               return;
             }
             this.socket.off(
@@ -52324,9 +52360,14 @@ var require_ConnectorProtocolSender = __commonJS({
               onReceived
             );
             this.socket.off(
+              EVENTS.ERROR,
+              onProtocolError
+            );
+            this.socket.off(
               "disconnect",
               onDisconnect
             );
+            clearTimeout(ackTimeout);
             console.log(
               "\u2705 CONNECTOR RECEIVED ACK:",
               collection,
@@ -52336,9 +52377,18 @@ var require_ConnectorProtocolSender = __commonJS({
             resolve();
           };
           const onDisconnect = () => {
+            clearTimeout(ackTimeout);
             this.socket.off(
               event,
               onReceived
+            );
+            this.socket.off(
+              EVENTS.ERROR,
+              onProtocolError
+            );
+            this.socket.off(
+              "disconnect",
+              onDisconnect
             );
             reject(
               new Error(
@@ -52350,61 +52400,50 @@ var require_ConnectorProtocolSender = __commonJS({
             event,
             onReceived
           );
+          this.socket.on(
+            EVENTS.ERROR,
+            onProtocolError
+          );
           this.socket.once(
             "disconnect",
             onDisconnect
           );
         });
       }
-      async waitForCompleted(collection, batchId) {
+      async waitForCompleted(collection, batchId, requestId) {
         return new Promise((resolve, reject) => {
           const event = EVENTS.COMPLETED;
+          const cleanup = () => {
+            clearTimeout(timeout);
+            this.socket.off(event, onCompleted);
+            this.socket.off("disconnect", onDisconnect);
+          };
           const onCompleted = (data) => {
-            if (!data) {
+            if (!data || data.collection !== collection || data.batchId !== batchId || !requestId || data.requestId !== requestId) {
               return;
             }
-            if (data.collection !== collection) {
-              return;
-            }
-            if (data.batchId !== batchId) {
-              return;
-            }
-            this.socket.off(
-              event,
-              onCompleted
-            );
-            this.socket.off(
-              "disconnect",
-              onDisconnect
-            );
+            cleanup();
             if (data.success === false) {
               return reject(
-                new Error(
-                  data.error
-                )
+                new Error(data.error || "Protocol collection failed")
               );
             }
             resolve();
           };
           const onDisconnect = () => {
-            this.socket.off(
-              event,
-              onCompleted
-            );
+            cleanup();
+            reject(new Error("Socket disconnected"));
+          };
+          const timeout = setTimeout(() => {
+            cleanup();
             reject(
               new Error(
-                "Socket disconnected"
+                `Protocol COMPLETED timeout: ${collection}, batch ${batchId}`
               )
             );
-          };
-          this.socket.on(
-            event,
-            onCompleted
-          );
-          this.socket.once(
-            "disconnect",
-            onDisconnect
-          );
+          }, 120 * 1e3);
+          this.socket.on(event, onCompleted);
+          this.socket.once("disconnect", onDisconnect);
         });
       }
       createSession(collection, items, maxChunkSize) {
@@ -52424,88 +52463,101 @@ var require_ConnectorProtocolSender = __commonJS({
           chunks
         };
       }
-      async sendCollection(collection, items, maxChunkSize) {
-        await this.waitForReady(
-          collection
-        );
-        const {
-          batchId,
-          chunks
-        } = this.createSession(
-          collection,
-          items,
-          maxChunkSize
-        );
-        console.log(
-          `Starting ${collection}`
-        );
-        console.log(
-          `Chunks : ${chunks.length}`
-        );
-        if (chunks.length === 0) {
-          console.log(
-            "ZERO CHUNK COLLECTION"
+      async sendCollection(collection, items, maxChunkSize, requestId) {
+        if (!requestId) {
+          throw new Error(
+            "Protocol sendCollection requires requestId"
           );
         }
-        for (const chunk of chunks) {
-          console.log(
-            "\u{1F4E4} CONNECTOR SENDING CHUNK:",
-            collection,
+        await this.waitForReady(
+          collection,
+          requestId
+        );
+        try {
+          const {
             batchId,
-            chunk.chunkIndex
+            chunks
+          } = this.createSession(
+            collection,
+            items,
+            maxChunkSize
           );
-          const ackPromise = this.waitForReceived(
+          console.log(
+            `Starting ${collection}`
+          );
+          console.log(
+            `Chunks : ${chunks.length}`
+          );
+          if (chunks.length === 0) {
+            console.log(
+              "ZERO CHUNK COLLECTION"
+            );
+          }
+          for (const chunk of chunks) {
+            console.log(
+              "\u{1F4E4} CONNECTOR SENDING CHUNK:",
+              collection,
+              batchId,
+              chunk.chunkIndex
+            );
+            const ackPromise = this.waitForReceived(
+              collection,
+              batchId,
+              chunk.chunkIndex,
+              requestId
+            );
+            this.socket.emit(
+              EVENTS.CHUNK,
+              {
+                collection,
+                batchId,
+                requestId,
+                chunkIndex: chunk.chunkIndex,
+                totalChunks: chunk.totalChunks,
+                payloadSize: chunk.payloadSize,
+                data: chunk.data
+              }
+            );
+            console.log(
+              "\u23F3 CONNECTOR WAITING ACK:",
+              collection,
+              batchId,
+              chunk.chunkIndex
+            );
+            await ackPromise;
+            this.session.nextChunk();
+          }
+          console.log(
+            "Sending COMPLETE",
+            collection
+          );
+          const completedPromise = this.waitForCompleted(
             collection,
             batchId,
-            chunk.chunkIndex
+            requestId
           );
           this.socket.emit(
-            EVENTS.CHUNK,
+            EVENTS.COMPLETE,
             {
               collection,
               batchId,
-              chunkIndex: chunk.chunkIndex,
-              totalChunks: chunk.totalChunks,
-              payloadSize: chunk.payloadSize,
-              data: chunk.data
+              requestId,
+              totalChunks: chunks.length,
+              totalItems: items.length
             }
           );
+          await completedPromise;
           console.log(
-            "\u23F3 CONNECTOR WAITING ACK:",
-            collection,
-            batchId,
-            chunk.chunkIndex
+            "COMPLETED ACK",
+            collection
           );
-          await ackPromise;
-          this.session.nextChunk();
+          console.log(
+            `${collection} completed`
+          );
+          return true;
+        } finally {
+          this.session.finish();
         }
-        console.log(
-          "Sending COMPLETE",
-          collection
-        );
-        const completedPromise = this.waitForCompleted(
-          collection,
-          batchId
-        );
-        this.socket.emit(
-          EVENTS.COMPLETE,
-          {
-            collection,
-            batchId,
-            totalChunks: chunks.length,
-            totalItems: items.length
-          }
-        );
-        await completedPromise;
-        console.log(
-          "COMPLETED ACK",
-          collection
-        );
-        this.session.finish();
-        console.log(
-          `${collection} completed`
-        );
-        return true;
       }
     };
     module2.exports = ConnectorProtocolSender;
@@ -52525,7 +52577,7 @@ var require_ConnectorProtocolController = __commonJS({
           socket
         );
       }
-      async sendCollection(event, rows) {
+      async sendCollection(event, rows, requestId) {
         console.log(
           `================================`
         );
@@ -52539,7 +52591,8 @@ var require_ConnectorProtocolController = __commonJS({
           await this.sender.sendCollection(
             event,
             [],
-            DEFAULT_MAX_CHUNK_SIZE
+            DEFAULT_MAX_CHUNK_SIZE,
+            requestId
           );
           console.log(
             `Finished ${event}`
@@ -52549,32 +52602,37 @@ var require_ConnectorProtocolController = __commonJS({
         await this.sender.sendCollection(
           event,
           rows,
-          DEFAULT_MAX_CHUNK_SIZE
+          DEFAULT_MAX_CHUNK_SIZE,
+          requestId
         );
         console.log(
           `Finished ${event}`
         );
       }
-      async sendStockGodownSummary(rows) {
+      async sendStockGodownSummary(rows, requestId) {
         await this.sendCollection(
           "getStockGodownSummary",
-          rows || []
+          rows || [],
+          requestId
         );
       }
-      async sendTrialBalance(rows) {
+      async sendTrialBalance(rows, requestId) {
         await this.sendCollection(
           "getTrialBalance",
-          rows || []
+          rows || [],
+          requestId
         );
       }
-      async sendMasters(result) {
+      async sendMasters(result, requestId) {
         await this.sendCollection(
           "getMastersGroups",
-          result.groups || []
+          result.groups || [],
+          requestId
         );
         await this.sendCollection(
           "getMastersUnits",
-          result.units || []
+          result.units || [],
+          requestId
         );
         console.log("================================");
         console.log("SEND MASTER LEDGERS");
@@ -52590,27 +52648,33 @@ var require_ConnectorProtocolController = __commonJS({
         console.log("================================");
         await this.sendCollection(
           "getMastersLedgers",
-          result.ledgers || []
+          result.ledgers || [],
+          requestId
         );
         await this.sendCollection(
           "getMastersStockGroups",
-          result.stockGroups || []
+          result.stockGroups || [],
+          requestId
         );
         await this.sendCollection(
           "getMastersStocks",
-          result.stocks || []
+          result.stocks || [],
+          requestId
         );
         await this.sendCollection(
           "getMastersGodowns",
-          result.godowns || []
+          result.godowns || [],
+          requestId
         );
         await this.sendCollection(
           "getMastersCostCentres",
-          result.costCentres || []
+          result.costCentres || [],
+          requestId
         );
         await this.sendCollection(
           "getMasters",
-          result.vouchers || []
+          result.vouchers || [],
+          requestId
         );
       }
     };
@@ -58387,13 +58451,15 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getStockGodownSummaryResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "stockGodownBalances",
                 stockGodownCount: stockGodownRows.length
               }
             );
             await syncProtocolController.sendStockGodownSummary(
-              stockGodownRows
+              stockGodownRows,
+              data.requestId
             );
             console.log(
               "\u2705 Stock Godown Summary sent through protocol"
@@ -58406,6 +58472,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getStockGodownSummaryResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58503,6 +58570,7 @@ var require_secondSyncClientEvents = __commonJS({
               }
             }
             const masterPayload = {
+              requestId: data.requestId,
               success: true,
               summary: result.summary,
               voucherCount: (result.vouchers || []).length,
@@ -58523,7 +58591,8 @@ var require_secondSyncClientEvents = __commonJS({
               "\u2705 Master payload sent"
             );
             await syncProtocolController.sendMasters(
-              result
+              result,
+              data.requestId
             );
             syncSocket.tallyOperationActive = false;
             syncSocket.lastTallyActivity = Date.now();
@@ -58538,6 +58607,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: isTallyOffline ? "TALLY_OFFLINE" : err.message
               }
@@ -58587,6 +58657,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersVoucherGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "voucherGuids",
                 voucherGuidCount: voucherGuids.length
@@ -58601,7 +58672,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "getMastersVoucherGuids",
-                voucherGuids
+                voucherGuids,
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Voucher GUID chunks sent"
@@ -58618,17 +58691,23 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "getMastersVoucherGuids",
-                []
+                [],
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Empty Voucher GUID collection completed"
               );
             }
           } catch (err) {
-            console.error(err);
+            console.error(
+              "GET MASTERS VOUCHER GUIDS ERROR:",
+              err
+            );
             syncSocket.emit(
               "getMastersVoucherGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58643,6 +58722,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersGroupGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "groupGuids",
                 groupGuidCount: groupGuids.length
@@ -58652,7 +58732,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "getMastersGroupGuids",
-                groupGuids
+                groupGuids,
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Group GUID chunks sent"
@@ -58664,7 +58746,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "getMastersGroupGuids",
-                []
+                [],
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Empty Group GUID collection completed"
@@ -58675,6 +58759,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersGroupGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58689,6 +58774,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersLedgerGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "ledgerGuids",
                 ledgerGuidCount: ledgerGuids.length
@@ -58698,7 +58784,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "getMastersLedgerGuids",
-                ledgerGuids
+                ledgerGuids,
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Ledger GUID chunks sent"
@@ -58710,7 +58798,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "getMastersLedgerGuids",
-                []
+                [],
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Empty Ledger GUID collection completed"
@@ -58721,6 +58811,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersLedgerGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58735,6 +58826,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersStockGroupGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "stockGroupGuids",
                 stockGroupGuidCount: stockGroupGuids.length
@@ -58743,13 +58835,16 @@ var require_secondSyncClientEvents = __commonJS({
             await sendChunkedResponse(
               syncSocket,
               "getMastersStockGroupGuids",
-              stockGroupGuids
+              stockGroupGuids,
+              void 0,
+              data.requestId
             );
           } catch (err) {
             console.error(err);
             syncSocket.emit(
               "getMastersStockGroupGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58764,6 +58859,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersStockGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "stockGuids",
                 stockGuidCount: stockGuids.length
@@ -58772,13 +58868,16 @@ var require_secondSyncClientEvents = __commonJS({
             await sendChunkedResponse(
               syncSocket,
               "getMastersStockGuids",
-              stockGuids
+              stockGuids,
+              void 0,
+              data.requestId
             );
           } catch (err) {
             console.error(err);
             syncSocket.emit(
               "getMastersStockGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58793,6 +58892,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersUnitGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "unitGuids",
                 unitGuidCount: unitGuids.length
@@ -58801,13 +58901,16 @@ var require_secondSyncClientEvents = __commonJS({
             await sendChunkedResponse(
               syncSocket,
               "getMastersUnitGuids",
-              unitGuids
+              unitGuids,
+              void 0,
+              data.requestId
             );
           } catch (err) {
             console.error(err);
             syncSocket.emit(
               "getMastersUnitGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58822,6 +58925,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersGodownGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "godownGuids",
                 godownGuidCount: godownGuids.length
@@ -58830,13 +58934,16 @@ var require_secondSyncClientEvents = __commonJS({
             await sendChunkedResponse(
               syncSocket,
               "getMastersGodownGuids",
-              godownGuids
+              godownGuids,
+              void 0,
+              data.requestId
             );
           } catch (err) {
             console.error(err);
             syncSocket.emit(
               "getMastersGodownGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58851,6 +58958,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getMastersCostCentreGuidsResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "costCentreGuids",
                 costCentreGuidCount: costCentreGuids.length
@@ -58859,13 +58967,16 @@ var require_secondSyncClientEvents = __commonJS({
             await sendChunkedResponse(
               syncSocket,
               "getMastersCostCentreGuids",
-              costCentreGuids
+              costCentreGuids,
+              void 0,
+              data.requestId
             );
           } catch (err) {
             console.error(err);
             syncSocket.emit(
               "getMastersCostCentreGuidsResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58882,6 +58993,7 @@ var require_secondSyncClientEvents = __commonJS({
             addChunk(data);
             syncSocket.emit("voucherByGuidChunkAck", {
               batchId: data.batchId,
+              requestId: data.requestId,
               chunkIndex: data.chunkIndex,
               success: true
             });
@@ -58892,6 +59004,7 @@ var require_secondSyncClientEvents = __commonJS({
             console.error(err);
             syncSocket.emit("voucherByGuidChunkAck", {
               batchId: data.batchId,
+              requestId: data.requestId,
               chunkIndex: data.chunkIndex,
               success: false,
               error: err.message
@@ -58903,6 +59016,7 @@ var require_secondSyncClientEvents = __commonJS({
             addChunk(data);
             syncSocket.emit("stockByGuidChunkAck", {
               batchId: data.batchId,
+              requestId: data.requestId,
               chunkIndex: data.chunkIndex,
               success: true
             });
@@ -58913,6 +59027,7 @@ var require_secondSyncClientEvents = __commonJS({
             console.error(err);
             syncSocket.emit("stockByGuidChunkAck", {
               batchId: data.batchId,
+              requestId: data.requestId,
               chunkIndex: data.chunkIndex,
               success: false,
               error: err.message
@@ -58931,6 +59046,7 @@ var require_secondSyncClientEvents = __commonJS({
               "stockByGuidCompleteAck",
               {
                 batchId: data.batchId,
+                requestId: data.requestId,
                 success: true
               }
             );
@@ -58945,6 +59061,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "stockByGuidResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "stocks",
                 stockCount: stocks.length
@@ -58954,7 +59071,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "stockByGuid",
-                stocks
+                stocks,
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Missing Stock chunks sent"
@@ -58963,7 +59082,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "stockByGuid",
-                []
+                [],
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Empty Stock collection completed"
@@ -58977,6 +59098,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "stockByGuidResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -58988,6 +59110,7 @@ var require_secondSyncClientEvents = __commonJS({
             addChunk(data);
             syncSocket.emit("ledgerByGuidChunkAck", {
               batchId: data.batchId,
+              requestId: data.requestId,
               chunkIndex: data.chunkIndex,
               success: true
             });
@@ -58995,6 +59118,7 @@ var require_secondSyncClientEvents = __commonJS({
             console.error(err);
             syncSocket.emit("ledgerByGuidChunkAck", {
               batchId: data.batchId,
+              requestId: data.requestId,
               chunkIndex: data.chunkIndex,
               success: false,
               error: err.message
@@ -59013,6 +59137,7 @@ var require_secondSyncClientEvents = __commonJS({
               "ledgerByGuidCompleteAck",
               {
                 batchId: data.batchId,
+                requestId: data.requestId,
                 success: true
               }
             );
@@ -59027,6 +59152,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "ledgerByGuidResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "ledgers",
                 ledgerCount: ledgers.length
@@ -59036,7 +59162,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "ledgerByGuid",
-                ledgers
+                ledgers,
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Missing Ledger chunks sent"
@@ -59045,7 +59173,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "ledgerByGuid",
-                []
+                [],
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Empty Ledger collection completed"
@@ -59059,6 +59189,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "ledgerByGuidResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -59214,6 +59345,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "stockByGuidResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "stocks",
                 stockCount: stocks.length
@@ -59223,7 +59355,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "stockByGuid",
-                stocks
+                stocks,
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Missing Stock chunks sent"
@@ -59232,7 +59366,9 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "stockByGuid",
-                []
+                [],
+                void 0,
+                data.requestId
               );
             }
           } catch (err) {
@@ -59243,6 +59379,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "stockByGuidResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -59258,6 +59395,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "ledgerByGuidResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "ledgers",
                 ledgerCount: ledgers.length
@@ -59267,13 +59405,17 @@ var require_secondSyncClientEvents = __commonJS({
               await sendChunkedResponse(
                 syncSocket,
                 "ledgerByGuid",
-                ledgers
+                ledgers,
+                void 0,
+                data.requestId
               );
             } else {
               await sendChunkedResponse(
                 syncSocket,
                 "ledgerByGuid",
-                []
+                [],
+                void 0,
+                data.requestId
               );
               console.log(
                 "\u2705 Empty Ledger collection completed"
@@ -59287,6 +59429,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "ledgerByGuidResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
@@ -59308,13 +59451,15 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getTrialBalanceResult",
               {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "trialBalance",
                 trialBalanceCount: trialBalanceRows.length
               }
             );
             await syncProtocolController.sendTrialBalance(
-              trialBalanceRows
+              trialBalanceRows,
+              data.requestId
             );
             console.log(
               "\u2705 Trial Balance sent through protocol"
@@ -59327,6 +59472,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit(
               "getTrialBalanceResult",
               {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
               }
