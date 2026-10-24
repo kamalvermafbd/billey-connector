@@ -59086,6 +59086,7 @@ var require_secondSyncClientEvents = __commonJS({
               "voucherByGuidCompleteAck",
               {
                 batchId: data.batchId,
+                requestId: data.requestId,
                 success: true
               }
             );

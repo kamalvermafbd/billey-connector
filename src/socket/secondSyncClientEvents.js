@@ -769,20 +769,19 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         // SEND RESULT COUNT
         // ======================================
 
-       syncSocket.emit(
-            "getStockGodownSummaryResult",
-            {
+    syncSocket.emit(
+    "getStockGodownSummaryResult",
+    {
+        requestId: data.requestId,
+        success: true,
 
-                success: true,
+        collectionName:
+            "stockGodownBalances",
 
-                collectionName:
-                    "stockGodownBalances",
-
-                stockGodownCount:
-                    stockGodownRows.length
-
-            }
-        );
+        stockGodownCount:
+            stockGodownRows.length
+    }
+);
 
 
         // ======================================
@@ -791,9 +790,9 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         // ======================================
 
         await syncProtocolController.sendStockGodownSummary(
-            stockGodownRows
+            stockGodownRows,
+            data.requestId
         );
-
 
         console.log(
             "✅ Stock Godown Summary sent through protocol"
@@ -809,17 +808,14 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         console.error(err);
 
 
-        syncSocket.emit(
-            "getStockGodownSummaryResult",
-            {
-
-                success: false,
-
-                error:
-                    err.message
-
-            }
-        );
+      syncSocket.emit(
+    "getStockGodownSummaryResult",
+    {
+        requestId: data?.requestId,
+        success: false,
+        error: err.message
+    }
+);
 
     }
 
@@ -1114,6 +1110,8 @@ if (vouchers.length > 0) {
 
 const masterPayload = {
 
+    requestId: data.requestId,
+
     success: true,
 
     summary: result.summary,
@@ -1125,7 +1123,6 @@ const masterPayload = {
         (result.voucherGuids || []).length
 
 };
-
 
 
 console.log(
@@ -1150,9 +1147,9 @@ console.log(
 
 
 await syncProtocolController.sendMasters(
-    result
+    result,
+    data.requestId
 );
-
 
 // MONITORING ONLY
 
@@ -1185,6 +1182,7 @@ syncSocket.tallyRequestStartedAt = 0;
 syncSocket.emit(
     "getMastersResult",
     {
+        requestId: data?.requestId,
         success: false,
         error: isTallyOffline
             ? "TALLY_OFFLINE"
@@ -1195,7 +1193,6 @@ syncSocket.emit(
 }
 
 });
-
 syncSocket.on("getMastersVoucherGuids", async (data) => {
 
     try {
@@ -1247,14 +1244,23 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
 
         console.log("=== END GUID REQUEST DEBUG ===");
 
+        // =====================================
+        // SEND RESULT WITH REQUEST ID
+        // =====================================
+
         syncSocket.emit(
             "getMastersVoucherGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "voucherGuids",
                 voucherGuidCount: voucherGuids.length
             }
         );
+
+        // =====================================
+        // SEND VOUCHER GUID CHUNKS
+        // =====================================
 
         if (voucherGuids.length > 0) {
 
@@ -1267,7 +1273,9 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "getMastersVoucherGuids",
-                voucherGuids
+                voucherGuids,
+                undefined,
+                data.requestId
             );
 
             console.log(
@@ -1289,7 +1297,9 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "getMastersVoucherGuids",
-                []
+                [],
+                undefined,
+                data.requestId
             );
 
             console.log(
@@ -1299,11 +1309,15 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
 
     } catch (err) {
 
-        console.error(err);
+        console.error(
+            "GET MASTERS VOUCHER GUIDS ERROR:",
+            err
+        );
 
         syncSocket.emit(
             "getMastersVoucherGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1312,8 +1326,6 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
     }
 
 });
-
-
 
 syncSocket.on("getMastersGroupGuids", async (data) => {
 
@@ -1327,6 +1339,7 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
         syncSocket.emit(
             "getMastersGroupGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "groupGuids",
                 groupGuidCount: groupGuids.length
@@ -1338,7 +1351,9 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "getMastersGroupGuids",
-                groupGuids
+                groupGuids,
+                undefined,
+                data.requestId
             );
 
             console.log(
@@ -1354,7 +1369,9 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "getMastersGroupGuids",
-                []
+                [],
+                undefined,
+                data.requestId
             );
 
             console.log(
@@ -1370,6 +1387,7 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
         syncSocket.emit(
             "getMastersGroupGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1378,7 +1396,6 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
     }
 
 });
-
 
 
 syncSocket.on("getMastersLedgerGuids", async (data) => {
@@ -1393,6 +1410,7 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
         syncSocket.emit(
             "getMastersLedgerGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "ledgerGuids",
                 ledgerGuidCount: ledgerGuids.length
@@ -1404,7 +1422,9 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "getMastersLedgerGuids",
-                ledgerGuids
+                ledgerGuids,
+                undefined,
+                data.requestId
             );
 
             console.log(
@@ -1420,7 +1440,9 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
             await sendChunkedResponse(
                 syncSocket,
                 "getMastersLedgerGuids",
-                []
+                [],
+                undefined,
+                data.requestId
             );
 
             console.log(
@@ -1436,6 +1458,7 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
         syncSocket.emit(
             "getMastersLedgerGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1444,7 +1467,6 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
     }
 
 });
-
 
 
 
@@ -1460,6 +1482,7 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
         syncSocket.emit(
             "getMastersStockGroupGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "stockGroupGuids",
                 stockGroupGuidCount: stockGroupGuids.length
@@ -1469,7 +1492,9 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
         await sendChunkedResponse(
             syncSocket,
             "getMastersStockGroupGuids",
-            stockGroupGuids
+            stockGroupGuids,
+            undefined,
+            data.requestId
         );
 
     } catch (err) {
@@ -1479,6 +1504,7 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
         syncSocket.emit(
             "getMastersStockGroupGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1487,8 +1513,6 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
     }
 
 });
-
-
 
 syncSocket.on("getMastersStockGuids", async (data) => {
 
@@ -1502,6 +1526,7 @@ syncSocket.on("getMastersStockGuids", async (data) => {
         syncSocket.emit(
             "getMastersStockGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "stockGuids",
                 stockGuidCount: stockGuids.length
@@ -1511,7 +1536,9 @@ syncSocket.on("getMastersStockGuids", async (data) => {
         await sendChunkedResponse(
             syncSocket,
             "getMastersStockGuids",
-            stockGuids
+            stockGuids,
+            undefined,
+            data.requestId
         );
 
     } catch (err) {
@@ -1521,6 +1548,7 @@ syncSocket.on("getMastersStockGuids", async (data) => {
         syncSocket.emit(
             "getMastersStockGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1529,7 +1557,6 @@ syncSocket.on("getMastersStockGuids", async (data) => {
     }
 
 });
-
 
 
 syncSocket.on("getMastersUnitGuids", async (data) => {
@@ -1544,6 +1571,7 @@ syncSocket.on("getMastersUnitGuids", async (data) => {
         syncSocket.emit(
             "getMastersUnitGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "unitGuids",
                 unitGuidCount: unitGuids.length
@@ -1553,7 +1581,9 @@ syncSocket.on("getMastersUnitGuids", async (data) => {
         await sendChunkedResponse(
             syncSocket,
             "getMastersUnitGuids",
-            unitGuids
+            unitGuids,
+            undefined,
+            data.requestId
         );
 
     } catch (err) {
@@ -1563,6 +1593,7 @@ syncSocket.on("getMastersUnitGuids", async (data) => {
         syncSocket.emit(
             "getMastersUnitGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1586,6 +1617,7 @@ syncSocket.on("getMastersGodownGuids", async (data) => {
         syncSocket.emit(
             "getMastersGodownGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "godownGuids",
                 godownGuidCount: godownGuids.length
@@ -1595,7 +1627,9 @@ syncSocket.on("getMastersGodownGuids", async (data) => {
         await sendChunkedResponse(
             syncSocket,
             "getMastersGodownGuids",
-            godownGuids
+            godownGuids,
+            undefined,
+            data.requestId
         );
 
     } catch (err) {
@@ -1605,6 +1639,7 @@ syncSocket.on("getMastersGodownGuids", async (data) => {
         syncSocket.emit(
             "getMastersGodownGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1628,6 +1663,7 @@ syncSocket.on("getMastersCostCentreGuids", async (data) => {
         syncSocket.emit(
             "getMastersCostCentreGuidsResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "costCentreGuids",
                 costCentreGuidCount: costCentreGuids.length
@@ -1637,7 +1673,9 @@ syncSocket.on("getMastersCostCentreGuids", async (data) => {
         await sendChunkedResponse(
             syncSocket,
             "getMastersCostCentreGuids",
-            costCentreGuids
+            costCentreGuids,
+            undefined,
+            data.requestId
         );
 
     } catch (err) {
@@ -1647,6 +1685,7 @@ syncSocket.on("getMastersCostCentreGuids", async (data) => {
         syncSocket.emit(
             "getMastersCostCentreGuidsResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -1655,7 +1694,6 @@ syncSocket.on("getMastersCostCentreGuids", async (data) => {
     }
 
 });
-
 
 
 syncSocket.on("voucherByGuidChunk", (data) => {
@@ -1672,6 +1710,7 @@ syncSocket.on("voucherByGuidChunk", (data) => {
 
         syncSocket.emit("voucherByGuidChunkAck", {
             batchId: data.batchId,
+            requestId: data.requestId,
             chunkIndex: data.chunkIndex,
             success: true
         });
@@ -1686,6 +1725,7 @@ syncSocket.on("voucherByGuidChunk", (data) => {
 
         syncSocket.emit("voucherByGuidChunkAck", {
             batchId: data.batchId,
+            requestId: data.requestId,
             chunkIndex: data.chunkIndex,
             success: false,
             error: err.message
@@ -1696,7 +1736,6 @@ syncSocket.on("voucherByGuidChunk", (data) => {
 });
 
 
-
 syncSocket.on("stockByGuidChunk", (data) => {
 
     try {
@@ -1704,10 +1743,11 @@ syncSocket.on("stockByGuidChunk", (data) => {
         addChunk(data);
 
         syncSocket.emit("stockByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: true
-        });
+    batchId: data.batchId,
+    requestId: data.requestId,
+    chunkIndex: data.chunkIndex,
+    success: true
+});
 
         console.log(
             `Stock Request Chunk ${data.chunkIndex}/${data.totalChunks} received`
@@ -1717,12 +1757,13 @@ syncSocket.on("stockByGuidChunk", (data) => {
 
         console.error(err);
 
-        syncSocket.emit("stockByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: false,
-            error: err.message
-        });
+       syncSocket.emit("stockByGuidChunkAck", {
+    batchId: data.batchId,
+    requestId: data.requestId,
+    chunkIndex: data.chunkIndex,
+    success: false,
+    error: err.message
+});
 
     }
 
@@ -1745,13 +1786,14 @@ syncSocket.on("stockByGuidComplete", async (data) => {
         const stockGuids =
             complete(data.batchId);
 
-        syncSocket.emit(
-            "stockByGuidCompleteAck",
-            {
-                batchId: data.batchId,
-                success: true
-            }
-        );
+       syncSocket.emit(
+    "stockByGuidCompleteAck",
+    {
+        batchId: data.batchId,
+        requestId: data.requestId,
+        success: true
+    }
+);
 
         console.log(
             "Merged Stock GUIDs :",
@@ -1767,23 +1809,25 @@ syncSocket.on("stockByGuidComplete", async (data) => {
 
             });
 
-        syncSocket.emit(
-            "stockByGuidResult",
-            {
-                success: true,
-                collectionName: "stocks",
-                stockCount: stocks.length
-            }
-        );
+       syncSocket.emit(
+    "stockByGuidResult",
+    {
+        requestId: data.requestId,
+        success: true,
+        collectionName: "stocks",
+        stockCount: stocks.length
+    }
+);
 
         if (stocks.length > 0) {
 
             await sendChunkedResponse(
-                syncSocket,
-                "stockByGuid",
-                stocks
-            );
-
+    syncSocket,
+    "stockByGuid",
+    stocks,
+    undefined,
+    data.requestId
+);
             console.log(
                 "✅ Missing Stock chunks sent"
             );
@@ -1791,10 +1835,12 @@ syncSocket.on("stockByGuidComplete", async (data) => {
         } else {
 
             await sendChunkedResponse(
-                syncSocket,
-                "stockByGuid",
-                []
-            );
+    syncSocket,
+    "stockByGuid",
+    [],
+    undefined,
+    data.requestId
+);
 
             console.log(
                 "✅ Empty Stock collection completed"
@@ -1809,13 +1855,14 @@ syncSocket.on("stockByGuidComplete", async (data) => {
             err
         );
 
-        syncSocket.emit(
-            "stockByGuidResult",
-            {
-                success: false,
-                error: err.message
-            }
-        );
+       syncSocket.emit(
+    "stockByGuidResult",
+    {
+        requestId: data?.requestId,
+        success: false,
+        error: err.message
+    }
+);
 
     }
 
@@ -1829,21 +1876,23 @@ syncSocket.on("ledgerByGuidChunk", (data) => {
         addChunk(data);
 
         syncSocket.emit("ledgerByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: true
-        });
+    batchId: data.batchId,
+    requestId: data.requestId,
+    chunkIndex: data.chunkIndex,
+    success: true
+});
 
     } catch (err) {
 
         console.error(err);
 
-        syncSocket.emit("ledgerByGuidChunkAck", {
-            batchId: data.batchId,
-            chunkIndex: data.chunkIndex,
-            success: false,
-            error: err.message
-        });
+       syncSocket.emit("ledgerByGuidChunkAck", {
+    batchId: data.batchId,
+    requestId: data.requestId,
+    chunkIndex: data.chunkIndex,
+    success: false,
+    error: err.message
+});
 
     }
 
@@ -1867,12 +1916,13 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
             complete(data.batchId);
 
         syncSocket.emit(
-            "ledgerByGuidCompleteAck",
-            {
-                batchId: data.batchId,
-                success: true
-            }
-        );
+    "ledgerByGuidCompleteAck",
+    {
+        batchId: data.batchId,
+        requestId: data.requestId,
+        success: true
+    }
+);
 
         console.log(
             "Merged Ledger GUIDs :",
@@ -1888,34 +1938,39 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
 
             });
 
-        syncSocket.emit(
-            "ledgerByGuidResult",
-            {
-                success: true,
-                collectionName: "ledgers",
-                ledgerCount: ledgers.length
-            }
-        );
+       syncSocket.emit(
+    "ledgerByGuidResult",
+    {
+        requestId: data.requestId,
+        success: true,
+        collectionName: "ledgers",
+        ledgerCount: ledgers.length
+    }
+);
 
         if (ledgers.length > 0) {
 
-            await sendChunkedResponse(
-                syncSocket,
-                "ledgerByGuid",
-                ledgers
-            );
+    await sendChunkedResponse(
+        syncSocket,
+        "ledgerByGuid",
+        ledgers,
+        undefined,
+        data.requestId
+    );
 
-            console.log(
-                "✅ Missing Ledger chunks sent"
-            );
+    console.log(
+        "✅ Missing Ledger chunks sent"
+    );
 
-        } else {
+}else {
 
-            await sendChunkedResponse(
-                syncSocket,
-                "ledgerByGuid",
-                []
-            );
+          await sendChunkedResponse(
+    syncSocket,
+    "ledgerByGuid",
+    [],
+    undefined,
+    data.requestId
+);
 
             console.log(
                 "✅ Empty Ledger collection completed"
@@ -1930,13 +1985,14 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
             err
         );
 
-        syncSocket.emit(
-            "ledgerByGuidResult",
-            {
-                success: false,
-                error: err.message
-            }
-        );
+    syncSocket.emit(
+    "ledgerByGuidResult",
+    {
+        requestId: data?.requestId,
+        success: false,
+        error: err.message
+    }
+);
 
     }
 
@@ -2151,36 +2207,40 @@ syncSocket.on("stockByGuid", async (data) => {
 
             });
 
-        syncSocket.emit(
-            "stockByGuidResult",
-            {
-                success: true,
-                collectionName: "stocks",
-                stockCount: stocks.length
-            }
-        );
+      syncSocket.emit(
+    "stockByGuidResult",
+    {
+        requestId: data.requestId,
+        success: true,
+        collectionName: "stocks",
+        stockCount: stocks.length
+    }
+);
 
-        if (stocks.length > 0) {
+      if (stocks.length > 0) {
 
-            await sendChunkedResponse(
-                syncSocket,
-                "stockByGuid",
-                stocks
-            );
-
+    await sendChunkedResponse(
+        syncSocket,
+        "stockByGuid",
+        stocks,
+        undefined,
+        data.requestId
+    );
             console.log(
                 "✅ Missing Stock chunks sent"
             );
 
-        } else {
+       } else {
 
-            await sendChunkedResponse(
-                syncSocket,
-                "stockByGuid",
-                []
-            );
+    await sendChunkedResponse(
+        syncSocket,
+        "stockByGuid",
+        [],
+        undefined,
+        data.requestId
+    );
 
-        }
+}
 
     } catch (err) {
 
@@ -2190,12 +2250,13 @@ syncSocket.on("stockByGuid", async (data) => {
         );
 
         syncSocket.emit(
-            "stockByGuidResult",
-            {
-                success: false,
-                error: err.message
-            }
-        );
+    "stockByGuidResult",
+    {
+        requestId: data?.requestId,
+        success: false,
+        error: err.message
+    }
+);
 
     }
 
@@ -2216,30 +2277,35 @@ syncSocket.on("ledgerByGuid", async (data) => {
 
             });
 
-        syncSocket.emit(
-            "ledgerByGuidResult",
-            {
-                success: true,
-                collectionName: "ledgers",
-                ledgerCount: ledgers.length
-            }
-        );
+   syncSocket.emit(
+    "ledgerByGuidResult",
+    {
+        requestId: data.requestId,
+        success: true,
+        collectionName: "ledgers",
+        ledgerCount: ledgers.length
+    }
+);
 
         if (ledgers.length > 0) {
 
-            await sendChunkedResponse(
-                syncSocket,
-                "ledgerByGuid",
-                ledgers
-            );
+           await sendChunkedResponse(
+    syncSocket,
+    "ledgerByGuid",
+    ledgers,
+    undefined,
+    data.requestId
+);
 
         } else {
 
-            await sendChunkedResponse(
-                syncSocket,
-                "ledgerByGuid",
-                []
-            );
+           await sendChunkedResponse(
+    syncSocket,
+    "ledgerByGuid",
+    [],
+    undefined,
+    data.requestId
+);
 
             console.log(
                 "✅ Empty Ledger collection completed"
@@ -2255,12 +2321,13 @@ syncSocket.on("ledgerByGuid", async (data) => {
         );
 
         syncSocket.emit(
-            "ledgerByGuidResult",
-            {
-                success: false,
-                error: err.message
-            }
-        );
+    "ledgerByGuidResult",
+    {
+        requestId: data?.requestId,
+        success: false,
+        error: err.message
+    }
+);
 
     }
 
@@ -2304,7 +2371,6 @@ socket.on("getTrialBalance", async (data) => {
 
 */
 
-
 syncSocket.on("getTrialBalance", async (data) => {
 
     try {
@@ -2327,12 +2393,13 @@ syncSocket.on("getTrialBalance", async (data) => {
         );
 
         // ======================================
-        // SEND RESULT COUNT
+        // SEND RESULT COUNT WITH REQUEST ID
         // ======================================
 
         syncSocket.emit(
             "getTrialBalanceResult",
             {
+                requestId: data.requestId,
                 success: true,
                 collectionName: "trialBalance",
                 trialBalanceCount:
@@ -2345,9 +2412,9 @@ syncSocket.on("getTrialBalance", async (data) => {
         // ======================================
 
         await syncProtocolController.sendTrialBalance(
-            trialBalanceRows
-        );
-
+    trialBalanceRows,
+    data.requestId
+);
         console.log(
             "✅ Trial Balance sent through protocol"
         );
@@ -2362,6 +2429,7 @@ syncSocket.on("getTrialBalance", async (data) => {
         syncSocket.emit(
             "getTrialBalanceResult",
             {
+                requestId: data?.requestId,
                 success: false,
                 error: err.message
             }
@@ -2370,6 +2438,11 @@ syncSocket.on("getTrialBalance", async (data) => {
     }
 
 });
+
+
+
+
+
 }
 
 socket.on("connect_error", (err) => {

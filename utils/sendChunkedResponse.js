@@ -5,7 +5,7 @@ const ACK_TIMEOUT = 15 * 60 * 1000;
 
 const HEARTBEAT_INTERVAL = 5000;
 
-async function waitForAck(socket, ackEvent, batchId, chunkIndex) {
+async function waitForAck(socket, ackEvent, batchId, chunkIndex, requestId) {
 
     return new Promise((resolve, reject) => {
 
@@ -44,12 +44,23 @@ async function waitForAck(socket, ackEvent, batchId, chunkIndex) {
         console.log("ACK EVENT RECEIVED");
         console.log(data);
 
-    if (
-        data.batchId !== batchId ||
-        data.chunkIndex !== chunkIndex
-    ) {
-        return;
-    }
+   if (
+    data.batchId !== batchId ||
+    data.requestId !== requestId ||
+    data.chunkIndex !== chunkIndex
+) {
+    console.warn("Ignoring mismatched Chunk ACK:", {
+        ackEvent,
+        expectedBatchId: batchId,
+        receivedBatchId: data.batchId,
+        expectedRequestId: requestId,
+        receivedRequestId: data.requestId,
+        expectedChunkIndex: chunkIndex,
+        receivedChunkIndex: data.chunkIndex
+    });
+
+    return;
+}
 
     clearTimeout(timeout);
     socket.off(ackEvent, onAck);
@@ -106,7 +117,8 @@ function onDisconnect(reason) {
 async function waitForCompleteAck(
     socket,
     completeAckEvent,
-    batchId
+    batchId,
+    requestId
 ) {
 
     return new Promise((resolve, reject) => {
@@ -140,9 +152,20 @@ async function waitForCompleteAck(
                 return;
             }
 
-            if (data.batchId !== batchId) {
-                return;
-            }
+            if (
+    data.batchId !== batchId ||
+    data.requestId !== requestId
+) {
+    console.warn("Ignoring mismatched Complete ACK:", {
+        completeAckEvent,
+        expectedBatchId: batchId,
+        receivedBatchId: data.batchId,
+        expectedRequestId: requestId,
+        receivedRequestId: data.requestId
+    });
+
+    return;
+}
 
             clearTimeout(timeout);
 
@@ -258,7 +281,8 @@ function startHeartbeat() {
     waitForCompleteAck(
         socket,
         `${baseEvent}CompleteAck`,
-        batchId
+        batchId,
+        requestId
     );
 
 socket.emit(`${baseEvent}Complete`, {
@@ -308,51 +332,14 @@ await completeAckPromise;
         console.log(
             `Sending chunk ${chunk.chunkIndex}/${chunk.totalChunks} (${chunk.payloadSize} bytes)`
         );
-
-        /* 091026
-        socket.emit(chunkEvent, {
-
-            batchId,
-
-            chunkIndex:
-                chunk.chunkIndex,
-
-            totalChunks:
-                chunk.totalChunks,
-
-            payloadSize:
-                chunk.payloadSize,
-
-            data:
-                chunk.data
-
-        });
-
-        console.log(
-            `Chunk ${chunk.chunkIndex}/${chunk.totalChunks} sent`
-        );
-
-        await waitForAck(
-
-            socket,
-
-            ackEvent,
-
-            batchId,
-
-            chunk.chunkIndex
-
-        );
-
-        */
-
         
-        const ackPromise = waitForAck(
-            socket,
-            ackEvent,
-            batchId,
-            chunk.chunkIndex
-        );
+       const ackPromise = waitForAck(
+    socket,
+    ackEvent,
+    batchId,
+    chunk.chunkIndex,
+    requestId
+);
 
         socket.emit(chunkEvent, {
     batchId,
@@ -392,9 +379,10 @@ console.log({
     waitForCompleteAck(
         socket,
         completeAckEvent,
-        batchId
+        batchId,
+        requestId
     );
-
+    
 socket.emit(
     completeEvent,
     {

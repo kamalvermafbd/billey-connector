@@ -21,103 +21,141 @@ class ConnectorProtocolSender {
 
     }
 
-    async waitForReady(collection) {
+    async waitForReady(collection, requestId) {
 
     return new Promise((resolve, reject) => {
 
-        const event =
-          EVENTS.READY;
+        const event = EVENTS.READY;
+
+        const cleanup = () => {
+            clearTimeout(timeout);
+            this.socket.off(event, onReady);
+            this.socket.off("disconnect", onDisconnect);
+        };
 
         const onReady = (data) => {
 
-          if (!data || data.collection !== collection) {
+            if (
+                !data ||
+                data.collection !== collection ||
+                !requestId ||
+                data.requestId !== requestId
+            ) {
                 return;
             }
 
-            this.socket.off(
-                event,
-                onReady
-            );
-
-            this.socket.off(
-                "disconnect",
-                onDisconnect
-            );
-
-           
-
-
+            cleanup();
             resolve(data);
-
         };
 
         const onDisconnect = () => {
+            cleanup();
+            reject(new Error("Socket disconnected"));
+        };
 
-            this.socket.off(
-                event,
-                onReady
-            );
+        const timeout = setTimeout(() => {
+            cleanup();
 
             reject(
                 new Error(
-                    "Socket disconnected"
+                    `Protocol READY timeout: ${collection}, request ${requestId}`
                 )
             );
+        }, 120 * 1000);
 
-        };
-
-        this.socket.on(
-            event,
-            onReady
-        );
-
-        this.socket.once(
-            "disconnect",
-            onDisconnect
-        );
+        this.socket.on(event, onReady);
+        this.socket.once("disconnect", onDisconnect);
 
     });
 
 }
 
-
 async waitForReceived(
     collection,
     batchId,
-    chunkIndex
+    chunkIndex,
+    requestId
 ) {
 
     return new Promise((resolve, reject) => {
 
-      const event =
+    const event =
     EVENTS.RECEIVED;
 
-        const onReceived = (data) => {
+const ackTimeout = setTimeout(() => {
 
-            if (!data) {
-                return;
-            }
+    this.socket.off(event, onReceived);
 
+    this.socket.off(EVENTS.ERROR, onProtocolError);
+
+    this.socket.off("disconnect", onDisconnect);
+
+    reject(
+        new Error(
+            `Protocol ACK timeout: ${collection}, chunk ${chunkIndex}`
+        )
+    );
+
+}, 120 * 1000);
+
+const onProtocolError = (data) => {
+
+    if (
+        !data ||
+        data.collection !== collection ||
+        data.requestId !== requestId ||
+        (data.batchId && data.batchId !== batchId)
+    ) {
+        return;
+    }
+
+    clearTimeout(ackTimeout);
+
+    this.socket.off(event, onReceived);
+    this.socket.off(EVENTS.ERROR, onProtocolError);
+    this.socket.off("disconnect", onDisconnect);
+
+    reject(
+        new Error(
+            data.error || "Protocol chunk rejected by server"
+        )
+    );
+
+};
+
+const onReceived = (data) => {
+    if (!data) {
+        return;
+    }
             if (data.collection !== collection) {
                 return;
             }
 
-            if (
-                data.batchId !== batchId ||
-                data.chunkIndex !== chunkIndex
-            ) {
-                return;
-            }
+           if (
+    data.batchId !== batchId ||
+    data.chunkIndex !== chunkIndex ||
+    !requestId ||
+    data.requestId !== requestId
+) {
+    return;
+}
 
-           this.socket.off(
-                event,
-                onReceived
-            );
+          this.socket.off(
+    event,
+    onReceived
+);
 
-            this.socket.off(
-                "disconnect",
-                onDisconnect
-            );
+this.socket.off(
+    EVENTS.ERROR,
+    onProtocolError
+);
+
+this.socket.off(
+    "disconnect",
+    onDisconnect
+);
+
+clearTimeout(ackTimeout);
 
             console.log(
                 "✅ CONNECTOR RECEIVED ACK:",
@@ -132,105 +170,99 @@ async waitForReceived(
 
         const onDisconnect = () => {
 
-            this.socket.off(
-                event,
-                onReceived
-            );
+    clearTimeout(ackTimeout);
 
-            reject(
-                new Error(
-                    "Socket disconnected"
-                )
-            );
+    this.socket.off(
+        event,
+        onReceived
+    );
 
-        };
+    this.socket.off(
+        EVENTS.ERROR,
+        onProtocolError
+    );
 
+    this.socket.off(
+        "disconnect",
+        onDisconnect
+    );
+
+    reject(
+        new Error(
+            "Socket disconnected"
+        )
+    );
+
+};
         this.socket.on(
-            event,
-            onReceived
-        );
+    event,
+    onReceived
+);
 
-        this.socket.once(
-            "disconnect",
-            onDisconnect
-        );
+this.socket.on(
+    EVENTS.ERROR,
+    onProtocolError
+);
 
+this.socket.once(
+    "disconnect",
+    onDisconnect
+);
     });
 
 }
-
-async waitForCompleted(
-    collection,
-    batchId
-) {
+async waitForCompleted(collection, batchId, requestId) {
 
     return new Promise((resolve, reject) => {
 
-        const event =
-             EVENTS.COMPLETED;
+        const event = EVENTS.COMPLETED;
+
+        const cleanup = () => {
+            clearTimeout(timeout);
+            this.socket.off(event, onCompleted);
+            this.socket.off("disconnect", onDisconnect);
+        };
 
         const onCompleted = (data) => {
 
-            if (!data) {
+            if (
+                !data ||
+                data.collection !== collection ||
+                data.batchId !== batchId ||
+                !requestId ||
+                data.requestId !== requestId
+            ) {
                 return;
             }
 
-            if (data.collection !== collection) {
-                return;
-            }
-
-            if (data.batchId !== batchId) {
-                return;
-            }
-
-            this.socket.off(
-                event,
-                onCompleted
-            );
-
-            this.socket.off(
-                "disconnect",
-                onDisconnect
-            );
+            cleanup();
 
             if (data.success === false) {
+                return reject(
+                    new Error(data.error || "Protocol collection failed")
+                );
+            }
 
-            return reject(
-                new Error(
-                    data.error
-                )
-            );
-
-        }
-
-        resolve();
-
+            resolve();
         };
 
         const onDisconnect = () => {
+            cleanup();
+            reject(new Error("Socket disconnected"));
+        };
 
-            this.socket.off(
-                event,
-                onCompleted
-            );
+        const timeout = setTimeout(() => {
+            cleanup();
 
             reject(
                 new Error(
-                    "Socket disconnected"
+                    `Protocol COMPLETED timeout: ${collection}, batch ${batchId}`
                 )
             );
+        }, 120 * 1000);
 
-        };
-
-        this.socket.on(
-            event,
-            onCompleted
-        );
-
-        this.socket.once(
-            "disconnect",
-            onDisconnect
-        );
+        this.socket.on(event, onCompleted);
+        this.socket.once("disconnect", onDisconnect);
 
     });
 
@@ -278,12 +310,22 @@ createSession(
 async sendCollection(
     collection,
     items,
-    maxChunkSize
+    maxChunkSize,
+    requestId
 ) {
 
+    if (!requestId) {
+        throw new Error(
+            "Protocol sendCollection requires requestId"
+        );
+    }
+
     await this.waitForReady(
-        collection
+        collection,
+        requestId
     );
+
+   try {
 
     const {
 
@@ -300,7 +342,6 @@ async sendCollection(
         maxChunkSize
 
     );
-
     console.log(
         `Starting ${collection}`
     );
@@ -325,55 +366,13 @@ async sendCollection(
     batchId,
     chunk.chunkIndex
 );
-/* 181026
-        this.socket.emit(
 
-           EVENTS.CHUNK,
-
-            {
-
-                collection,
-
-                batchId,
-
-                chunkIndex:
-                    chunk.chunkIndex,
-
-                totalChunks:
-                    chunk.totalChunks,
-
-                payloadSize:
-                    chunk.payloadSize,
-
-                data:
-                    chunk.data
-
-            }
-
-        );
-
-        console.log(
-            "⏳ CONNECTOR WAITING ACK:",
-            collection,
-            batchId,
-            chunk.chunkIndex
-        );
-
-        await this.waitForReceived(
-
-            collection,
-
-            batchId,
-
-            chunk.chunkIndex
-
-        );
-*/
 
 const ackPromise = this.waitForReceived(
     collection,
     batchId,
-    chunk.chunkIndex
+    chunk.chunkIndex,
+    requestId
 );
 
 this.socket.emit(
@@ -381,6 +380,7 @@ this.socket.emit(
     {
         collection,
         batchId,
+        requestId,
         chunkIndex: chunk.chunkIndex,
         totalChunks: chunk.totalChunks,
         payloadSize: chunk.payloadSize,
@@ -405,39 +405,11 @@ await ackPromise;
     "Sending COMPLETE",
     collection
 );
-/* 181026
-        this.socket.emit(
-
-        EVENTS.COMPLETE,
-
-        {
-
-            collection,
-
-            batchId,
-
-            totalChunks:
-                chunks.length,
-
-            totalItems:
-                items.length
-
-        }
-
-    );
-
-    await this.waitForCompleted(
-
-        collection,
-
-        batchId
-
-    );
-    */
 
     const completedPromise = this.waitForCompleted(
     collection,
-    batchId
+    batchId,
+    requestId
 );
 
 this.socket.emit(
@@ -445,6 +417,7 @@ this.socket.emit(
     {
         collection,
         batchId,
+        requestId,
         totalChunks: chunks.length,
         totalItems: items.length
     }
@@ -457,7 +430,7 @@ await completedPromise;
     collection
 );
 
-    this.session.finish();
+    
 
     console.log(
 
@@ -465,7 +438,11 @@ await completedPromise;
 
     );
 
-    return true;
+        return true;
+
+    } finally {
+        this.session.finish();
+    }
 
 }
 
