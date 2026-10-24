@@ -10,3 +10,5 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+dist/*.zip
+dist/*.backup.js
