@@ -198,7 +198,7 @@ clearTimeout(ackTimeout);
     event,
     onReceived
 );
-
+//
 this.socket.on(
     EVENTS.ERROR,
     onProtocolError
