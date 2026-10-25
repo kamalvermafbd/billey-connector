@@ -32621,7 +32621,11 @@ var require_tallyRequestQueue = __commonJS({
       }
       const context = operationContext.getStore();
       if (context?.reentrantRequest === true && context.active === true) {
-        return Promise.resolve().then(operation);
+        return Promise.reject(
+          new Error(
+            "Nested withTallyRequestQueue calls are not supported"
+          )
+        );
       }
       let queueContext = null;
       if (context?.exclusive === true && context.active === true) {
@@ -53042,13 +53046,16 @@ var require_companyImportService = __commonJS({
     var {
       parseCompanyResponse
     } = require_companyParser();
-    async function importCompany({
-      company
-    }) {
-      await selectCompany(company);
-      const requestXml = buildCompanyRequest(company);
-      const responseXml = await sendToTally(requestXml);
-      return parseCompanyResponse(responseXml);
+    var {
+      withTallyOperationQueue
+    } = require_tallyOperationQueue();
+    async function importCompany({ company }) {
+      return withTallyOperationQueue(async () => {
+        await selectCompany(company);
+        const requestXml = buildCompanyRequest(company);
+        const responseXml = await sendToTally(requestXml);
+        return parseCompanyResponse(responseXml);
+      });
     }
     module2.exports = {
       importCompany
