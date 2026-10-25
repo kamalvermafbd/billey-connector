@@ -3,6 +3,10 @@ const {
     runWithTallyMonitor
 } = require("../tally/tallyService");
 
+const {
+    withTallyOperationQueue
+} = require("../tally/tallyOperationQueue");
+
 const MONITOR_INTERVAL_MS = 5000;
 
 /**
@@ -133,13 +137,14 @@ function startTallyMonitor(socket) {
 
         try {
 
-            const result = await runWithTallyMonitor(
-    {
-        isHealthCheck: true
-    },
-    () => getTallyCompanies()
+            const result = await withTallyOperationQueue(() =>
+    runWithTallyMonitor(
+        {
+            isHealthCheck: true
+        },
+        () => getTallyCompanies()
+    )
 );
-
             if (!result?.success) {
                 throw new Error(
                     result?.error ||

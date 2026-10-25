@@ -7,6 +7,10 @@ const {
 } = require("../../utils/syncTracker");
 
 const {
+    withTallyOperationQueue
+} = require("../tally/tallyOperationQueue");
+
+const {
     sendToTally,
     runWithTallyMonitor,
     getTallyCompanies,
@@ -493,9 +497,11 @@ socket.on("getTallyCompanyInfo", async (data) => {
 
     try {
 
-        const result = await importCompany({
-            company: data.company
-        });
+        const result = await withTallyOperationQueue(() =>
+    importCompany({
+        company: data.company
+    })
+);
 
         socket.emit(
             "getTallyCompanyInfoResult",
@@ -654,8 +660,10 @@ socket.on("pair", async (data) => {
 
 socket.on("getTallyMappingData", async (data) => {
 
-    const result =
-        await getTallyMappingData(data.company);
+  const result =
+    await withTallyOperationQueue(() =>
+        getTallyMappingData(data.company)
+    );
 
     socket.emit(
         "getTallyMappingDataResult",
@@ -668,7 +676,9 @@ socket.on("getSalesVouchers", async (data) => {
 
     try {
 
-        const result = await getSalesVouchers(data.company);
+        const result = await withTallyOperationQueue(() =>
+    getSalesVouchers(data.company)
+);
 
         socket.emit(
             "getSalesVouchersResult",
@@ -743,16 +753,13 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         // IMPORT GODOWN-WISE STOCK FROM TALLY
         // ======================================
 
-        const stockGodownSummary =
-            await importStockSummary({
-
-                company:
-                    data.company,
-
-                booksBeginningFrom:
-                    data.booksBeginningFrom
-
-            });
+      const stockGodownSummary =
+    await withTallyOperationQueue(() =>
+        importStockSummary({
+            company: data.company,
+            booksBeginningFrom: data.booksBeginningFrom
+        })
+    );
 
 
         const stockGodownRows =
@@ -830,7 +837,8 @@ syncSocket.on("getMasters", async (data) => {
         syncSocket.tallyOperationActive = true;
         syncSocket.lastTallyActivity = Date.now();
 
-        const result = await runWithTallyMonitor({
+        const result = await withTallyOperationQueue(() =>
+    runWithTallyMonitor({
 
            onTallyRequestStart: () => {
                 syncSocket.tallyRequestActive = true;
@@ -895,7 +903,8 @@ syncSocket.on("getMasters", async (data) => {
                 }
             });
 
-        });
+        })
+   );
         // ===========================
         // Debug Analysis
         // ===========================
@@ -1220,17 +1229,18 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
             syncPeriod: data.syncPeriod
         });
 
-        const voucherGuids =
-            await importVoucherGuids({
-                company: data.company,
-                fromDate: data.fromDate,
-                toDate: data.toDate,
-                booksBeginningFrom: data.booksBeginningFrom,
-                lastAlterId: data.lastAlterId,
-                syncMode: data.syncMode,
-                syncPeriod: data.syncPeriod
-            });
-
+     const voucherGuids =
+    await withTallyOperationQueue(() =>
+        importVoucherGuids({
+            company: data.company,
+            fromDate: data.fromDate,
+            toDate: data.toDate,
+            booksBeginningFrom: data.booksBeginningFrom,
+            lastAlterId: data.lastAlterId,
+            syncMode: data.syncMode,
+            syncPeriod: data.syncPeriod
+        })
+    );
         sendProgress(
             "VOUCHER_GUIDS_RECEIVED",
             null,
@@ -1332,10 +1342,11 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
     try {
 
         const groupGuids =
-            await importGroupGuids({
-                company: data.company
-            });
-
+    await withTallyOperationQueue(() =>
+        importGroupGuids({
+            company: data.company
+        })
+    );
         syncSocket.emit(
             "getMastersGroupGuidsResult",
             {
@@ -1403,9 +1414,11 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
     try {
 
         const ledgerGuids =
-            await importLedgerGuids({
-                company: data.company
-            });
+    await withTallyOperationQueue(() =>
+        importLedgerGuids({
+            company: data.company
+        })
+    );
 
         syncSocket.emit(
             "getMastersLedgerGuidsResult",
@@ -1475,9 +1488,11 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
     try {
 
         const stockGroupGuids =
-            await importStockGroupGuids({
-                company: data.company
-            });
+    await withTallyOperationQueue(() =>
+        importStockGroupGuids({
+            company: data.company
+        })
+    );
 
         syncSocket.emit(
             "getMastersStockGroupGuidsResult",
@@ -1519,10 +1534,11 @@ syncSocket.on("getMastersStockGuids", async (data) => {
     try {
 
         const stockGuids =
-            await importStockGuids({
-                company: data.company
-            });
-
+    await withTallyOperationQueue(() =>
+        importStockGuids({
+            company: data.company
+        })
+    );
         syncSocket.emit(
             "getMastersStockGuidsResult",
             {
@@ -1564,10 +1580,11 @@ syncSocket.on("getMastersUnitGuids", async (data) => {
     try {
 
         const unitGuids =
-            await importUnitGuids({
-                company: data.company
-            });
-
+    await withTallyOperationQueue(() =>
+        importUnitGuids({
+            company: data.company
+        })
+    );
         syncSocket.emit(
             "getMastersUnitGuidsResult",
             {
@@ -1610,9 +1627,11 @@ syncSocket.on("getMastersGodownGuids", async (data) => {
     try {
 
         const godownGuids =
-            await importGodownGuids({
-                company: data.company
-            });
+    await withTallyOperationQueue(() =>
+        importGodownGuids({
+            company: data.company
+        })
+    );
 
         syncSocket.emit(
             "getMastersGodownGuidsResult",
@@ -1656,10 +1675,11 @@ syncSocket.on("getMastersCostCentreGuids", async (data) => {
     try {
 
         const costCentreGuids =
-            await importCostCentreGuids({
-                company: data.company
-            });
-
+    await withTallyOperationQueue(() =>
+        importCostCentreGuids({
+            company: data.company
+        })
+    );
         syncSocket.emit(
             "getMastersCostCentreGuidsResult",
             {
@@ -1801,13 +1821,12 @@ syncSocket.on("stockByGuidComplete", async (data) => {
         );
 
         const stocks =
-            await importStockBulkByGuid({
-
-                company: data.company,
-
-                stockGuids
-
-            });
+    await withTallyOperationQueue(() =>
+        importStockBulkByGuid({
+            company: data.company,
+            stockGuids
+        })
+    );
 
        syncSocket.emit(
     "stockByGuidResult",
@@ -1930,13 +1949,12 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
         );
 
         const ledgers =
-            await importLedgerBulkByGuid({
-
-                company: data.company,
-
-                ledgerGuids
-
-            });
+    await withTallyOperationQueue(() =>
+        importLedgerBulkByGuid({
+            company: data.company,
+            ledgerGuids
+        })
+    );
 
        syncSocket.emit(
     "ledgerByGuidResult",
@@ -2040,13 +2058,13 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
             voucherGuids.length
         );
 
-        const vouchers = await importVoucherBulkByGuid({
-
+        const vouchers =
+    await withTallyOperationQueue(() =>
+        importVoucherBulkByGuid({
             company: data.company,
-
             voucherGuids
-
-        });
+        })
+    );
 
        syncSocket.emit(
     "voucherByGuidResult",
@@ -2127,14 +2145,13 @@ syncSocket.on("voucherByGuid", async (data) => {
 
     try {
 
-        const vouchers =
-            await importVoucherBulkByGuid({
-
-                company: data.company,
-
-                voucherGuids: data.voucherGuids
-
-            });
+     const vouchers =
+    await withTallyOperationQueue(() =>
+        importVoucherBulkByGuid({
+            company: data.company,
+            voucherGuids: data.voucherGuids
+        })
+    );
 
        syncSocket.emit(
             "voucherByGuidResult",
@@ -2199,13 +2216,12 @@ syncSocket.on("stockByGuid", async (data) => {
     try {
 
         const stocks =
-            await importStockBulkByGuid({
-
-                company: data.company,
-
-                stockGuids: data.stockGuids
-
-            });
+    await withTallyOperationQueue(() =>
+        importStockBulkByGuid({
+            company: data.company,
+            stockGuids: data.stockGuids
+        })
+    );
 
       syncSocket.emit(
     "stockByGuidResult",
@@ -2269,14 +2285,12 @@ syncSocket.on("ledgerByGuid", async (data) => {
     try {
 
         const ledgers =
-            await importLedgerBulkByGuid({
-
-                company: data.company,
-
-                ledgerGuids: data.ledgerGuids
-
-            });
-
+    await withTallyOperationQueue(() =>
+        importLedgerBulkByGuid({
+            company: data.company,
+            ledgerGuids: data.ledgerGuids
+        })
+    );
    syncSocket.emit(
     "ledgerByGuidResult",
     {
@@ -2376,11 +2390,13 @@ syncSocket.on("getTrialBalance", async (data) => {
     try {
 
         const result =
-            await getTrialBalance({
-                company: data.company,
-                asOnDate: data.asOnDate,
-                booksBeginningFrom: data.booksBeginningFrom
-            });
+    await withTallyOperationQueue(() =>
+        getTrialBalance({
+            company: data.company,
+            asOnDate: data.asOnDate,
+            booksBeginningFrom: data.booksBeginningFrom
+        })
+    );
 
         const trialBalanceRows =
             Array.isArray(result)

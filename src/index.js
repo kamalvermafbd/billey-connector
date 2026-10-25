@@ -12,7 +12,9 @@ const {
   getTallyCompanies,
   getTallyMappingData
 } = require("./tally/tallyService");
-
+const {
+  withTallyOperationQueue
+} = require("./tally/tallyOperationQueue");
 
 const app = express();
 
@@ -99,10 +101,11 @@ app.get("/getTallyMappingData", async (req, res) => {
 
   try {
  console.log(req.query);
-    const result = await getTallyMappingData(
-      req.query.company
-    );
-
+    const result = await withTallyOperationQueue(() =>
+  getTallyMappingData(
+    req.query.company
+  )
+);
     res.json(result);
 
   } catch (err) {

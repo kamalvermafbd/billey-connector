@@ -4,6 +4,10 @@ const { AsyncLocalStorage } = require("async_hooks");
 
 const tallyMonitorStorage = new AsyncLocalStorage();
 
+const {
+    withTallyRequestQueue
+} = require("./tallyRequestQueue");
+
 function runWithTallyMonitor(monitorContext, callback) {
   return tallyMonitorStorage.run(monitorContext, callback);
 }
@@ -169,6 +173,10 @@ function splitQuantity(value) {
 }
 
 async function sendToTally(xml) {
+    return withTallyRequestQueue(() => executeTallyRequest(xml));
+}
+
+async function executeTallyRequest(xml) {
 
     const monitor = getTallyMonitorContext();
 
@@ -201,11 +209,12 @@ if (monitor?.onTallyRequestStart) {
     const response = await axios.post(
       TALLY_URL,
       xml,
-      {
-        headers: {
-          "Content-Type": "application/xml"
-        }
-      }
+     {
+  headers: {
+    "Content-Type": "application/xml"
+  },
+  timeout: 120000
+}
     );
 if (monitor?.isHealthCheck !== true) {
     console.log("========== RAW TALLY RESPONSE ==========");
