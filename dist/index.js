@@ -32594,13 +32594,18 @@ var require_tallyRequestQueue = __commonJS({
       const task = tail.then(async () => {
         const context = {
           requestOnly: true,
-          active: true
+          active: true,
+          requestTail: Promise.resolve()
         };
         return operationContext.run(context, async () => {
           try {
             return await operation();
           } finally {
-            context.active = false;
+            try {
+              await context.requestTail;
+            } finally {
+              context.active = false;
+            }
           }
         });
       });
@@ -32615,39 +32620,58 @@ var require_tallyRequestQueue = __commonJS({
         throw new TypeError("operation must be a function");
       }
       const context = operationContext.getStore();
-      const queueContext = context?.exclusive === true && context.active === true ? context : context?.requestOnly === true && context.active === true ? context : context?.parentContext?.active === true ? context.parentContext : null;
-      if (queueContext && !queueContext.requestTail) {
+      if (context?.reentrantRequest === true && context.active === true) {
+        return Promise.resolve().then(operation);
+      }
+      let queueContext = null;
+      if (context?.exclusive === true && context.active === true) {
+        queueContext = context;
+      } else if (context?.requestOnly === true && context.active === true) {
+        queueContext = context;
+      } else if (context?.parentContext?.active === true) {
+        queueContext = context.parentContext;
+      }
+      if (!queueContext) {
+        return enqueue(operation);
+      }
+      if (!queueContext.requestTail) {
         queueContext.requestTail = Promise.resolve();
       }
-      if (queueContext?.requestTail) {
-        const task = queueContext.requestTail.then(() => {
-          const requestContext = {
-            exclusive: true,
-            active: true,
-            parentContext: queueContext,
-            reentrantRequest: true
-          };
-          return operationContext.run(requestContext, async () => {
+      const task = queueContext.requestTail.then(() => {
+        const requestContext = {
+          exclusive: true,
+          active: true,
+          parentContext: queueContext,
+          reentrantRequest: true
+        };
+        return operationContext.run(
+          requestContext,
+          async () => {
             try {
               return await operation();
             } finally {
               requestContext.active = false;
             }
-          });
-        });
-        queueContext.requestTail = task.then(
-          () => void 0,
-          () => void 0
+          }
         );
-        return task;
-      }
-      return enqueue(operation);
+      });
+      queueContext.requestTail = task.then(
+        () => void 0,
+        () => void 0
+      );
+      return task;
     }
     function withTallyOperationQueue(operation) {
       if (typeof operation !== "function") {
         throw new TypeError("operation must be a function");
       }
       const context = operationContext.getStore();
+      if (context?.exclusive === true && context.active === true) {
+        return operationContext.run(
+          context,
+          async () => await operation()
+        );
+      }
       if (context?.requestOnly === true && context.active === true) {
         const nestedContext = {
           exclusive: true,
@@ -32655,34 +32679,41 @@ var require_tallyRequestQueue = __commonJS({
           parentContext: context,
           requestTail: Promise.resolve()
         };
-        return operationContext.run(nestedContext, async () => {
-          try {
-            return await operation();
-          } finally {
-            await nestedContext.requestTail;
-            nestedContext.active = false;
+        return operationContext.run(
+          nestedContext,
+          async () => {
+            try {
+              return await operation();
+            } finally {
+              try {
+                await nestedContext.requestTail;
+              } finally {
+                nestedContext.active = false;
+              }
+            }
           }
-        });
-      }
-      if (context?.exclusive === true && context.active === true) {
-        return operationContext.run(context, async () => {
-          return await operation();
-        });
+        );
       }
       return enqueue(async () => {
-        const context2 = {
+        const exclusiveContext = {
           exclusive: true,
           active: true,
           requestTail: Promise.resolve()
         };
-        return operationContext.run(context2, async () => {
-          try {
-            return await operation();
-          } finally {
-            context2.active = false;
-            await context2.requestTail;
+        return operationContext.run(
+          exclusiveContext,
+          async () => {
+            try {
+              return await operation();
+            } finally {
+              try {
+                await exclusiveContext.requestTail;
+              } finally {
+                exclusiveContext.active = false;
+              }
+            }
           }
-        });
+        );
       });
     }
     module2.exports = {
@@ -50084,8 +50115,19 @@ var require_tallyService = __commonJS({
         unit: parts.slice(1).join(" ")
       };
     }
+    var tallyHttpTail = Promise.resolve();
+    function withTallyHttpQueue(operation) {
+      const task = tallyHttpTail.then(operation);
+      tallyHttpTail = task.then(
+        () => void 0,
+        () => void 0
+      );
+      return task;
+    }
     async function sendToTally(xml) {
-      return withTallyRequestQueue(() => executeTallyRequest(xml));
+      return withTallyRequestQueue(
+        () => withTallyHttpQueue(() => executeTallyRequest(xml))
+      );
     }
     async function executeTallyRequest(xml) {
       const monitor = getTallyMonitorContext();
@@ -51804,6 +51846,8 @@ var require_tallyMonitor = __commonJS({
         return;
       }
       let checking = false;
+      const monitorToken = /* @__PURE__ */ Symbol("tallyMonitor");
+      socket.tallyMonitorToken = monitorToken;
       let lastStatus = "UNKNOWN";
       let lastCompanies = /* @__PURE__ */ new Map();
       function createCompanyMap(companies) {
@@ -51838,7 +51882,7 @@ var require_tallyMonitor = __commonJS({
         if (checking) {
           return;
         }
-        if (!socket.connected) {
+        if (!socket.connected || socket.tallyMonitorToken !== monitorToken) {
           return;
         }
         if (socket.tallyOperationActive || socket.tallyRequestActive) {
@@ -51846,14 +51890,18 @@ var require_tallyMonitor = __commonJS({
         }
         checking = true;
         try {
-          const result = await withTallyOperationQueue(
-            () => runWithTallyMonitor(
-              {
-                isHealthCheck: true
-              },
+          const result = await withTallyOperationQueue(() => {
+            if (!socket.connected || !socket.tallyMonitorInterval || socket.tallyMonitorToken !== monitorToken || socket.tallyOperationActive || socket.tallyRequestActive) {
+              return null;
+            }
+            return runWithTallyMonitor(
+              { isHealthCheck: true },
               () => getTallyCompanies()
-            )
-          );
+            );
+          });
+          if (!socket.connected || !socket.tallyMonitorInterval || socket.tallyMonitorToken !== monitorToken || result === null) {
+            return;
+          }
           if (!result?.success) {
             throw new Error(
               result?.error || "Unable to read Tally companies"
@@ -51934,6 +51982,9 @@ var require_tallyMonitor = __commonJS({
           lastCompanies = currentCompanies;
           lastStatus = "ONLINE";
         } catch (err) {
+          if (!socket.connected || !socket.tallyMonitorInterval || socket.tallyMonitorToken !== monitorToken) {
+            return;
+          }
           socket.tallyStatus = "OFFLINE";
           socket.lastTallyStatusAt = Date.now();
           socket.tallyCompanies = [];
@@ -51952,11 +52003,11 @@ var require_tallyMonitor = __commonJS({
           checking = false;
         }
       }
-      checkTally();
       socket.tallyMonitorInterval = setInterval(
         checkTally,
         MONITOR_INTERVAL_MS
       );
+      checkTally();
       console.log(
         "\u{1FA7A} TALLY MONITOR STARTED | CHECK EVERY 5 SEC"
       );
@@ -51967,6 +52018,7 @@ var require_tallyMonitor = __commonJS({
           socket.tallyMonitorInterval
         );
         socket.tallyMonitorInterval = null;
+        socket.tallyMonitorToken = null;
         console.log(
           "\u{1F6D1} TALLY MONITOR STOPPED"
         );
@@ -58290,7 +58342,20 @@ var require_secondSyncClientEvents = __commonJS({
         syncProtocolController = new ConnectorProtocolController(syncSocket);
         syncSocket.on("connect", () => {
           console.log("\u2705 Connected to Second Sync Server", syncSocket.id);
-          if (identifiedCompanyGuids.length > 0) {
+          if (syncSocket.heartbeatInterval) {
+            clearInterval(syncSocket.heartbeatInterval);
+          }
+          syncSocket.emit("protocol:heartbeat", {
+            timestamp: Date.now()
+          });
+          syncSocket.heartbeatInterval = setInterval(() => {
+            if (syncSocket.connected) {
+              syncSocket.emit("protocol:heartbeat", {
+                timestamp: Date.now()
+              });
+            }
+          }, 15e3);
+          if (socket.connected && identifiedCompanyGuids.length > 0) {
             syncSocket.emit("identifyConnector", {
               company_guids: identifiedCompanyGuids
             });
@@ -58298,6 +58363,13 @@ var require_secondSyncClientEvents = __commonJS({
               "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
               identifiedCompanyGuids.length
             );
+          }
+          if (socket.connected && (socket.tallyStatus === "ONLINE" || socket.tallyStatus === "OFFLINE") && Number.isFinite(socket.lastTallyStatusAt) && Date.now() - socket.lastTallyStatusAt <= 15e3) {
+            syncSocket.emit("tally:status", {
+              status: socket.tallyStatus,
+              company_guids: socket.tallyStatus === "ONLINE" ? identifiedCompanyGuids : [],
+              timestamp: socket.lastTallyStatusAt
+            });
           }
         });
         syncSocket.on("connect_error", (err) => {
@@ -58307,6 +58379,10 @@ var require_secondSyncClientEvents = __commonJS({
           );
         });
         syncSocket.on("disconnect", (reason) => {
+          if (syncSocket.heartbeatInterval) {
+            clearInterval(syncSocket.heartbeatInterval);
+            syncSocket.heartbeatInterval = null;
+          }
           console.log(
             "\u274C Disconnected from Second Sync Server:",
             reason
@@ -58325,7 +58401,13 @@ var require_secondSyncClientEvents = __commonJS({
         socket
       );
       socket.on("connect", async () => {
+        socket.tallyStatus = "OFFLINE";
+        socket.lastTallyStatusAt = 0;
+        identifiedCompanyGuids = [];
         if (socket.heartbeatInterval) clearInterval(socket.heartbeatInterval);
+        socket.emit("protocol:heartbeat", {
+          timestamp: Date.now()
+        });
         socket.heartbeatInterval = setInterval(() => {
           if (socket.connected) {
             socket.emit("protocol:heartbeat", { timestamp: Date.now() });
@@ -58337,7 +58419,9 @@ var require_secondSyncClientEvents = __commonJS({
         console.log("================================");
         try {
           console.log("\u{1F50E} STARTING TALLY COMPANY IDENTIFICATION");
-          const tallyResult = await getTallyCompanies();
+          const tallyResult = await withTallyOperationQueue(
+            () => getTallyCompanies()
+          );
           console.log("\u{1F50E} TALLY COMPANY IDENTIFICATION RESULT RECEIVED");
           if (!tallyResult.success || !tallyResult.companies?.length) {
             console.log(
@@ -58368,6 +58452,35 @@ var require_secondSyncClientEvents = __commonJS({
             err
           );
         } finally {
+          if (!socket.tallyStatusForwardingInstalled) {
+            socket.tallyStatusForwardingInstalled = true;
+            const originalEmit = socket.emit.bind(socket);
+            socket.emit = function(event, ...args) {
+              if (event === "tally:status") {
+                const data = args[0];
+                if (data?.status === "ONLINE" || data?.status === "OFFLINE") {
+                  socket.tallyStatus = data.status;
+                  socket.lastTallyStatusAt = Date.now();
+                  if (data.status === "ONLINE" && Array.isArray(data.company_guids)) {
+                    const latestGuids = [...new Set(data.company_guids.filter(Boolean))].sort();
+                    const previousGuids = [...identifiedCompanyGuids].sort();
+                    if (latestGuids.length > 0 && JSON.stringify(latestGuids) !== JSON.stringify(previousGuids)) {
+                      identifiedCompanyGuids = latestGuids;
+                      if (syncSocket?.connected) {
+                        syncSocket.emit("identifyConnector", {
+                          company_guids: latestGuids
+                        });
+                      }
+                    }
+                  }
+                }
+                if (syncSocket?.connected) {
+                  syncSocket.emit("tally:status", ...args);
+                }
+              }
+              return originalEmit(event, ...args);
+            };
+          }
           startTallyMonitor(socket);
         }
       });
@@ -58377,6 +58490,16 @@ var require_secondSyncClientEvents = __commonJS({
           socket.heartbeatInterval = null;
         }
         stopTallyMonitor(socket);
+        socket.tallyStatus = "OFFLINE";
+        socket.lastTallyStatusAt = 0;
+        if (syncSocket?.connected) {
+          syncSocket.emit("tally:status", {
+            status: "OFFLINE",
+            company_guids: [],
+            timestamp: Date.now()
+          });
+        }
+        identifiedCompanyGuids = [];
         console.log("=================================");
         console.log("\u274C Disconnected from Billey Server");
         console.log("Reason :", reason);
@@ -58393,7 +58516,9 @@ var require_secondSyncClientEvents = __commonJS({
           console.log("=================================");
           console.log("\u{1F4CB} GET TALLY COMPANIES REQUEST");
           console.log("=================================");
-          const result = await getTallyCompanies();
+          const result = await withTallyOperationQueue(
+            () => getTallyCompanies()
+          );
           console.log(
             "TALLY COMPANIES RESULT:",
             result
@@ -58442,8 +58567,8 @@ var require_secondSyncClientEvents = __commonJS({
         }
       });
       socket.on("createUnitsInTally", async (data) => {
-        const result = await sendToTally(
-          data.xml
+        const result = await withTallyOperationQueue(
+          () => sendToTally(data.xml)
         );
         socket.emit(
           "createUnitsInTallyResult",
@@ -58451,8 +58576,8 @@ var require_secondSyncClientEvents = __commonJS({
         );
       });
       socket.on("createStocksInTally", async (data) => {
-        const result = await sendToTally(
-          data.xml
+        const result = await withTallyOperationQueue(
+          () => sendToTally(data.xml)
         );
         socket.emit(
           "createStocksInTallyResult",
@@ -58460,8 +58585,8 @@ var require_secondSyncClientEvents = __commonJS({
         );
       });
       socket.on("createTaxLedgersInTally", async (data) => {
-        const result = await sendToTally(
-          data.xml
+        const result = await withTallyOperationQueue(
+          () => sendToTally(data.xml)
         );
         socket.emit(
           "createTaxLedgersInTallyResult",
@@ -58469,8 +58594,8 @@ var require_secondSyncClientEvents = __commonJS({
         );
       });
       socket.on("createSalesLedgersInTally", async (data) => {
-        const result = await sendToTally(
-          data.xml
+        const result = await withTallyOperationQueue(
+          () => sendToTally(data.xml)
         );
         socket.emit(
           "createSalesLedgersInTallyResult",
@@ -58478,8 +58603,8 @@ var require_secondSyncClientEvents = __commonJS({
         );
       });
       socket.on("createDebtorsInTally", async (data) => {
-        const result = await sendToTally(
-          data.xml
+        const result = await withTallyOperationQueue(
+          () => sendToTally(data.xml)
         );
         socket.emit(
           "createDebtorsInTallyResult",
@@ -58490,8 +58615,8 @@ var require_secondSyncClientEvents = __commonJS({
         console.log("=================================");
         console.log("\u{1F4E6} SALES EXPORT RECEIVED");
         console.log("=================================");
-        const result = await sendToTally(
-          data.xml
+        const result = await withTallyOperationQueue(
+          () => sendToTally(data.xml)
         );
         console.log(
           "SALES EXPORT TALLY RESULT:",

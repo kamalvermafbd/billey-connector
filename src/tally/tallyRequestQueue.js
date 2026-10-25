@@ -4,24 +4,31 @@ const { AsyncLocalStorage } = require("async_hooks");
 
 const operationContext = new AsyncLocalStorage();
 
+// Global FIFO queue for all Tally operations in this process.
 let tail = Promise.resolve();
 
 function enqueue(operation) {
     const task = tail.then(async () => {
-    const context = {
-        requestOnly: true,
-        active: true
-    };
+        const context = {
+            requestOnly: true,
+            active: true,
+            requestTail: Promise.resolve()
+        };
 
-    return operationContext.run(context, async () => {
-        try {
-            return await operation();
-        } finally {
-            context.active = false;
-        }
+        return operationContext.run(context, async () => {
+            try {
+                return await operation();
+            } finally {
+                try {
+                    await context.requestTail;
+                } finally {
+                    context.active = false;
+                }
+            }
+        });
     });
-});
 
+    // A failed operation must not block future operations.
     tail = task.then(
         () => undefined,
         () => undefined
@@ -35,41 +42,64 @@ function withTallyRequestQueue(operation) {
         throw new TypeError("operation must be a function");
     }
 
-    // Already inside an exclusive Tally operation.
     const context = operationContext.getStore();
 
+    // A request already executing inside a serialized request
+    // may call another request synchronously without deadlocking.
+    if (
+        context?.reentrantRequest === true &&
+        context.active === true
+    ) {
+        return Promise.resolve().then(operation);
+    }
 
-const queueContext =
-    context?.exclusive === true && context.active === true
-        ? context
-        : context?.requestOnly === true && context.active === true
-            ? context
-            : context?.parentContext?.active === true
-                ? context.parentContext
-                : null;
+    let queueContext = null;
 
+    if (
+        context?.exclusive === true &&
+        context.active === true
+    ) {
+        queueContext = context;
+    } else if (
+        context?.requestOnly === true &&
+        context.active === true
+    ) {
+        queueContext = context;
+    } else if (
+        context?.parentContext?.active === true
+    ) {
+        queueContext = context.parentContext;
+    }
 
-if (queueContext && !queueContext.requestTail) {
-    queueContext.requestTail = Promise.resolve();
-}
+    // No active context: enter global FIFO queue.
+    if (!queueContext) {
+        return enqueue(operation);
+    }
 
-if (queueContext?.requestTail) {
-   const task = queueContext.requestTail.then(() => {
-    const requestContext = {
-        exclusive: true,
-        active: true,
-        parentContext: queueContext,
-        reentrantRequest: true
-    };
+    if (!queueContext.requestTail) {
+        queueContext.requestTail = Promise.resolve();
+    }
 
-    return operationContext.run(requestContext, async () => {
-        try {
-            return await operation();
-        } finally {
-            requestContext.active = false;
-        }
+    // Serialize requests within the current operation.
+    const task = queueContext.requestTail.then(() => {
+        const requestContext = {
+            exclusive: true,
+            active: true,
+            parentContext: queueContext,
+            reentrantRequest: true
+        };
+
+        return operationContext.run(
+            requestContext,
+            async () => {
+                try {
+                    return await operation();
+                } finally {
+                    requestContext.active = false;
+                }
+            }
+        );
     });
-});
 
     queueContext.requestTail = task.then(
         () => undefined,
@@ -79,60 +109,76 @@ if (queueContext?.requestTail) {
     return task;
 }
 
-    return enqueue(operation);
-}
 function withTallyOperationQueue(operation) {
     if (typeof operation !== "function") {
         throw new TypeError("operation must be a function");
     }
-const context = operationContext.getStore();
 
-// Avoid deadlock when operation is called
-// from inside an already queued request.
+    const context = operationContext.getStore();
 
-if (context?.requestOnly === true && context.active === true) {
-    const nestedContext = {
-        exclusive: true,
-        active: true,
-        parentContext: context,
-        requestTail: Promise.resolve()
-    };
+    // Already inside a queued operation.
+    // Reuse its exclusive ownership.
+    if (
+        context?.exclusive === true &&
+        context.active === true
+    ) {
+        return operationContext.run(
+            context,
+            async () => await operation()
+        );
+    }
 
-    return operationContext.run(nestedContext, async () => {
-        try {
-            return await operation();
-        } finally {
-            await nestedContext.requestTail;
-            nestedContext.active = false;
-        }
-    });
-}
+    // An operation invoked from an existing request
+    // must not re-enter the global FIFO queue.
+    if (
+        context?.requestOnly === true &&
+        context.active === true
+    ) {
+        const nestedContext = {
+            exclusive: true,
+            active: true,
+            parentContext: context,
+            requestTail: Promise.resolve()
+        };
 
+        return operationContext.run(
+            nestedContext,
+            async () => {
+                try {
+                    return await operation();
+                } finally {
+                    try {
+                        await nestedContext.requestTail;
+                    } finally {
+                        nestedContext.active = false;
+                    }
+                }
+            }
+        );
+    }
 
-
-
-if (context?.exclusive === true && context.active === true) {
-    return operationContext.run(context, async () => {
-        return await operation();
-    });
-}
-
-
+    // New operation enters global FIFO queue.
     return enqueue(async () => {
-        const context = {
+        const exclusiveContext = {
             exclusive: true,
             active: true,
             requestTail: Promise.resolve()
         };
 
-        return operationContext.run(context, async () => {
-            try {
-                return await operation();
-           } finally {
-    context.active = false;
-    await context.requestTail;
-}
-        });
+        return operationContext.run(
+            exclusiveContext,
+            async () => {
+                try {
+                    return await operation();
+                } finally {
+                    try {
+                        await exclusiveContext.requestTail;
+                    } finally {
+                        exclusiveContext.active = false;
+                    }
+                }
+            }
+        );
     });
 }
 

@@ -157,7 +157,26 @@ function connectSyncServer() {
 syncSocket.on("connect", () => {
     console.log("✅ Connected to Second Sync Server", syncSocket.id);
 
-    if (identifiedCompanyGuids.length > 0) {
+    // Clear previous heartbeat timer on reconnect.
+    if (syncSocket.heartbeatInterval) {
+        clearInterval(syncSocket.heartbeatInterval);
+    }
+
+    // Immediate heartbeat so server receives a fresh timestamp.
+    syncSocket.emit("protocol:heartbeat", {
+        timestamp: Date.now()
+    });
+
+    // Keep second server heartbeat fresh.
+    syncSocket.heartbeatInterval = setInterval(() => {
+        if (syncSocket.connected) {
+            syncSocket.emit("protocol:heartbeat", {
+                timestamp: Date.now()
+            });
+        }
+    }, 15000);
+
+  if (socket.connected && identifiedCompanyGuids.length > 0) {
         syncSocket.emit("identifyConnector", {
             company_guids: identifiedCompanyGuids
         });
@@ -166,6 +185,25 @@ syncSocket.on("connect", () => {
             "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
             identifiedCompanyGuids.length
         );
+
+
+    }
+
+        // Reconnect par latest verified Tally status bhejo.
+    if (
+        socket.connected &&
+        (socket.tallyStatus === "ONLINE" ||
+         socket.tallyStatus === "OFFLINE") &&
+        Number.isFinite(socket.lastTallyStatusAt) &&
+        Date.now() - socket.lastTallyStatusAt <= 15000
+    ) {
+        syncSocket.emit("tally:status", {
+    status: socket.tallyStatus,
+    company_guids: socket.tallyStatus === "ONLINE"
+        ? identifiedCompanyGuids
+        : [],
+    timestamp: socket.lastTallyStatusAt
+});
     }
 });
 
@@ -178,11 +216,17 @@ syncSocket.on("connect", () => {
     });
 
     syncSocket.on("disconnect", (reason) => {
-        console.log(
-            "❌ Disconnected from Second Sync Server:",
-            reason
-        );
-    });
+
+    if (syncSocket.heartbeatInterval) {
+        clearInterval(syncSocket.heartbeatInterval);
+        syncSocket.heartbeatInterval = null;
+    }
+
+    console.log(
+        "❌ Disconnected from Second Sync Server:",
+        reason
+    );
+});
 
     return syncSocket;
 }
@@ -352,7 +396,19 @@ socket.on("connect", async () => {
 
 socket.on("connect", async () => {
 
+    // Fresh Tally verification is required after every connection.
+socket.tallyStatus = "OFFLINE";
+socket.lastTallyStatusAt = 0;
+
+// Do not reuse company GUIDs from the previous connection.
+identifiedCompanyGuids = [];
+
     if (socket.heartbeatInterval) clearInterval(socket.heartbeatInterval);
+
+// Send heartbeat immediately after connection.
+socket.emit("protocol:heartbeat", {
+    timestamp: Date.now()
+});
 
 socket.heartbeatInterval = setInterval(() => {
     if (socket.connected) {
@@ -370,8 +426,9 @@ socket.heartbeatInterval = setInterval(() => {
         console.log("🔎 STARTING TALLY COMPANY IDENTIFICATION");
 
         const tallyResult =
-            await getTallyCompanies();
-
+    await withTallyOperationQueue(() =>
+        getTallyCompanies()
+    );
         console.log("🔎 TALLY COMPANY IDENTIFICATION RESULT RECEIVED");
 
         if (
@@ -420,10 +477,52 @@ if (syncSocket && syncSocket.connected) {
             "❌ CONNECTOR IDENTIFICATION ERROR:",
             err
         );
-    } finally {
-        // Tally health + company monitoring start
-        startTallyMonitor(socket);
+   } finally {
+    // Forwarding pehle install karo.
+    if (!socket.tallyStatusForwardingInstalled) {
+        socket.tallyStatusForwardingInstalled = true;
+
+        const originalEmit = socket.emit.bind(socket);
+
+       socket.emit = function (event, ...args) {
+    if (event === "tally:status") {
+        const data = args[0];
+
+      if (data?.status === "ONLINE" || data?.status === "OFFLINE") {
+    socket.tallyStatus = data.status;
+    socket.lastTallyStatusAt = Date.now();
+
+    if (data.status === "ONLINE" && Array.isArray(data.company_guids)) {
+    const latestGuids = [...new Set(data.company_guids.filter(Boolean))].sort();
+    const previousGuids = [...identifiedCompanyGuids].sort();
+
+    if (
+        latestGuids.length > 0 &&
+        JSON.stringify(latestGuids) !== JSON.stringify(previousGuids)
+    ) {
+        identifiedCompanyGuids = latestGuids;
+
+            if (syncSocket?.connected) {
+                syncSocket.emit("identifyConnector", {
+                    company_guids: latestGuids
+                });
+            }
+        }
     }
+}
+
+        if (syncSocket?.connected) {
+            syncSocket.emit("tally:status", ...args);
+        }
+    }
+
+    return originalEmit(event, ...args);
+};
+    }
+
+    // Existing monitor sirf ek baar start hoga.
+    startTallyMonitor(socket);
+}
 });
 
 
@@ -436,6 +535,22 @@ socket.on("disconnect", (reason) => {
 }
 
     stopTallyMonitor(socket);
+
+        // Main connection lost: cached Tally status is no longer fresh.
+    socket.tallyStatus = "OFFLINE";
+    socket.lastTallyStatusAt = 0;
+
+    // Inform second sync server immediately when main connection is lost.
+if (syncSocket?.connected) {
+    syncSocket.emit("tally:status", {
+        status: "OFFLINE",
+        company_guids: [],
+        timestamp: Date.now()
+    });
+}
+
+    // Require fresh Tally company identification after reconnect.
+identifiedCompanyGuids = [];
 
     console.log("=================================");
     console.log("❌ Disconnected from Billey Server");
@@ -461,8 +576,10 @@ socket.on("getTallyCompanies", async () => {
         console.log("📋 GET TALLY COMPANIES REQUEST");
         console.log("=================================");
 
-        const result =
-            await getTallyCompanies();
+       const result =
+    await withTallyOperationQueue(() =>
+        getTallyCompanies()
+    );
 
         console.log(
             "TALLY COMPANIES RESULT:",
@@ -529,10 +646,10 @@ socket.on("getTallyCompanyInfo", async (data) => {
 
 socket.on("createUnitsInTally", async (data) => {
 
-    const result =
-        await sendToTally(
-            data.xml
-        );
+   const result =
+    await withTallyOperationQueue(() =>
+        sendToTally(data.xml)
+    );
 
     socket.emit(
         "createUnitsInTallyResult",
@@ -543,11 +660,10 @@ socket.on("createUnitsInTally", async (data) => {
 
 socket.on("createStocksInTally", async (data) => {
 
-    const result =
-        await sendToTally(
-            data.xml
-        );
-
+   const result =
+    await withTallyOperationQueue(() =>
+        sendToTally(data.xml)
+    );
     socket.emit(
         "createStocksInTallyResult",
         result
@@ -557,10 +673,10 @@ socket.on("createStocksInTally", async (data) => {
 
 socket.on("createTaxLedgersInTally", async (data) => {
 
-    const result =
-        await sendToTally(
-            data.xml
-        );
+  const result =
+    await withTallyOperationQueue(() =>
+        sendToTally(data.xml)
+    );
 
     socket.emit(
         "createTaxLedgersInTallyResult",
@@ -572,9 +688,9 @@ socket.on("createTaxLedgersInTally", async (data) => {
 socket.on("createSalesLedgersInTally", async (data) => {
 
     const result =
-        await sendToTally(
-            data.xml
-        );
+    await withTallyOperationQueue(() =>
+        sendToTally(data.xml)
+    );
 
     socket.emit(
         "createSalesLedgersInTallyResult",
@@ -585,10 +701,10 @@ socket.on("createSalesLedgersInTally", async (data) => {
 
 socket.on("createDebtorsInTally", async (data) => {
 
-    const result =
-        await sendToTally(
-            data.xml
-        );
+   const result =
+    await withTallyOperationQueue(() =>
+        sendToTally(data.xml)
+    );
 
     socket.emit(
         "createDebtorsInTallyResult",
@@ -603,10 +719,10 @@ socket.on("exportSalesToTally", async (data) => {
     console.log("📦 SALES EXPORT RECEIVED");
     console.log("=================================");
 
-    const result =
-        await sendToTally(
-            data.xml
-        );
+   const result =
+    await withTallyOperationQueue(() =>
+        sendToTally(data.xml)
+    );
 
     console.log(
         "SALES EXPORT TALLY RESULT:",

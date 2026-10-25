@@ -37,6 +37,10 @@ function startTallyMonitor(socket) {
 
     let checking = false;
 
+// Har monitor instance ka unique token.
+const monitorToken = Symbol("tallyMonitor");
+socket.tallyMonitorToken = monitorToken;
+
     // Last known Tally status
     let lastStatus = "UNKNOWN";
 
@@ -115,10 +119,13 @@ function startTallyMonitor(socket) {
             return;
         }
 
-        // Connector socket connected nahi hai
-        if (!socket.connected) {
-            return;
-        }
+       // Disconnected ya purana monitor polling nahi karega.
+if (
+    !socket.connected ||
+    socket.tallyMonitorToken !== monitorToken
+) {
+    return;
+}
 
         /*
          * Actual Tally sync/request chal raha ho to
@@ -137,14 +144,33 @@ function startTallyMonitor(socket) {
 
         try {
 
-            const result = await withTallyOperationQueue(() =>
-    runWithTallyMonitor(
-        {
-            isHealthCheck: true
-        },
+const result = await withTallyOperationQueue(() => {
+    // Queue mein wait karte waqt monitor stop hua ho
+    // toh Tally ko purani request mat bhejo.
+  if (
+    !socket.connected ||
+    !socket.tallyMonitorInterval ||
+    socket.tallyMonitorToken !== monitorToken ||
+    socket.tallyOperationActive ||
+    socket.tallyRequestActive
+) {
+    return null;
+}
+
+    return runWithTallyMonitor(
+        { isHealthCheck: true },
         () => getTallyCompanies()
-    )
-);
+    );
+});
+// Purane, stopped ya skipped monitor result ko ignore karo.
+if (
+    !socket.connected ||
+    !socket.tallyMonitorInterval ||
+    socket.tallyMonitorToken !== monitorToken ||
+    result === null
+) {
+    return;
+}
             if (!result?.success) {
                 throw new Error(
                     result?.error ||
@@ -309,6 +335,15 @@ function startTallyMonitor(socket) {
 
         } catch (err) {
 
+          // Purane ya stopped monitor ka error ignore karo.
+if (
+    !socket.connected ||
+    !socket.tallyMonitorInterval ||
+    socket.tallyMonitorToken !== monitorToken
+) {
+    return;
+}
+
             /*
              * Tally reachable nahi hai.
              */
@@ -351,19 +386,19 @@ lastStatus = "OFFLINE";
         }
     }
 
-    /*
-     * Connector connect hote hi immediate check.
-     */
-    checkTally();
+  /*
+ * Pehle monitor interval register karo,
+ * taaki immediate check mein bhi monitor active mile.
+ */
+socket.tallyMonitorInterval = setInterval(
+    checkTally,
+    MONITOR_INTERVAL_MS
+);
 
-    /*
-     * Uske baad har 5 sec Tally check.
-     */
-    socket.tallyMonitorInterval = setInterval(
-        checkTally,
-        MONITOR_INTERVAL_MS
-    );
-
+/*
+ * Connector connect hote hi immediate check.
+ */
+checkTally();
     console.log(
         "🩺 TALLY MONITOR STARTED | CHECK EVERY 5 SEC"
     );
@@ -382,6 +417,9 @@ function stopTallyMonitor(socket) {
         );
 
         socket.tallyMonitorInterval = null;
+
+// Stopped monitor ki identity invalidate karo.
+socket.tallyMonitorToken = null;
 
         console.log(
             "🛑 TALLY MONITOR STOPPED"

@@ -171,9 +171,26 @@ function splitQuantity(value) {
     };
 
 }
+// Final FIFO lock for actual Tally HTTP requests.
+// Independent of nested operation/request contexts.
+let tallyHttpTail = Promise.resolve();
+
+function withTallyHttpQueue(operation) {
+    const task = tallyHttpTail.then(operation);
+
+    // Failed requests must not block subsequent requests.
+    tallyHttpTail = task.then(
+        () => undefined,
+        () => undefined
+    );
+
+    return task;
+}
 
 async function sendToTally(xml) {
-    return withTallyRequestQueue(() => executeTallyRequest(xml));
+    return withTallyRequestQueue(() =>
+        withTallyHttpQueue(() => executeTallyRequest(xml))
+    );
 }
 
 async function executeTallyRequest(xml) {
