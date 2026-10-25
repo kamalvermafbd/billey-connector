@@ -44,15 +44,19 @@ function withTallyRequestQueue(operation) {
 
     const context = operationContext.getStore();
 
-    // A request already executing inside a serialized request
-    // may call another request synchronously without deadlocking.
+      // Nested request callbacks are not supported.
+    // Allowing them to bypass the queue causes parallel execution.
+    // Queuing them behind their own parent would cause a deadlock.
     if (
         context?.reentrantRequest === true &&
         context.active === true
     ) {
-        return Promise.resolve().then(operation);
+        return Promise.reject(
+            new Error(
+                "Nested withTallyRequestQueue calls are not supported"
+            )
+        );
     }
-
     let queueContext = null;
 
     if (

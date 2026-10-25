@@ -1,0 +1,106 @@
+        startTallyMonitor(socket);
+
+
+    }
+//
+});
+
+
+socket.on("disconnect", (reason) => {
+
+    if (socket.heartbeatInterval) {
+    clearInterval(socket.heartbeatInterval);
+    socket.heartbeatInterval = null;
+}
+
+    stopTallyMonitor(socket);
+
+    console.log("=================================");
+    console.log("❌ Disconnected from Billey Server");
+    console.log("Reason :", reason);
+    console.log("=================================");
+
+});
+
+    socket.on("export", async (data) => {
+
+    console.log("=================================");
+    console.log("📦 Export Event Received");
+    console.log(data);
+    console.log("=================================");
+
+});
+
+socket.on("getTallyCompanies", async () => {
+
+    try {
+
+        console.log("=================================");
+        console.log("📋 GET TALLY COMPANIES REQUEST");
+        console.log("=================================");
+
+        const result =
+            await getTallyCompanies();
+
+        console.log(
+            "TALLY COMPANIES RESULT:",
+            result
+        );
+
+        socket.emit(
+            "getTallyCompaniesResult",
+            result
+        );
+
+    } catch (err) {
+
+        console.error(
+            "❌ GET TALLY COMPANIES ERROR:",
+            err
+        );
+
+        socket.emit(
+            "getTallyCompaniesResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("getTallyCompanyInfo", async (data) => {
+
+    try {
+
+        const result = await importCompany({
+            company: data.company
+        });
+
+        socket.emit(
+            "getTallyCompanyInfoResult",
+            result
+        );
+
+    } catch (err) {
+
+        console.error(
+            "GET TALLY COMPANY INFO ERROR:",
+            err
+        );
+
+        socket.emit(
+            "getTallyCompanyInfoResult",
+            {
+                success: false,
+                error: err.message
+            }
+        );
+
+    }
+
+});
+
+socket.on("createUnitsInTally", async (data) => {

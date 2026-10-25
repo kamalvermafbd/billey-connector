@@ -13,21 +13,23 @@ const {
     parseCompanyResponse
 } = require("./companyParser");
 
-async function importCompany({
-    company
-}) {
+const {
+    withTallyOperationQueue
+} = require("./tallyOperationQueue");
 
-    await selectCompany(company);
+async function importCompany({ company }) {
 
-    const requestXml = buildCompanyRequest(company);
+    return withTallyOperationQueue(async () => {
 
-    const responseXml = await sendToTally(requestXml);
+        await selectCompany(company);
 
-    // ===== DEBUG =====
+        const requestXml = buildCompanyRequest(company);
 
-    // =================
+        const responseXml = await sendToTally(requestXml);
 
-    return parseCompanyResponse(responseXml);
+        return parseCompanyResponse(responseXml);
+
+    });
 
 }
 
