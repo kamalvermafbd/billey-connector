@@ -32583,6 +32583,128 @@ var require_syncTracker = __commonJS({
   }
 });
 
+// src/tally/tallyRequestQueue.js
+var require_tallyRequestQueue = __commonJS({
+  "src/tally/tallyRequestQueue.js"(exports2, module2) {
+    "use strict";
+    var { AsyncLocalStorage } = require("async_hooks");
+    var operationContext = new AsyncLocalStorage();
+    var tail = Promise.resolve();
+    function enqueue(operation) {
+      const task = tail.then(async () => {
+        const context = {
+          requestOnly: true,
+          active: true
+        };
+        return operationContext.run(context, async () => {
+          try {
+            return await operation();
+          } finally {
+            context.active = false;
+          }
+        });
+      });
+      tail = task.then(
+        () => void 0,
+        () => void 0
+      );
+      return task;
+    }
+    function withTallyRequestQueue(operation) {
+      if (typeof operation !== "function") {
+        throw new TypeError("operation must be a function");
+      }
+      const context = operationContext.getStore();
+      const queueContext = context?.exclusive === true && context.active === true ? context : context?.requestOnly === true && context.active === true ? context : context?.parentContext?.active === true ? context.parentContext : null;
+      if (queueContext && !queueContext.requestTail) {
+        queueContext.requestTail = Promise.resolve();
+      }
+      if (queueContext?.requestTail) {
+        const task = queueContext.requestTail.then(() => {
+          const requestContext = {
+            exclusive: true,
+            active: true,
+            parentContext: queueContext,
+            reentrantRequest: true
+          };
+          return operationContext.run(requestContext, async () => {
+            try {
+              return await operation();
+            } finally {
+              requestContext.active = false;
+            }
+          });
+        });
+        queueContext.requestTail = task.then(
+          () => void 0,
+          () => void 0
+        );
+        return task;
+      }
+      return enqueue(operation);
+    }
+    function withTallyOperationQueue(operation) {
+      if (typeof operation !== "function") {
+        throw new TypeError("operation must be a function");
+      }
+      const context = operationContext.getStore();
+      if (context?.requestOnly === true && context.active === true) {
+        const nestedContext = {
+          exclusive: true,
+          active: true,
+          parentContext: context,
+          requestTail: Promise.resolve()
+        };
+        return operationContext.run(nestedContext, async () => {
+          try {
+            return await operation();
+          } finally {
+            await nestedContext.requestTail;
+            nestedContext.active = false;
+          }
+        });
+      }
+      if (context?.exclusive === true && context.active === true) {
+        return operationContext.run(context, async () => {
+          return await operation();
+        });
+      }
+      return enqueue(async () => {
+        const context2 = {
+          exclusive: true,
+          active: true,
+          requestTail: Promise.resolve()
+        };
+        return operationContext.run(context2, async () => {
+          try {
+            return await operation();
+          } finally {
+            context2.active = false;
+            await context2.requestTail;
+          }
+        });
+      });
+    }
+    module2.exports = {
+      withTallyRequestQueue,
+      withTallyOperationQueue
+    };
+  }
+});
+
+// src/tally/tallyOperationQueue.js
+var require_tallyOperationQueue = __commonJS({
+  "src/tally/tallyOperationQueue.js"(exports2, module2) {
+    "use strict";
+    var {
+      withTallyOperationQueue
+    } = require_tallyRequestQueue();
+    module2.exports = {
+      withTallyOperationQueue
+    };
+  }
+});
+
 // node_modules/delayed-stream/lib/delayed_stream.js
 var require_delayed_stream = __commonJS({
   "node_modules/delayed-stream/lib/delayed_stream.js"(exports2, module2) {
@@ -49881,6 +50003,9 @@ var require_tallyService = __commonJS({
     var axios = require_axios();
     var { AsyncLocalStorage } = require("async_hooks");
     var tallyMonitorStorage = new AsyncLocalStorage();
+    var {
+      withTallyRequestQueue
+    } = require_tallyRequestQueue();
     function runWithTallyMonitor(monitorContext, callback) {
       return tallyMonitorStorage.run(monitorContext, callback);
     }
@@ -49960,6 +50085,9 @@ var require_tallyService = __commonJS({
       };
     }
     async function sendToTally(xml) {
+      return withTallyRequestQueue(() => executeTallyRequest(xml));
+    }
+    async function executeTallyRequest(xml) {
       const monitor = getTallyMonitorContext();
       try {
         if (monitor?.isHealthCheck !== true) {
@@ -49977,7 +50105,8 @@ var require_tallyService = __commonJS({
           {
             headers: {
               "Content-Type": "application/xml"
-            }
+            },
+            timeout: 12e4
           }
         );
         if (monitor?.isHealthCheck !== true) {
@@ -51662,6 +51791,9 @@ var require_tallyMonitor = __commonJS({
       getTallyCompanies,
       runWithTallyMonitor
     } = require_tallyService();
+    var {
+      withTallyOperationQueue
+    } = require_tallyOperationQueue();
     var MONITOR_INTERVAL_MS = 5e3;
     function startTallyMonitor(socket) {
       if (!socket) {
@@ -51714,11 +51846,13 @@ var require_tallyMonitor = __commonJS({
         }
         checking = true;
         try {
-          const result = await runWithTallyMonitor(
-            {
-              isHealthCheck: true
-            },
-            () => getTallyCompanies()
+          const result = await withTallyOperationQueue(
+            () => runWithTallyMonitor(
+              {
+                isHealthCheck: true
+              },
+              () => getTallyCompanies()
+            )
           );
           if (!result?.success) {
             throw new Error(
@@ -58050,6 +58184,9 @@ var require_secondSyncClientEvents = __commonJS({
       trackSyncEvent
     } = require_syncTracker();
     var {
+      withTallyOperationQueue
+    } = require_tallyOperationQueue();
+    var {
       sendToTally,
       runWithTallyMonitor,
       getTallyCompanies,
@@ -58281,9 +58418,11 @@ var require_secondSyncClientEvents = __commonJS({
       });
       socket.on("getTallyCompanyInfo", async (data) => {
         try {
-          const result = await importCompany({
-            company: data.company
-          });
+          const result = await withTallyOperationQueue(
+            () => importCompany({
+              company: data.company
+            })
+          );
           socket.emit(
             "getTallyCompanyInfoResult",
             result
@@ -58381,7 +58520,9 @@ var require_secondSyncClientEvents = __commonJS({
         );
       });
       socket.on("getTallyMappingData", async (data) => {
-        const result = await getTallyMappingData(data.company);
+        const result = await withTallyOperationQueue(
+          () => getTallyMappingData(data.company)
+        );
         socket.emit(
           "getTallyMappingDataResult",
           result
@@ -58389,7 +58530,9 @@ var require_secondSyncClientEvents = __commonJS({
       });
       socket.on("getSalesVouchers", async (data) => {
         try {
-          const result = await getSalesVouchers(data.company);
+          const result = await withTallyOperationQueue(
+            () => getSalesVouchers(data.company)
+          );
           socket.emit(
             "getSalesVouchersResult",
             result
@@ -58439,10 +58582,12 @@ var require_secondSyncClientEvents = __commonJS({
               "Books Beginning From :",
               data.booksBeginningFrom
             );
-            const stockGodownSummary = await importStockSummary({
-              company: data.company,
-              booksBeginningFrom: data.booksBeginningFrom
-            });
+            const stockGodownSummary = await withTallyOperationQueue(
+              () => importStockSummary({
+                company: data.company,
+                booksBeginningFrom: data.booksBeginningFrom
+              })
+            );
             const stockGodownRows = stockGodownSummary.data || [];
             console.log(
               "Godown-wise stock rows :",
@@ -58483,52 +58628,54 @@ var require_secondSyncClientEvents = __commonJS({
           try {
             syncSocket.tallyOperationActive = true;
             syncSocket.lastTallyActivity = Date.now();
-            const result = await runWithTallyMonitor({
-              onTallyRequestStart: () => {
-                syncSocket.tallyRequestActive = true;
-                syncSocket.tallyRequestStartedAt = Date.now();
-                syncSocket.lastTallyActivity = Date.now();
-                syncSocket.emit("tally:request:start", {
-                  batchId: data.batchId,
-                  timestamp: syncSocket.tallyRequestStartedAt
-                });
-              },
-              onTallyRequestEnd: () => {
-                syncSocket.tallyRequestActive = false;
-                syncSocket.tallyRequestStartedAt = 0;
-                syncSocket.lastTallyActivity = Date.now();
-                syncSocket.emit("tally:request:end", {
-                  batchId: data.batchId,
-                  timestamp: Date.now()
-                });
-              },
-              onTallyRequestError: (err) => {
-                syncSocket.tallyRequestActive = false;
-                syncSocket.tallyRequestStartedAt = 0;
-                syncSocket.lastTallyActivity = Date.now();
-                const tallyErrorCode = err?.code || err?.cause?.code || "";
-                const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
-                syncSocket.emit("tally:request:error", {
-                  batchId: data.batchId,
-                  timestamp: Date.now(),
-                  error: isTallyOffline ? "TALLY_OFFLINE" : tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR"
-                });
-              }
-            }, async () => {
-              return await importMasters({
-                company: data.company,
-                lastAlterId: data.lastAlterId,
-                lastStockAlterId: data.lastStockAlterId,
-                lastLedgerAlterId: data.lastLedgerAlterId,
-                onProgress: (progressData) => {
-                  sendProgress(
-                    progressData.stage,
-                    progressData.progress,
-                    data.batchId
-                  );
+            const result = await withTallyOperationQueue(
+              () => runWithTallyMonitor({
+                onTallyRequestStart: () => {
+                  syncSocket.tallyRequestActive = true;
+                  syncSocket.tallyRequestStartedAt = Date.now();
+                  syncSocket.lastTallyActivity = Date.now();
+                  syncSocket.emit("tally:request:start", {
+                    batchId: data.batchId,
+                    timestamp: syncSocket.tallyRequestStartedAt
+                  });
+                },
+                onTallyRequestEnd: () => {
+                  syncSocket.tallyRequestActive = false;
+                  syncSocket.tallyRequestStartedAt = 0;
+                  syncSocket.lastTallyActivity = Date.now();
+                  syncSocket.emit("tally:request:end", {
+                    batchId: data.batchId,
+                    timestamp: Date.now()
+                  });
+                },
+                onTallyRequestError: (err) => {
+                  syncSocket.tallyRequestActive = false;
+                  syncSocket.tallyRequestStartedAt = 0;
+                  syncSocket.lastTallyActivity = Date.now();
+                  const tallyErrorCode = err?.code || err?.cause?.code || "";
+                  const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
+                  syncSocket.emit("tally:request:error", {
+                    batchId: data.batchId,
+                    timestamp: Date.now(),
+                    error: isTallyOffline ? "TALLY_OFFLINE" : tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR"
+                  });
                 }
-              });
-            });
+              }, async () => {
+                return await importMasters({
+                  company: data.company,
+                  lastAlterId: data.lastAlterId,
+                  lastStockAlterId: data.lastStockAlterId,
+                  lastLedgerAlterId: data.lastLedgerAlterId,
+                  onProgress: (progressData) => {
+                    sendProgress(
+                      progressData.stage,
+                      progressData.progress,
+                      data.batchId
+                    );
+                  }
+                });
+              })
+            );
             const collections = {
               groups: result.groups,
               units: result.units,
@@ -58635,15 +58782,17 @@ var require_secondSyncClientEvents = __commonJS({
               syncMode: data.syncMode,
               syncPeriod: data.syncPeriod
             });
-            const voucherGuids = await importVoucherGuids({
-              company: data.company,
-              fromDate: data.fromDate,
-              toDate: data.toDate,
-              booksBeginningFrom: data.booksBeginningFrom,
-              lastAlterId: data.lastAlterId,
-              syncMode: data.syncMode,
-              syncPeriod: data.syncPeriod
-            });
+            const voucherGuids = await withTallyOperationQueue(
+              () => importVoucherGuids({
+                company: data.company,
+                fromDate: data.fromDate,
+                toDate: data.toDate,
+                booksBeginningFrom: data.booksBeginningFrom,
+                lastAlterId: data.lastAlterId,
+                syncMode: data.syncMode,
+                syncPeriod: data.syncPeriod
+              })
+            );
             sendProgress(
               "VOUCHER_GUIDS_RECEIVED",
               null,
@@ -58716,9 +58865,11 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getMastersGroupGuids", async (data) => {
           try {
-            const groupGuids = await importGroupGuids({
-              company: data.company
-            });
+            const groupGuids = await withTallyOperationQueue(
+              () => importGroupGuids({
+                company: data.company
+              })
+            );
             syncSocket.emit(
               "getMastersGroupGuidsResult",
               {
@@ -58768,9 +58919,11 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getMastersLedgerGuids", async (data) => {
           try {
-            const ledgerGuids = await importLedgerGuids({
-              company: data.company
-            });
+            const ledgerGuids = await withTallyOperationQueue(
+              () => importLedgerGuids({
+                company: data.company
+              })
+            );
             syncSocket.emit(
               "getMastersLedgerGuidsResult",
               {
@@ -58820,9 +58973,11 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getMastersStockGroupGuids", async (data) => {
           try {
-            const stockGroupGuids = await importStockGroupGuids({
-              company: data.company
-            });
+            const stockGroupGuids = await withTallyOperationQueue(
+              () => importStockGroupGuids({
+                company: data.company
+              })
+            );
             syncSocket.emit(
               "getMastersStockGroupGuidsResult",
               {
@@ -58853,9 +59008,11 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getMastersStockGuids", async (data) => {
           try {
-            const stockGuids = await importStockGuids({
-              company: data.company
-            });
+            const stockGuids = await withTallyOperationQueue(
+              () => importStockGuids({
+                company: data.company
+              })
+            );
             syncSocket.emit(
               "getMastersStockGuidsResult",
               {
@@ -58886,9 +59043,11 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getMastersUnitGuids", async (data) => {
           try {
-            const unitGuids = await importUnitGuids({
-              company: data.company
-            });
+            const unitGuids = await withTallyOperationQueue(
+              () => importUnitGuids({
+                company: data.company
+              })
+            );
             syncSocket.emit(
               "getMastersUnitGuidsResult",
               {
@@ -58919,9 +59078,11 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getMastersGodownGuids", async (data) => {
           try {
-            const godownGuids = await importGodownGuids({
-              company: data.company
-            });
+            const godownGuids = await withTallyOperationQueue(
+              () => importGodownGuids({
+                company: data.company
+              })
+            );
             syncSocket.emit(
               "getMastersGodownGuidsResult",
               {
@@ -58952,9 +59113,11 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getMastersCostCentreGuids", async (data) => {
           try {
-            const costCentreGuids = await importCostCentreGuids({
-              company: data.company
-            });
+            const costCentreGuids = await withTallyOperationQueue(
+              () => importCostCentreGuids({
+                company: data.company
+              })
+            );
             syncSocket.emit(
               "getMastersCostCentreGuidsResult",
               {
@@ -59054,10 +59217,12 @@ var require_secondSyncClientEvents = __commonJS({
               "Merged Stock GUIDs :",
               stockGuids.length
             );
-            const stocks = await importStockBulkByGuid({
-              company: data.company,
-              stockGuids
-            });
+            const stocks = await withTallyOperationQueue(
+              () => importStockBulkByGuid({
+                company: data.company,
+                stockGuids
+              })
+            );
             syncSocket.emit(
               "stockByGuidResult",
               {
@@ -59145,10 +59310,12 @@ var require_secondSyncClientEvents = __commonJS({
               "Merged Ledger GUIDs :",
               ledgerGuids.length
             );
-            const ledgers = await importLedgerBulkByGuid({
-              company: data.company,
-              ledgerGuids
-            });
+            const ledgers = await withTallyOperationQueue(
+              () => importLedgerBulkByGuid({
+                company: data.company,
+                ledgerGuids
+              })
+            );
             syncSocket.emit(
               "ledgerByGuidResult",
               {
@@ -59225,10 +59392,12 @@ var require_secondSyncClientEvents = __commonJS({
               "Merged GUIDs :",
               voucherGuids.length
             );
-            const vouchers = await importVoucherBulkByGuid({
-              company: data.company,
-              voucherGuids
-            });
+            const vouchers = await withTallyOperationQueue(
+              () => importVoucherBulkByGuid({
+                company: data.company,
+                voucherGuids
+              })
+            );
             syncSocket.emit(
               "voucherByGuidResult",
               {
@@ -59288,10 +59457,12 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("voucherByGuid", async (data) => {
           try {
-            const vouchers = await importVoucherBulkByGuid({
-              company: data.company,
-              voucherGuids: data.voucherGuids
-            });
+            const vouchers = await withTallyOperationQueue(
+              () => importVoucherBulkByGuid({
+                company: data.company,
+                voucherGuids: data.voucherGuids
+              })
+            );
             syncSocket.emit(
               "voucherByGuidResult",
               {
@@ -59338,10 +59509,12 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("stockByGuid", async (data) => {
           try {
-            const stocks = await importStockBulkByGuid({
-              company: data.company,
-              stockGuids: data.stockGuids
-            });
+            const stocks = await withTallyOperationQueue(
+              () => importStockBulkByGuid({
+                company: data.company,
+                stockGuids: data.stockGuids
+              })
+            );
             syncSocket.emit(
               "stockByGuidResult",
               {
@@ -59388,10 +59561,12 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("ledgerByGuid", async (data) => {
           try {
-            const ledgers = await importLedgerBulkByGuid({
-              company: data.company,
-              ledgerGuids: data.ledgerGuids
-            });
+            const ledgers = await withTallyOperationQueue(
+              () => importLedgerBulkByGuid({
+                company: data.company,
+                ledgerGuids: data.ledgerGuids
+              })
+            );
             syncSocket.emit(
               "ledgerByGuidResult",
               {
@@ -59438,11 +59613,13 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("getTrialBalance", async (data) => {
           try {
-            const result = await getTrialBalance({
-              company: data.company,
-              asOnDate: data.asOnDate,
-              booksBeginningFrom: data.booksBeginningFrom
-            });
+            const result = await withTallyOperationQueue(
+              () => getTrialBalance({
+                company: data.company,
+                asOnDate: data.asOnDate,
+                booksBeginningFrom: data.booksBeginningFrom
+              })
+            );
             const trialBalanceRows = Array.isArray(result) ? result : result?.data || [];
             console.log(
               "Trial Balance Rows :",
@@ -59547,6 +59724,9 @@ var require_src3 = __commonJS({
       getTallyCompanies,
       getTallyMappingData
     } = require_tallyService();
+    var {
+      withTallyOperationQueue
+    } = require_tallyOperationQueue();
     var app = express();
     app.use(cors());
     app.use(express.json());
@@ -59593,8 +59773,10 @@ var require_src3 = __commonJS({
     app.get("/getTallyMappingData", async (req, res) => {
       try {
         console.log(req.query);
-        const result = await getTallyMappingData(
-          req.query.company
+        const result = await withTallyOperationQueue(
+          () => getTallyMappingData(
+            req.query.company
+          )
         );
         res.json(result);
       } catch (err) {
