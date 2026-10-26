@@ -6,9 +6,15 @@ const {
     trackSyncEvent
 } = require("../../utils/syncTracker");
 
+
+
 const {
     withTallyOperationQueue
 } = require("../tally/tallyOperationQueue");
+
+const {
+    getTallyQueueStatus
+} = require("../tally/tallyRequestQueue");
 
 const {
     sendToTally,
@@ -177,17 +183,20 @@ syncSocket.on("connect", () => {
     }, 15000);
 
   if (socket.connected && identifiedCompanyGuids.length > 0) {
-        syncSocket.emit("identifyConnector", {
-            company_guids: identifiedCompanyGuids
-        });
+    const tallyQueueStatus = getTallyQueueStatus();
 
-        console.log(
-            "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
-            identifiedCompanyGuids.length
-        );
+  syncSocket.emit("identifyConnector", {
+    company_guids: identifiedCompanyGuids,
+    tally_queue_status: tallyQueueStatus
+});
 
-
-    }
+    console.log(
+        "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
+        identifiedCompanyGuids.length,
+        "TALLY QUEUE STATUS:",
+        tallyQueueStatus
+    );
+}
 
         // Reconnect par latest verified Tally status bhejo.
     if (
@@ -466,7 +475,8 @@ socket.emit(
 // Register on sync server when its socket is connected
 if (syncSocket && syncSocket.connected) {
     syncSocket.emit("identifyConnector", {
-        company_guids
+        company_guids,
+        tally_queue_status: getTallyQueueStatus()
     });
 }
 
@@ -502,11 +512,12 @@ if (syncSocket && syncSocket.connected) {
     ) {
         identifiedCompanyGuids = latestGuids;
 
-            if (syncSocket?.connected) {
-                syncSocket.emit("identifyConnector", {
-                    company_guids: latestGuids
-                });
-            }
+          if (syncSocket?.connected) {
+    syncSocket.emit("identifyConnector", {
+        company_guids: latestGuids,
+        tally_queue_status: getTallyQueueStatus()
+    });
+}
         }
     }
 }

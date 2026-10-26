@@ -6,29 +6,78 @@ const operationContext = new AsyncLocalStorage();
 
 // Global FIFO queue for all Tally operations in this process.
 let tail = Promise.resolve();
+// Track all top-level Tally operations in this process.
+let pendingOperations = 0;
+let runningOperations = 0;
+
+// Incremented whenever a new top-level operation is queued.
+let operationGeneration = 0;
+
+function getTallyQueueStatus() {
+    return {
+        pendingOperations,
+        runningOperations,
+        idle:
+            pendingOperations === 0 &&
+            runningOperations === 0,
+        operationGeneration
+    };
+}
+
+async function waitForTallyQueueIdle() {
+    // Capture the current queue tail.
+    // Any operations queued afterwards are detected
+    // by the generation and counter checks.
+    const observedGeneration = operationGeneration;
+    const observedTail = tail;
+
+    await observedTail;
+
+    const status = getTallyQueueStatus();
+
+    return {
+    ...status,
+    verifiedIdle:
+        status.idle &&
+        status.operationGeneration === observedGeneration
+};
+}
 
 function enqueue(operation) {
+    pendingOperations++;
+    operationGeneration++;
+
     const task = tail.then(async () => {
+        pendingOperations--;
+        runningOperations++;
+
         const context = {
             requestOnly: true,
             active: true,
             requestTail: Promise.resolve()
         };
 
-        return operationContext.run(context, async () => {
-            try {
-                return await operation();
-            } finally {
-                try {
-                    await context.requestTail;
-                } finally {
-                    context.active = false;
+        try {
+            return await operationContext.run(
+                context,
+                async () => {
+                    try {
+                        return await operation();
+                    } finally {
+                        try {
+                            await context.requestTail;
+                        } finally {
+                            context.active = false;
+                        }
+                    }
                 }
-            }
-        });
+            );
+        } finally {
+            runningOperations--;
+        }
     });
 
-    // A failed operation must not block future operations.
+    // Failed operations must not block the queue.
     tail = task.then(
         () => undefined,
         () => undefined
@@ -36,7 +85,6 @@ function enqueue(operation) {
 
     return task;
 }
-
 function withTallyRequestQueue(operation) {
     if (typeof operation !== "function") {
         throw new TypeError("operation must be a function");
@@ -188,5 +236,7 @@ function withTallyOperationQueue(operation) {
 
 module.exports = {
     withTallyRequestQueue,
-    withTallyOperationQueue
+    withTallyOperationQueue,
+    getTallyQueueStatus,
+    waitForTallyQueueIdle
 };
