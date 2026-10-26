@@ -32590,24 +32590,56 @@ var require_tallyRequestQueue = __commonJS({
     var { AsyncLocalStorage } = require("async_hooks");
     var operationContext = new AsyncLocalStorage();
     var tail = Promise.resolve();
+    var pendingOperations = 0;
+    var runningOperations = 0;
+    var operationGeneration = 0;
+    function getTallyQueueStatus() {
+      return {
+        pendingOperations,
+        runningOperations,
+        idle: pendingOperations === 0 && runningOperations === 0,
+        operationGeneration
+      };
+    }
+    async function waitForTallyQueueIdle() {
+      const observedGeneration = operationGeneration;
+      const observedTail = tail;
+      await observedTail;
+      const status = getTallyQueueStatus();
+      return {
+        ...status,
+        verifiedIdle: status.idle && status.operationGeneration === observedGeneration
+      };
+    }
     function enqueue(operation) {
+      pendingOperations++;
+      operationGeneration++;
       const task = tail.then(async () => {
+        pendingOperations--;
+        runningOperations++;
         const context = {
           requestOnly: true,
           active: true,
           requestTail: Promise.resolve()
         };
-        return operationContext.run(context, async () => {
-          try {
-            return await operation();
-          } finally {
-            try {
-              await context.requestTail;
-            } finally {
-              context.active = false;
+        try {
+          return await operationContext.run(
+            context,
+            async () => {
+              try {
+                return await operation();
+              } finally {
+                try {
+                  await context.requestTail;
+                } finally {
+                  context.active = false;
+                }
+              }
             }
-          }
-        });
+          );
+        } finally {
+          runningOperations--;
+        }
       });
       tail = task.then(
         () => void 0,
@@ -32722,7 +32754,9 @@ var require_tallyRequestQueue = __commonJS({
     }
     module2.exports = {
       withTallyRequestQueue,
-      withTallyOperationQueue
+      withTallyOperationQueue,
+      getTallyQueueStatus,
+      waitForTallyQueueIdle
     };
   }
 });
@@ -58246,6 +58280,9 @@ var require_secondSyncClientEvents = __commonJS({
       withTallyOperationQueue
     } = require_tallyOperationQueue();
     var {
+      getTallyQueueStatus
+    } = require_tallyRequestQueue();
+    var {
       sendToTally,
       runWithTallyMonitor,
       getTallyCompanies,
@@ -58363,12 +58400,16 @@ var require_secondSyncClientEvents = __commonJS({
             }
           }, 15e3);
           if (socket.connected && identifiedCompanyGuids.length > 0) {
+            const tallyQueueStatus = getTallyQueueStatus();
             syncSocket.emit("identifyConnector", {
-              company_guids: identifiedCompanyGuids
+              company_guids: identifiedCompanyGuids,
+              tally_queue_status: tallyQueueStatus
             });
             console.log(
               "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
-              identifiedCompanyGuids.length
+              identifiedCompanyGuids.length,
+              "TALLY QUEUE STATUS:",
+              tallyQueueStatus
             );
           }
           if (socket.connected && (socket.tallyStatus === "ONLINE" || socket.tallyStatus === "OFFLINE") && Number.isFinite(socket.lastTallyStatusAt) && Date.now() - socket.lastTallyStatusAt <= 15e3) {
@@ -58450,7 +58491,8 @@ var require_secondSyncClientEvents = __commonJS({
           );
           if (syncSocket && syncSocket.connected) {
             syncSocket.emit("identifyConnector", {
-              company_guids
+              company_guids,
+              tally_queue_status: getTallyQueueStatus()
             });
           }
         } catch (err) {
@@ -58475,7 +58517,8 @@ var require_secondSyncClientEvents = __commonJS({
                       identifiedCompanyGuids = latestGuids;
                       if (syncSocket?.connected) {
                         syncSocket.emit("identifyConnector", {
-                          company_guids: latestGuids
+                          company_guids: latestGuids,
+                          tally_queue_status: getTallyQueueStatus()
                         });
                       }
                     }
