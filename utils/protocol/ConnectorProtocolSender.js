@@ -44,8 +44,17 @@ class ConnectorProtocolSender {
                 return;
             }
 
-            cleanup();
-            resolve(data);
+         cleanup();
+
+if (data.success === false) {
+    return reject(
+        new Error(
+            data.error || `Protocol READY rejected: ${collection}`
+        )
+    );
+}
+
+resolve(data);
         };
 
         const onDisconnect = () => {
@@ -157,14 +166,22 @@ this.socket.off(
 
 clearTimeout(ackTimeout);
 
-            console.log(
-                "✅ CONNECTOR RECEIVED ACK:",
-                collection,
-                batchId,
-                chunkIndex
-            );
+if (data.success === false) {
+    return reject(
+        new Error(
+            data.error || "Protocol chunk rejected by server"
+        )
+    );
+}
 
-            resolve();
+console.log(
+    "✅ CONNECTOR RECEIVED ACK:",
+    collection,
+    batchId,
+    chunkIndex
+);
+
+resolve();
 
         };
 
@@ -237,13 +254,15 @@ async waitForCompleted(collection, batchId, requestId) {
 
             cleanup();
 
-            if (data.success === false) {
-                return reject(
-                    new Error(data.error || "Protocol collection failed")
-                );
-            }
+           if (data.success !== true) {
+    return reject(
+        new Error(
+            data.error || `Protocol collection completion not confirmed: ${collection}`
+        )
+    );
+}
 
-            resolve();
+resolve();
         };
 
         const onDisconnect = () => {

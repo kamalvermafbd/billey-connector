@@ -12,6 +12,272 @@ let runningOperations = 0;
 
 // Incremented whenever a new top-level operation is queued.
 let operationGeneration = 0;
+// ============================================
+// Connector execution identity foundation
+// Independent of the existing Tally FIFO.
+// ============================================
+
+const { randomUUID } = require("crypto");
+
+const connectorEpoch = randomUUID();
+
+const tallyExecutionContext = new AsyncLocalStorage();
+
+const tallyRequestRegistry = new Map();
+
+const tallyExecutionRegistry = new Map();
+
+// Validate identifiers used for request admission.
+function requireTallyIdentityString(value, fieldName) {
+    if (
+        typeof value !== "string" ||
+        value.trim().length === 0
+    ) {
+        throw new TypeError(
+            `${fieldName} must be a non-empty string`
+        );
+    }
+
+    return value;
+}
+
+// Prevent collisions between different server/tenant scopes.
+function getTallyRequestKey(scope, requestId) {
+    return JSON.stringify([
+        requireTallyIdentityString(scope, "scope"),
+        requireTallyIdentityString(requestId, "requestId")
+    ]);
+}
+
+// Return a read-only snapshot of an execution record.
+// Never expose the mutable registry record directly.
+function getTallyIdentitySnapshot(record) {
+    return Object.freeze({
+        connectorEpoch,
+        executionId: record.executionId,
+        requestId: record.requestId,
+        scope: record.scope,
+        operation: record.operation,
+        companyIdentity: record.companyIdentity,
+        payloadFingerprint: record.payloadFingerprint,
+        protectedAgainstRetransmission:
+            record.protectedAgainstRetransmission,
+        state: record.state,
+        retryable: false
+    });
+}
+
+// Reserve a request identity before any asynchronous execution.
+// This function never starts a Tally operation.
+function admitTallyRequest(identity = {}) {
+    const {
+        scope,
+        requestId,
+        operation,
+        companyIdentity,
+        payloadFingerprint
+    } = identity;
+
+        // Nested Tally work must retain its parent execution identity.
+    // Do not reserve another logical request inside an active execution.
+    const currentExecution = getTallyExecutionContext();
+
+    if (currentExecution) {
+        return {
+            status: "NESTED",
+            identity: currentExecution
+        };
+    }
+
+    const hasRequestId =
+        requestId !== undefined &&
+        requestId !== null &&
+        requestId !== "";
+
+    let requestKey = null;
+
+    if (hasRequestId) {
+        requestKey = getTallyRequestKey(scope, requestId);
+
+        requireTallyIdentityString(operation, "operation");
+        requireTallyIdentityString(
+            companyIdentity,
+            "companyIdentity"
+        );
+        requireTallyIdentityString(
+            payloadFingerprint,
+            "payloadFingerprint"
+        );
+
+        const existing = tallyRequestRegistry.get(requestKey);
+
+        if (existing) {
+            const sameRequest =
+                existing.operation === operation &&
+                existing.companyIdentity === companyIdentity &&
+                existing.payloadFingerprint === payloadFingerprint;
+
+            return {
+                status: sameRequest
+                    ? "DUPLICATE"
+                    : "IDENTITY_CONFLICT",
+                identity: getTallyIdentitySnapshot(existing)
+            };
+        }
+    }
+
+    const record = {
+        executionId: randomUUID(),
+        requestId: hasRequestId ? requestId : null,
+        scope: hasRequestId ? scope : null,
+        operation: operation ?? null,
+        companyIdentity: companyIdentity ?? null,
+        payloadFingerprint: payloadFingerprint ?? null,
+        protectedAgainstRetransmission: hasRequestId,
+        state: "ADMITTED",
+        claimed: false
+    };
+
+    if (hasRequestId) {
+        tallyRequestRegistry.set(requestKey, record);
+    }
+
+    tallyExecutionRegistry.set(record.executionId, record);
+
+    return {
+        status: hasRequestId
+            ? "ADMITTED"
+            : "LEGACY_UNPROTECTED",
+        identity: getTallyIdentitySnapshot(record)
+    };
+}
+// Find a previously admitted request by its stable identity.
+function getTallyRequestIdentity(scope, requestId) {
+    const requestKey = getTallyRequestKey(scope, requestId);
+    const record = tallyRequestRegistry.get(requestKey);
+
+    return record ? getTallyIdentitySnapshot(record) : null;
+}
+
+// Find an execution within the current connector process.
+function getTallyExecutionIdentity(executionId) {
+    const record = tallyExecutionRegistry.get(executionId);
+
+    return record ? getTallyIdentitySnapshot(record) : null;
+}
+
+// Read the current execution identity without exposing mutable state.
+function getTallyExecutionContext() {
+    const context = tallyExecutionContext.getStore();
+
+    if (!context || context.active !== true) {
+        return null;
+    }
+
+    return getTallyIdentitySnapshot(context.record);
+}
+
+// Mark an active execution as having an explicitly observed
+// ambiguous Tally transport outcome.
+// This does not mean the Tally operation failed or completed.
+function markTallyExecutionUnknown(reason) {
+    const allowedReasons = [
+        "TALLY_DISPATCH_OUTCOME_UNKNOWN",
+        "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+    ];
+
+    if (!allowedReasons.includes(reason)) {
+        throw new TypeError(
+            "Unsupported ambiguous-outcome reason"
+        );
+    }
+
+    const context = tallyExecutionContext.getStore();
+
+    if (!context || context.active !== true) {
+        throw new Error(
+            "No active Tally execution identity"
+        );
+    }
+
+    const record = context.record;
+
+    if (
+        record.state !== "CALLBACK_RUNNING" &&
+        record.state !== "UNKNOWN"
+    ) {
+        throw new Error(
+            "Execution is not active"
+        );
+    }
+
+    record.state = "UNKNOWN";
+
+    return getTallyIdentitySnapshot(record);
+}
+// Claim an admitted execution exactly once.
+// Does not acquire the Tally FIFO or start any business operation.
+function runWithTallyExecution(admission, callback) {
+    if (typeof callback !== "function") {
+        throw new TypeError("callback must be a function");
+    }
+
+    if (getTallyExecutionContext()) {
+        throw new Error(
+            "Nested executions must reuse the current identity"
+        );
+    }
+
+    if (
+        admission?.status !== "ADMITTED" &&
+        admission?.status !== "LEGACY_UNPROTECTED"
+    ) {
+        throw new Error("Execution requires a new admission");
+    }
+
+    const record = tallyExecutionRegistry.get(
+        admission.identity?.executionId
+    );
+
+    if (
+        !record ||
+        record.claimed ||
+        record.state !== "ADMITTED"
+    ) {
+        throw new Error(
+            "Execution is unavailable or already claimed"
+        );
+    }
+
+    // Synchronous claim prevents duplicate callback execution.
+    record.claimed = true;
+    record.state = "CALLBACK_RUNNING";
+
+    const context = {
+        record,
+        active: true
+    };
+
+    return tallyExecutionContext.run(context, async () => {
+    try {
+        const result = await callback();
+
+        if (record.state !== "UNKNOWN") {
+            record.state = "CALLBACK_FINISHED";
+        }
+
+        return result;
+    } catch (error) {
+        if (record.state !== "UNKNOWN") {
+            record.state = "CALLBACK_ERROR";
+        }
+
+        throw error;
+    } finally {
+        context.active = false;
+    }
+});
+}
 
 function getTallyQueueStatus() {
     return {
@@ -238,5 +504,13 @@ module.exports = {
     withTallyRequestQueue,
     withTallyOperationQueue,
     getTallyQueueStatus,
-    waitForTallyQueueIdle
+    waitForTallyQueueIdle,
+
+    // Execution identity and admission
+    admitTallyRequest,
+    runWithTallyExecution,
+    getTallyRequestIdentity,
+    getTallyExecutionIdentity,
+    getTallyExecutionContext,
+    markTallyExecutionUnknown
 };

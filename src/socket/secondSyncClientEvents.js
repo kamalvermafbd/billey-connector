@@ -1,5 +1,6 @@
 const io = require("socket.io-client");
 const os = require("os");
+const { createHash } = require("crypto");
 const config = require("../config/config");
 
 const {
@@ -13,7 +14,12 @@ const {
 } = require("../tally/tallyOperationQueue");
 
 const {
-    getTallyQueueStatus
+    getTallyQueueStatus,
+    admitTallyRequest,
+    runWithTallyExecution,
+    getTallyRequestIdentity,
+    getTallyExecutionIdentity,
+    getTallyExecutionContext
 } = require("../tally/tallyRequestQueue");
 
 const {
@@ -107,6 +113,55 @@ const {
 
 let socket = null;
 let identifiedCompanyGuids = [];
+
+// Stable fingerprint for getMasters Tally execution inputs.
+// Request and transfer identifiers are intentionally excluded.
+function getMastersPayloadFingerprint(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+        throw new TypeError("getMasters payload must be an object");
+    }
+
+    if (
+        typeof data.company !== "string" ||
+        data.company.trim().length === 0
+    ) {
+        throw new TypeError("getMasters company must be a non-empty string");
+    }
+
+    for (const field of [
+        "lastAlterId",
+        "lastStockAlterId",
+        "lastLedgerAlterId"
+    ]) {
+        const value = data[field];
+
+        if (
+            value !== undefined &&
+            value !== null &&
+            typeof value !== "string" &&
+            typeof value !== "number"
+        ) {
+            throw new TypeError(`Invalid getMasters ${field}`);
+        }
+
+        if (typeof value === "number" && !Number.isFinite(value)) {
+            throw new TypeError(`Invalid getMasters ${field}`);
+        }
+    }
+
+    const serialized = JSON.stringify([
+        "getMasters-input-v1",
+        data.company,
+        data.lastAlterId ?? null,
+        data.lastStockAlterId ?? null,
+        data.lastLedgerAlterId ?? null
+    ]);
+
+    return "sha256:" +
+        createHash("sha256")
+            .update(serialized, "utf8")
+            .digest("hex");
+}
 
 function connectServer() {
 
@@ -955,9 +1010,194 @@ syncSocket.on("getStockGodownSummary", async (data) => {
 
 });
 
+async function sendGetMastersTransferCompleteWithAck(requestId) {
+    const ACK_TIMEOUT_MS = 5000;
+    const MAX_ATTEMPTS = 3;
+
+    if (
+        typeof requestId !== "string" ||
+        requestId.length === 0
+    ) {
+        throw new Error(
+            "GET_MASTERS_COMPLETION_REQUEST_ID_MISSING"
+        );
+    }
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        if (!syncSocket.connected) {
+            throw new Error(
+                "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
+            );
+        }
+
+        const acknowledged = await new Promise((resolve) => {
+            let settled = false;
+            let timer;
+
+            function cleanup() {
+                clearTimeout(timer);
+                syncSocket.off(
+                    "getMastersTransferCompleteAck",
+                    onAck
+                );
+                syncSocket.off("disconnect", onDisconnect);
+            }
+
+            function finish(success) {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve(success);
+            }
+
+            function onAck(data) {
+                if (data?.requestId !== requestId) {
+                    return;
+                }
+
+                finish(data.success === true);
+            }
+
+            function onDisconnect() {
+                finish(false);
+            }
+
+            syncSocket.on(
+                "getMastersTransferCompleteAck",
+                onAck
+            );
+
+            syncSocket.once("disconnect", onDisconnect);
+
+            timer = setTimeout(
+                () => finish(false),
+                ACK_TIMEOUT_MS
+            );
+
+            syncSocket.emit("getMastersTransferComplete", {
+                requestId,
+                success: true
+            });
+        });
+
+        if (acknowledged) {
+            return true;
+        }
+
+        console.warn(
+            "GET_MASTERS_COMPLETION_ACK_NOT_RECEIVED",
+            { requestId, attempt }
+        );
+    }
+
+    throw new Error(
+        "GET_MASTERS_COMPLETION_ACK_UNCONFIRMED"
+    );
+}
 
 syncSocket.on("getMasters", async (data) => {
+    // Validate durable getMasters input before Tally execution.
 
+        const hasDurableIdentity =
+        data?.identityScope !== undefined ||
+        data?.companyIdentity !== undefined ||
+        data?.payloadFingerprint !== undefined ||
+        data?.tallyInputFingerprint !== undefined;
+
+    if (hasDurableIdentity) {
+        const validIdentity =
+            typeof data?.requestId === "string" &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                data.requestId
+            ) &&
+            typeof data.identityScope === "string" &&
+            data.identityScope.trim().length > 0 &&
+            typeof data.companyIdentity === "string" &&
+            data.companyIdentity.startsWith("guid:") &&
+            data.companyIdentity.length > 5 &&
+            typeof data.payloadFingerprint === "string" &&
+            /^sha256:[0-9a-f]{64}$/i.test(data.payloadFingerprint) &&
+            typeof data.tallyInputFingerprint === "string" &&
+            /^sha256:[0-9a-f]{64}$/i.test(data.tallyInputFingerprint);
+
+        if (!validIdentity) {
+            syncSocket.emit("getMastersResult", {
+                requestId: data?.requestId,
+                success: false,
+                error: "INVALID_DURABLE_GET_MASTERS_IDENTITY"
+            });
+            return;
+        }
+    }
+
+    if (data?.tallyInputFingerprint !== undefined) {
+        let actualFingerprint;
+
+        try {
+            actualFingerprint = getMastersPayloadFingerprint(data);
+        } catch (error) {
+            syncSocket.emit("getMastersResult", {
+                requestId: data?.requestId,
+                success: false,
+                error: "INVALID_GET_MASTERS_INPUT"
+            });
+            return;
+        }
+
+        if (data.tallyInputFingerprint !== actualFingerprint) {
+            syncSocket.emit("getMastersResult", {
+                requestId: data?.requestId,
+                success: false,
+                error: "GET_MASTERS_FINGERPRINT_MISMATCH"
+            });
+            return;
+        }
+    }
+
+        let admission;
+
+try {
+    admission = admitTallyRequest({
+        scope: data?.identityScope,
+        requestId: data?.requestId,
+        operation: "getMasters",
+        companyIdentity: data?.companyIdentity,
+        payloadFingerprint: hasDurableIdentity
+            ? JSON.stringify([
+                "getMasters-admission-v1",
+                data.payloadFingerprint,
+                getMastersPayloadFingerprint(data)
+            ])
+            : data?.payloadFingerprint
+    });
+} catch (error) {
+    console.error(
+        "GET_MASTERS_ADMISSION_VALIDATION_FAILED:",
+        error
+    );
+
+    syncSocket.emit("getMastersResult", {
+        requestId: data?.requestId,
+        success: false,
+        error: "INVALID_GET_MASTERS_ADMISSION_IDENTITY"
+    });
+
+    return;
+}
+
+    if (admission.status !== "ADMITTED" &&
+        admission.status !== "LEGACY_UNPROTECTED") {
+
+        syncSocket.emit("getMastersResult", {
+            requestId: data?.requestId,
+            success: false,
+            error: admission.status === "DUPLICATE"
+                ? "DUPLICATE_TALLY_REQUEST"
+                : "TALLY_REQUEST_IDENTITY_CONFLICT"
+        });
+
+        return;
+    }
     try {
 
         // MONITORING ONLY
@@ -965,7 +1205,8 @@ syncSocket.on("getMasters", async (data) => {
         syncSocket.lastTallyActivity = Date.now();
 
         const result = await withTallyOperationQueue(() =>
-    runWithTallyMonitor({
+    runWithTallyExecution(admission, () =>
+        runWithTallyMonitor({
 
            onTallyRequestStart: () => {
                 syncSocket.tallyRequestActive = true;
@@ -1031,6 +1272,7 @@ syncSocket.on("getMasters", async (data) => {
             });
 
         })
+    )
    );
         // ===========================
         // Debug Analysis
@@ -1281,24 +1523,50 @@ console.log(
     "✅ Master payload sent"
 );
 
+try {
+    await syncProtocolController.sendMasters(
+        result,
+        data.requestId
+    );
 
-await syncProtocolController.sendMasters(
-    result,
+    await sendGetMastersTransferCompleteWithAck(
     data.requestId
 );
+} catch (transferError) {
+    console.error(
+        "GET_MASTERS_TRANSFER_FAILED_AFTER_TALLY_EXECUTION",
+        {
+            requestId: data.requestId,
+            error: transferError
+        }
+    );
 
+    const error = new Error(
+        "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN"
+    );
+
+    error.code = "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN";
+    error.cause = transferError;
+
+    throw error;
+}
 // MONITORING ONLY
 
 syncSocket.tallyOperationActive = false;
 syncSocket.lastTallyActivity = Date.now();
 
 
-   } catch (err) {
+  } catch (err) {
 
-    
-syncSocket.tallyOperationActive = false;
-syncSocket.tallyRequestActive = false;
-syncSocket.tallyRequestStartedAt = 0;
+    const isTransferOutcomeUnknown =
+        err?.code === "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN";
+
+    syncSocket.tallyOperationActive = false;
+
+    if (!isTransferOutcomeUnknown) {
+        syncSocket.tallyRequestActive = false;
+        syncSocket.tallyRequestStartedAt = 0;
+    }
 
 
     console.error("GET MASTERS ERROR");
@@ -1320,9 +1588,14 @@ syncSocket.emit(
     {
         requestId: data?.requestId,
         success: false,
-        error: isTallyOffline
-            ? "TALLY_OFFLINE"
-            : err.message
+        error: isTransferOutcomeUnknown
+            ? "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN"
+            : isTallyOffline
+                ? "TALLY_OFFLINE"
+                : err.message,
+        ...(isTransferOutcomeUnknown
+            ? { outcomeUnknown: true }
+            : {})
     }
 );
 
