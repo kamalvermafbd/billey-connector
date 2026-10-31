@@ -32593,6 +32593,180 @@ var require_tallyRequestQueue = __commonJS({
     var pendingOperations = 0;
     var runningOperations = 0;
     var operationGeneration = 0;
+    var { randomUUID } = require("crypto");
+    var connectorEpoch = randomUUID();
+    var tallyExecutionContext = new AsyncLocalStorage();
+    var tallyRequestRegistry = /* @__PURE__ */ new Map();
+    var tallyExecutionRegistry = /* @__PURE__ */ new Map();
+    function requireTallyIdentityString(value, fieldName) {
+      if (typeof value !== "string" || value.trim().length === 0) {
+        throw new TypeError(
+          `${fieldName} must be a non-empty string`
+        );
+      }
+      return value;
+    }
+    function getTallyRequestKey(scope, requestId) {
+      return JSON.stringify([
+        requireTallyIdentityString(scope, "scope"),
+        requireTallyIdentityString(requestId, "requestId")
+      ]);
+    }
+    function getTallyIdentitySnapshot(record) {
+      return Object.freeze({
+        connectorEpoch,
+        executionId: record.executionId,
+        requestId: record.requestId,
+        scope: record.scope,
+        operation: record.operation,
+        companyIdentity: record.companyIdentity,
+        payloadFingerprint: record.payloadFingerprint,
+        protectedAgainstRetransmission: record.protectedAgainstRetransmission,
+        state: record.state,
+        retryable: false
+      });
+    }
+    function admitTallyRequest(identity = {}) {
+      const {
+        scope,
+        requestId,
+        operation,
+        companyIdentity,
+        payloadFingerprint
+      } = identity;
+      const currentExecution = getTallyExecutionContext();
+      if (currentExecution) {
+        return {
+          status: "NESTED",
+          identity: currentExecution
+        };
+      }
+      const hasRequestId = requestId !== void 0 && requestId !== null && requestId !== "";
+      let requestKey = null;
+      if (hasRequestId) {
+        requestKey = getTallyRequestKey(scope, requestId);
+        requireTallyIdentityString(operation, "operation");
+        requireTallyIdentityString(
+          companyIdentity,
+          "companyIdentity"
+        );
+        requireTallyIdentityString(
+          payloadFingerprint,
+          "payloadFingerprint"
+        );
+        const existing = tallyRequestRegistry.get(requestKey);
+        if (existing) {
+          const sameRequest = existing.operation === operation && existing.companyIdentity === companyIdentity && existing.payloadFingerprint === payloadFingerprint;
+          return {
+            status: sameRequest ? "DUPLICATE" : "IDENTITY_CONFLICT",
+            identity: getTallyIdentitySnapshot(existing)
+          };
+        }
+      }
+      const record = {
+        executionId: randomUUID(),
+        requestId: hasRequestId ? requestId : null,
+        scope: hasRequestId ? scope : null,
+        operation: operation ?? null,
+        companyIdentity: companyIdentity ?? null,
+        payloadFingerprint: payloadFingerprint ?? null,
+        protectedAgainstRetransmission: hasRequestId,
+        state: "ADMITTED",
+        claimed: false
+      };
+      if (hasRequestId) {
+        tallyRequestRegistry.set(requestKey, record);
+      }
+      tallyExecutionRegistry.set(record.executionId, record);
+      return {
+        status: hasRequestId ? "ADMITTED" : "LEGACY_UNPROTECTED",
+        identity: getTallyIdentitySnapshot(record)
+      };
+    }
+    function getTallyRequestIdentity(scope, requestId) {
+      const requestKey = getTallyRequestKey(scope, requestId);
+      const record = tallyRequestRegistry.get(requestKey);
+      return record ? getTallyIdentitySnapshot(record) : null;
+    }
+    function getTallyExecutionIdentity(executionId) {
+      const record = tallyExecutionRegistry.get(executionId);
+      return record ? getTallyIdentitySnapshot(record) : null;
+    }
+    function getTallyExecutionContext() {
+      const context = tallyExecutionContext.getStore();
+      if (!context || context.active !== true) {
+        return null;
+      }
+      return getTallyIdentitySnapshot(context.record);
+    }
+    function markTallyExecutionUnknown(reason) {
+      const allowedReasons = [
+        "TALLY_DISPATCH_OUTCOME_UNKNOWN",
+        "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+      ];
+      if (!allowedReasons.includes(reason)) {
+        throw new TypeError(
+          "Unsupported ambiguous-outcome reason"
+        );
+      }
+      const context = tallyExecutionContext.getStore();
+      if (!context || context.active !== true) {
+        throw new Error(
+          "No active Tally execution identity"
+        );
+      }
+      const record = context.record;
+      if (record.state !== "CALLBACK_RUNNING" && record.state !== "UNKNOWN") {
+        throw new Error(
+          "Execution is not active"
+        );
+      }
+      record.state = "UNKNOWN";
+      return getTallyIdentitySnapshot(record);
+    }
+    function runWithTallyExecution(admission, callback) {
+      if (typeof callback !== "function") {
+        throw new TypeError("callback must be a function");
+      }
+      if (getTallyExecutionContext()) {
+        throw new Error(
+          "Nested executions must reuse the current identity"
+        );
+      }
+      if (admission?.status !== "ADMITTED" && admission?.status !== "LEGACY_UNPROTECTED") {
+        throw new Error("Execution requires a new admission");
+      }
+      const record = tallyExecutionRegistry.get(
+        admission.identity?.executionId
+      );
+      if (!record || record.claimed || record.state !== "ADMITTED") {
+        throw new Error(
+          "Execution is unavailable or already claimed"
+        );
+      }
+      record.claimed = true;
+      record.state = "CALLBACK_RUNNING";
+      const context = {
+        record,
+        active: true
+      };
+      return tallyExecutionContext.run(context, async () => {
+        try {
+          const result = await callback();
+          if (record.state !== "UNKNOWN") {
+            record.state = "CALLBACK_FINISHED";
+          }
+          return result;
+        } catch (error) {
+          if (record.state !== "UNKNOWN") {
+            record.state = "CALLBACK_ERROR";
+          }
+          throw error;
+        } finally {
+          context.active = false;
+        }
+      });
+    }
     function getTallyQueueStatus() {
       return {
         pendingOperations,
@@ -32756,7 +32930,14 @@ var require_tallyRequestQueue = __commonJS({
       withTallyRequestQueue,
       withTallyOperationQueue,
       getTallyQueueStatus,
-      waitForTallyQueueIdle
+      waitForTallyQueueIdle,
+      // Execution identity and admission
+      admitTallyRequest,
+      runWithTallyExecution,
+      getTallyRequestIdentity,
+      getTallyExecutionIdentity,
+      getTallyExecutionContext,
+      markTallyExecutionUnknown
     };
   }
 });
@@ -52524,6 +52705,13 @@ var require_ConnectorProtocolSender = __commonJS({
               return;
             }
             cleanup();
+            if (data.success === false) {
+              return reject(
+                new Error(
+                  data.error || `Protocol READY rejected: ${collection}`
+                )
+              );
+            }
             resolve(data);
           };
           const onDisconnect = () => {
@@ -52592,6 +52780,13 @@ var require_ConnectorProtocolSender = __commonJS({
               onDisconnect
             );
             clearTimeout(ackTimeout);
+            if (data.success === false) {
+              return reject(
+                new Error(
+                  data.error || "Protocol chunk rejected by server"
+                )
+              );
+            }
             console.log(
               "\u2705 CONNECTOR RECEIVED ACK:",
               collection,
@@ -52647,9 +52842,11 @@ var require_ConnectorProtocolSender = __commonJS({
               return;
             }
             cleanup();
-            if (data.success === false) {
+            if (data.success !== true) {
               return reject(
-                new Error(data.error || "Protocol collection failed")
+                new Error(
+                  data.error || `Protocol collection completion not confirmed: ${collection}`
+                )
               );
             }
             resolve();
@@ -58272,6 +58469,7 @@ var require_secondSyncClientEvents = __commonJS({
   "src/socket/secondSyncClientEvents.js"(exports2, module2) {
     var io = require_cjs5();
     var os = require("os");
+    var { createHash } = require("crypto");
     var config = require_config();
     var {
       trackSyncEvent
@@ -58280,7 +58478,12 @@ var require_secondSyncClientEvents = __commonJS({
       withTallyOperationQueue
     } = require_tallyOperationQueue();
     var {
-      getTallyQueueStatus
+      getTallyQueueStatus,
+      admitTallyRequest,
+      runWithTallyExecution,
+      getTallyRequestIdentity,
+      getTallyExecutionIdentity,
+      getTallyExecutionContext
     } = require_tallyRequestQueue();
     var {
       sendToTally,
@@ -58349,6 +58552,35 @@ var require_secondSyncClientEvents = __commonJS({
     } = require_reportService();
     var socket = null;
     var identifiedCompanyGuids = [];
+    function getMastersPayloadFingerprint(data) {
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        throw new TypeError("getMasters payload must be an object");
+      }
+      if (typeof data.company !== "string" || data.company.trim().length === 0) {
+        throw new TypeError("getMasters company must be a non-empty string");
+      }
+      for (const field of [
+        "lastAlterId",
+        "lastStockAlterId",
+        "lastLedgerAlterId"
+      ]) {
+        const value = data[field];
+        if (value !== void 0 && value !== null && typeof value !== "string" && typeof value !== "number") {
+          throw new TypeError(`Invalid getMasters ${field}`);
+        }
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new TypeError(`Invalid getMasters ${field}`);
+        }
+      }
+      const serialized = JSON.stringify([
+        "getMasters-input-v1",
+        data.company,
+        data.lastAlterId ?? null,
+        data.lastStockAlterId ?? null,
+        data.lastLedgerAlterId ?? null
+      ]);
+      return "sha256:" + createHash("sha256").update(serialized, "utf8").digest("hex");
+    }
     function connectServer() {
       console.log(
         "\u{1F525} CONNECTSERVER CALLED",
@@ -58799,57 +59031,194 @@ var require_secondSyncClientEvents = __commonJS({
             );
           }
         });
+        async function sendGetMastersTransferCompleteWithAck(requestId) {
+          const ACK_TIMEOUT_MS = 5e3;
+          const MAX_ATTEMPTS = 3;
+          if (typeof requestId !== "string" || requestId.length === 0) {
+            throw new Error(
+              "GET_MASTERS_COMPLETION_REQUEST_ID_MISSING"
+            );
+          }
+          for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            if (!syncSocket.connected) {
+              throw new Error(
+                "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
+              );
+            }
+            const acknowledged = await new Promise((resolve) => {
+              let settled = false;
+              let timer;
+              function cleanup() {
+                clearTimeout(timer);
+                syncSocket.off(
+                  "getMastersTransferCompleteAck",
+                  onAck
+                );
+                syncSocket.off("disconnect", onDisconnect);
+              }
+              function finish(success) {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve(success);
+              }
+              function onAck(data) {
+                if (data?.requestId !== requestId) {
+                  return;
+                }
+                finish(data.success === true);
+              }
+              function onDisconnect() {
+                finish(false);
+              }
+              syncSocket.on(
+                "getMastersTransferCompleteAck",
+                onAck
+              );
+              syncSocket.once("disconnect", onDisconnect);
+              timer = setTimeout(
+                () => finish(false),
+                ACK_TIMEOUT_MS
+              );
+              syncSocket.emit("getMastersTransferComplete", {
+                requestId,
+                success: true
+              });
+            });
+            if (acknowledged) {
+              return true;
+            }
+            console.warn(
+              "GET_MASTERS_COMPLETION_ACK_NOT_RECEIVED",
+              { requestId, attempt }
+            );
+          }
+          throw new Error(
+            "GET_MASTERS_COMPLETION_ACK_UNCONFIRMED"
+          );
+        }
         syncSocket.on("getMasters", async (data) => {
+          const hasDurableIdentity = data?.identityScope !== void 0 || data?.companyIdentity !== void 0 || data?.payloadFingerprint !== void 0 || data?.tallyInputFingerprint !== void 0;
+          if (hasDurableIdentity) {
+            const validIdentity = typeof data?.requestId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              data.requestId
+            ) && typeof data.identityScope === "string" && data.identityScope.trim().length > 0 && typeof data.companyIdentity === "string" && data.companyIdentity.startsWith("guid:") && data.companyIdentity.length > 5 && typeof data.payloadFingerprint === "string" && /^sha256:[0-9a-f]{64}$/i.test(data.payloadFingerprint) && typeof data.tallyInputFingerprint === "string" && /^sha256:[0-9a-f]{64}$/i.test(data.tallyInputFingerprint);
+            if (!validIdentity) {
+              syncSocket.emit("getMastersResult", {
+                requestId: data?.requestId,
+                success: false,
+                error: "INVALID_DURABLE_GET_MASTERS_IDENTITY"
+              });
+              return;
+            }
+          }
+          if (data?.tallyInputFingerprint !== void 0) {
+            let actualFingerprint;
+            try {
+              actualFingerprint = getMastersPayloadFingerprint(data);
+            } catch (error) {
+              syncSocket.emit("getMastersResult", {
+                requestId: data?.requestId,
+                success: false,
+                error: "INVALID_GET_MASTERS_INPUT"
+              });
+              return;
+            }
+            if (data.tallyInputFingerprint !== actualFingerprint) {
+              syncSocket.emit("getMastersResult", {
+                requestId: data?.requestId,
+                success: false,
+                error: "GET_MASTERS_FINGERPRINT_MISMATCH"
+              });
+              return;
+            }
+          }
+          let admission;
+          try {
+            admission = admitTallyRequest({
+              scope: data?.identityScope,
+              requestId: data?.requestId,
+              operation: "getMasters",
+              companyIdentity: data?.companyIdentity,
+              payloadFingerprint: hasDurableIdentity ? JSON.stringify([
+                "getMasters-admission-v1",
+                data.payloadFingerprint,
+                getMastersPayloadFingerprint(data)
+              ]) : data?.payloadFingerprint
+            });
+          } catch (error) {
+            console.error(
+              "GET_MASTERS_ADMISSION_VALIDATION_FAILED:",
+              error
+            );
+            syncSocket.emit("getMastersResult", {
+              requestId: data?.requestId,
+              success: false,
+              error: "INVALID_GET_MASTERS_ADMISSION_IDENTITY"
+            });
+            return;
+          }
+          if (admission.status !== "ADMITTED" && admission.status !== "LEGACY_UNPROTECTED") {
+            syncSocket.emit("getMastersResult", {
+              requestId: data?.requestId,
+              success: false,
+              error: admission.status === "DUPLICATE" ? "DUPLICATE_TALLY_REQUEST" : "TALLY_REQUEST_IDENTITY_CONFLICT"
+            });
+            return;
+          }
           try {
             syncSocket.tallyOperationActive = true;
             syncSocket.lastTallyActivity = Date.now();
             const result = await withTallyOperationQueue(
-              () => runWithTallyMonitor({
-                onTallyRequestStart: () => {
-                  syncSocket.tallyRequestActive = true;
-                  syncSocket.tallyRequestStartedAt = Date.now();
-                  syncSocket.lastTallyActivity = Date.now();
-                  syncSocket.emit("tally:request:start", {
-                    batchId: data.batchId,
-                    timestamp: syncSocket.tallyRequestStartedAt
-                  });
-                },
-                onTallyRequestEnd: () => {
-                  syncSocket.tallyRequestActive = false;
-                  syncSocket.tallyRequestStartedAt = 0;
-                  syncSocket.lastTallyActivity = Date.now();
-                  syncSocket.emit("tally:request:end", {
-                    batchId: data.batchId,
-                    timestamp: Date.now()
-                  });
-                },
-                onTallyRequestError: (err) => {
-                  syncSocket.tallyRequestActive = false;
-                  syncSocket.tallyRequestStartedAt = 0;
-                  syncSocket.lastTallyActivity = Date.now();
-                  const tallyErrorCode = err?.code || err?.cause?.code || "";
-                  const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
-                  syncSocket.emit("tally:request:error", {
-                    batchId: data.batchId,
-                    timestamp: Date.now(),
-                    error: isTallyOffline ? "TALLY_OFFLINE" : tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR"
-                  });
-                }
-              }, async () => {
-                return await importMasters({
-                  company: data.company,
-                  lastAlterId: data.lastAlterId,
-                  lastStockAlterId: data.lastStockAlterId,
-                  lastLedgerAlterId: data.lastLedgerAlterId,
-                  onProgress: (progressData) => {
-                    sendProgress(
-                      progressData.stage,
-                      progressData.progress,
-                      data.batchId
-                    );
+              () => runWithTallyExecution(
+                admission,
+                () => runWithTallyMonitor({
+                  onTallyRequestStart: () => {
+                    syncSocket.tallyRequestActive = true;
+                    syncSocket.tallyRequestStartedAt = Date.now();
+                    syncSocket.lastTallyActivity = Date.now();
+                    syncSocket.emit("tally:request:start", {
+                      batchId: data.batchId,
+                      timestamp: syncSocket.tallyRequestStartedAt
+                    });
+                  },
+                  onTallyRequestEnd: () => {
+                    syncSocket.tallyRequestActive = false;
+                    syncSocket.tallyRequestStartedAt = 0;
+                    syncSocket.lastTallyActivity = Date.now();
+                    syncSocket.emit("tally:request:end", {
+                      batchId: data.batchId,
+                      timestamp: Date.now()
+                    });
+                  },
+                  onTallyRequestError: (err) => {
+                    syncSocket.tallyRequestActive = false;
+                    syncSocket.tallyRequestStartedAt = 0;
+                    syncSocket.lastTallyActivity = Date.now();
+                    const tallyErrorCode = err?.code || err?.cause?.code || "";
+                    const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
+                    syncSocket.emit("tally:request:error", {
+                      batchId: data.batchId,
+                      timestamp: Date.now(),
+                      error: isTallyOffline ? "TALLY_OFFLINE" : tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR"
+                    });
                   }
-                });
-              })
+                }, async () => {
+                  return await importMasters({
+                    company: data.company,
+                    lastAlterId: data.lastAlterId,
+                    lastStockAlterId: data.lastStockAlterId,
+                    lastLedgerAlterId: data.lastLedgerAlterId,
+                    onProgress: (progressData) => {
+                      sendProgress(
+                        progressData.stage,
+                        progressData.progress,
+                        data.batchId
+                      );
+                    }
+                  });
+                })
+              )
             );
             const collections = {
               groups: result.groups,
@@ -58912,16 +59281,38 @@ var require_secondSyncClientEvents = __commonJS({
             console.log(
               "\u2705 Master payload sent"
             );
-            await syncProtocolController.sendMasters(
-              result,
-              data.requestId
-            );
+            try {
+              await syncProtocolController.sendMasters(
+                result,
+                data.requestId
+              );
+              await sendGetMastersTransferCompleteWithAck(
+                data.requestId
+              );
+            } catch (transferError) {
+              console.error(
+                "GET_MASTERS_TRANSFER_FAILED_AFTER_TALLY_EXECUTION",
+                {
+                  requestId: data.requestId,
+                  error: transferError
+                }
+              );
+              const error = new Error(
+                "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN"
+              );
+              error.code = "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN";
+              error.cause = transferError;
+              throw error;
+            }
             syncSocket.tallyOperationActive = false;
             syncSocket.lastTallyActivity = Date.now();
           } catch (err) {
+            const isTransferOutcomeUnknown = err?.code === "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN";
             syncSocket.tallyOperationActive = false;
-            syncSocket.tallyRequestActive = false;
-            syncSocket.tallyRequestStartedAt = 0;
+            if (!isTransferOutcomeUnknown) {
+              syncSocket.tallyRequestActive = false;
+              syncSocket.tallyRequestStartedAt = 0;
+            }
             console.error("GET MASTERS ERROR");
             console.error(err);
             const tallyErrorCode = err?.code || err?.cause?.code || "";
@@ -58931,7 +59322,8 @@ var require_secondSyncClientEvents = __commonJS({
               {
                 requestId: data?.requestId,
                 success: false,
-                error: isTallyOffline ? "TALLY_OFFLINE" : err.message
+                error: isTransferOutcomeUnknown ? "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN" : isTallyOffline ? "TALLY_OFFLINE" : err.message,
+                ...isTransferOutcomeUnknown ? { outcomeUnknown: true } : {}
               }
             );
           }
