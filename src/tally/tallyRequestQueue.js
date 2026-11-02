@@ -10,7 +10,7 @@ let tail = Promise.resolve();
 let pendingOperations = 0;
 let runningOperations = 0;
 
-// Incremented whenever a new top-level operation is queued.
+// Incremented whenever top-level queue state changes.
 let operationGeneration = 0;
 // ============================================
 // Connector execution identity foundation
@@ -290,6 +290,33 @@ function getTallyQueueStatus() {
     };
 }
 
+let tallyQueueStatusListener = null;
+
+function setTallyQueueStatusListener(listener) {
+    if (listener !== null && typeof listener !== "function") {
+        throw new TypeError(
+            "Tally queue status listener must be a function or null"
+        );
+    }
+
+    tallyQueueStatusListener = listener;
+}
+
+function notifyTallyQueueStatusChanged() {
+    if (!tallyQueueStatusListener) {
+        return;
+    }
+
+    try {
+        tallyQueueStatusListener(getTallyQueueStatus());
+    } catch (error) {
+        console.error(
+            "[TALLY QUEUE STATUS NOTIFICATION FAILED]",
+            error
+        );
+    }
+}
+
 async function waitForTallyQueueIdle() {
     // Capture the current queue tail.
     // Any operations queued afterwards are detected
@@ -313,9 +340,14 @@ function enqueue(operation) {
     pendingOperations++;
     operationGeneration++;
 
-    const task = tail.then(async () => {
+    notifyTallyQueueStatusChanged();
+
+      const task = tail.then(async () => {
         pendingOperations--;
         runningOperations++;
+        operationGeneration++;
+
+        notifyTallyQueueStatusChanged();
 
         const context = {
             requestOnly: true,
@@ -338,8 +370,11 @@ function enqueue(operation) {
                     }
                 }
             );
-        } finally {
+                    } finally {
             runningOperations--;
+            operationGeneration++;
+
+            notifyTallyQueueStatusChanged();
         }
     });
 
@@ -504,6 +539,7 @@ module.exports = {
     withTallyRequestQueue,
     withTallyOperationQueue,
     getTallyQueueStatus,
+    setTallyQueueStatusListener,
     waitForTallyQueueIdle,
 
     // Execution identity and admission

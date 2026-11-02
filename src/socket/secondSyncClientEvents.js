@@ -15,6 +15,7 @@ const {
 
 const {
     getTallyQueueStatus,
+    setTallyQueueStatusListener,
     admitTallyRequest,
     runWithTallyExecution,
     getTallyRequestIdentity,
@@ -191,6 +192,53 @@ function connectServer() {
     // Dedicated socket for Tally → Billey sync 141026
 let syncSocket = null;
 let syncProtocolController = null;
+let syncRegistrationRetryTimer = null;
+let syncConnectorRegistered = false;
+
+function sendSyncConnectorIdentification() {
+    if (
+        !syncSocket?.connected ||
+        !socket?.connected ||
+        identifiedCompanyGuids.length === 0
+    ) {
+        return false;
+    }
+
+    const tallyQueueStatus = getTallyQueueStatus();
+
+    syncSocket.emit("identifyConnector", {
+        company_guids: [...identifiedCompanyGuids],
+        tally_queue_status: tallyQueueStatus
+    });
+
+    console.log("[SYNC CONNECTOR IDENTIFY SENT]", {
+        socket_id: syncSocket.id,
+        guid_count: identifiedCompanyGuids.length,
+        tally_queue_status: tallyQueueStatus,
+        sent_at: new Date().toISOString()
+    });
+
+    return true;
+}
+
+setTallyQueueStatusListener((status) => {
+    if (
+        !syncSocket?.connected ||
+        !syncConnectorRegistered
+    ) {
+        return;
+    }
+
+    syncSocket.emit("tally:queue:status", status);
+
+    console.log("[SYNC TALLY QUEUE STATUS SENT]", {
+        socket_id: syncSocket.id,
+        idle: status.idle,
+        pendingOperations: status.pendingOperations,
+        runningOperations: status.runningOperations,
+        operationGeneration: status.operationGeneration
+    });
+});
 
 function connectSyncServer() {
     if (syncSocket) {
@@ -216,7 +264,14 @@ function connectSyncServer() {
 
     
 syncSocket.on("connect", () => {
+    syncConnectorRegistered = false;
+
     console.log("✅ Connected to Second Sync Server", syncSocket.id);
+
+    if (syncRegistrationRetryTimer) {
+        clearTimeout(syncRegistrationRetryTimer);
+        syncRegistrationRetryTimer = null;
+    }
 
     // Clear previous heartbeat timer on reconnect.
     if (syncSocket.heartbeatInterval) {
@@ -228,30 +283,34 @@ syncSocket.on("connect", () => {
         timestamp: Date.now()
     });
 
-    // Keep second server heartbeat fresh.
-    syncSocket.heartbeatInterval = setInterval(() => {
-        if (syncSocket.connected) {
-            syncSocket.emit("protocol:heartbeat", {
-                timestamp: Date.now()
-            });
-        }
-    }, 15000);
+  // Keep second server heartbeat and Tally queue proof fresh.
+syncSocket.heartbeatInterval = setInterval(() => {
+    if (!syncSocket.connected) {
+        return;
+    }
 
-  if (socket.connected && identifiedCompanyGuids.length > 0) {
-    const tallyQueueStatus = getTallyQueueStatus();
+    syncSocket.emit("protocol:heartbeat", {
+        timestamp: Date.now()
+    });
 
-  syncSocket.emit("identifyConnector", {
-    company_guids: identifiedCompanyGuids,
-    tally_queue_status: tallyQueueStatus
-});
+    // Report the actual desktop queue snapshot periodically.
+    // Never infer idle from heartbeat or socket connectivity.
+    if (syncConnectorRegistered) {
+        const status = getTallyQueueStatus();
 
-    console.log(
-        "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
-        identifiedCompanyGuids.length,
-        "TALLY QUEUE STATUS:",
-        tallyQueueStatus
-    );
-}
+        syncSocket.emit("tally:queue:status", status);
+
+        console.log("[SYNC TALLY QUEUE PROOF RENEWAL]", {
+            socket_id: syncSocket.id,
+            idle: status.idle,
+            pendingOperations: status.pendingOperations,
+            runningOperations: status.runningOperations,
+            operationGeneration: status.operationGeneration
+        });
+    }
+}, 15000);
+
+ sendSyncConnectorIdentification();
 
         // Reconnect par latest verified Tally status bhejo.
     if (
@@ -271,6 +330,64 @@ syncSocket.on("connect", () => {
     }
 });
 
+syncSocket.on("connector:registration:status", (data) => {
+    console.log("[SYNC CONNECTOR REGISTRATION STATUS]", {
+        socket_id: syncSocket.id,
+        registered: data?.registered,
+        reason: data?.reason,
+        connector_id: data?.connector_id,
+        received_at: new Date().toISOString()
+    });
+
+    if (data?.registered === true) {
+        syncConnectorRegistered = true;
+
+        if (syncRegistrationRetryTimer) {
+            clearTimeout(syncRegistrationRetryTimer);
+            syncRegistrationRetryTimer = null;
+        }
+
+        // Registration confirmed: send latest local queue snapshot.
+        syncSocket.emit(
+            "tally:queue:status",
+            getTallyQueueStatus()
+        );
+
+        return;
+    }
+
+    if (data?.registered !== false) {
+        return;
+    }
+
+    syncConnectorRegistered = false;
+
+    if (syncRegistrationRetryTimer) {
+        clearTimeout(syncRegistrationRetryTimer);
+        syncRegistrationRetryTimer = null;
+    }
+
+    if (data?.reason !== "OTHER_CONNECTED_SOCKET") {
+        return;
+    }
+
+    syncRegistrationRetryTimer = setTimeout(() => {
+        syncRegistrationRetryTimer = null;
+
+        if (
+            !syncSocket?.connected ||
+            !socket?.connected ||
+            identifiedCompanyGuids.length === 0
+        ) {
+            console.warn(
+                "[SYNC REGISTRATION RETRY SKIPPED] Connection or verified company GUIDs unavailable"
+            );
+            return;
+        }
+
+        sendSyncConnectorIdentification();
+    }, 60000);
+});
 
     syncSocket.on("connect_error", (err) => {
         console.error(
@@ -279,7 +396,13 @@ syncSocket.on("connect", () => {
         );
     });
 
-    syncSocket.on("disconnect", (reason) => {
+syncSocket.on("disconnect", (reason) => {
+    syncConnectorRegistered = false;
+
+    if (syncRegistrationRetryTimer) {
+        clearTimeout(syncRegistrationRetryTimer);
+        syncRegistrationRetryTimer = null;
+    }
 
     if (syncSocket.heartbeatInterval) {
         clearInterval(syncSocket.heartbeatInterval);
@@ -459,9 +582,16 @@ socket.on("connect", async () => {
 */
 
 socket.on("connect", async () => {
+    syncConnectorRegistered = false;
+
+    // Previous connection ka registration retry cancel karo.
+    if (syncRegistrationRetryTimer) {
+        clearTimeout(syncRegistrationRetryTimer);
+        syncRegistrationRetryTimer = null;
+    }
 
     // Fresh Tally verification is required after every connection.
-socket.tallyStatus = "OFFLINE";
+    socket.tallyStatus = "OFFLINE";
 socket.lastTallyStatusAt = 0;
 
 // Do not reuse company GUIDs from the previous connection.
@@ -485,15 +615,31 @@ socket.heartbeatInterval = setInterval(() => {
     console.log("Socket ID :", socket.id);
     console.log("================================");
 
-      try {
+   const identificationSocketId = socket.id;
 
-        console.log("🔎 STARTING TALLY COMPANY IDENTIFICATION");
+try {
 
-        const tallyResult =
+    console.log("🔎 STARTING TALLY COMPANY IDENTIFICATION");
+
+const tallyResult =
     await withTallyOperationQueue(() =>
         getTallyCompanies()
     );
         console.log("🔎 TALLY COMPANY IDENTIFICATION RESULT RECEIVED");
+
+      if (
+    !socket.connected ||
+    socket.id !== identificationSocketId
+) {
+    console.warn(
+        "[CONNECTOR IDENTIFY SKIPPED] Main socket disconnected or changed during Tally verification",
+        {
+            identificationSocketId,
+            currentSocketId: socket.id
+        }
+    );
+    return;
+}
 
         if (
             !tallyResult.success ||
@@ -528,21 +674,29 @@ socket.emit(
 );
 
 // Register on sync server when its socket is connected
-if (syncSocket && syncSocket.connected) {
-    syncSocket.emit("identifyConnector", {
-        company_guids,
-        tally_queue_status: getTallyQueueStatus()
-    });
-}
+// Register on sync server using verified company GUIDs.
+sendSyncConnectorIdentification(); 
+} catch (err) {
+    if (
+        !socket.connected ||
+        socket.id !== identificationSocketId
+    ) {
+        return;
+    }
 
-
- 
-    } catch (err) {
-        console.error(
-            "❌ CONNECTOR IDENTIFICATION ERROR:",
-            err
-        );
+    console.error(
+        "❌ CONNECTOR IDENTIFICATION ERROR:",
+        err
+    );
    } finally {
+    // Stale verification must not modify the current connection.
+    if (
+        !socket.connected ||
+        socket.id !== identificationSocketId
+    ) {
+        return;
+    }
+
     // Forwarding pehle install karo.
     if (!socket.tallyStatusForwardingInstalled) {
         socket.tallyStatusForwardingInstalled = true;
@@ -567,12 +721,7 @@ if (syncSocket && syncSocket.connected) {
     ) {
         identifiedCompanyGuids = latestGuids;
 
-          if (syncSocket?.connected) {
-    syncSocket.emit("identifyConnector", {
-        company_guids: latestGuids,
-        tally_queue_status: getTallyQueueStatus()
-    });
-}
+        sendSyncConnectorIdentification();
         }
     }
 }
@@ -586,15 +735,25 @@ if (syncSocket && syncSocket.connected) {
 };
     }
 
-    // Existing monitor sirf ek baar start hoga.
+   // Start monitor only for the connection that initiated verification.
+if (
+    socket.connected &&
+    socket.id === identificationSocketId
+) {
     startTallyMonitor(socket);
+}
 }
 });
 
 
 
 socket.on("disconnect", (reason) => {
+    syncConnectorRegistered = false;
 
+    if (syncRegistrationRetryTimer) {
+        clearTimeout(syncRegistrationRetryTimer);
+        syncRegistrationRetryTimer = null;
+    }
     if (socket.heartbeatInterval) {
     clearInterval(socket.heartbeatInterval);
     socket.heartbeatInterval = null;
