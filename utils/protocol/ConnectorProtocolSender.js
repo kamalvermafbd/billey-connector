@@ -11,19 +11,298 @@ const ConnectorProtocolSession =
     require("./ConnectorProtocolSession");
 
 class ConnectorProtocolSender {
-
+/* 041126
     constructor(socket) {
+    this.socket = socket;
 
-        this.socket = socket;
+    // Master-only READY registrations.
+    // Key: requestId + collection
+    this.masterReadyRegistrations = new Map();
 
-        this.session =
-            new ConnectorProtocolSession(socket);
+    // READY messages captured before their waiter starts.
+    this.masterReadyBuffer = new Map();
 
+    // Keys already consumed during an active master transfer.
+       this.masterReadyConsumed = new Set();
+}
+*/
+constructor(socket) {
+    this.socket = socket;
+
+    this.masterReadyRegistrations = new Map();
+    this.masterReadyBuffer = new Map();
+    this.masterReadyConsumed = new Set();
+    this.masterReadyWaiters = new Map();
+
+    this.masterReadyListener = (data) => {
+        this.captureMasterReady(data);
+    };
+
+    this.masterReadyDisconnectListener = () => {
+        for (const waiter of this.masterReadyWaiters.values()) {
+            waiter.reject(new Error("Socket disconnected"));
+        }
+
+        this.masterReadyWaiters.clear();
+        this.masterReadyRegistrations.clear();
+        this.masterReadyBuffer.clear();
+        this.masterReadyConsumed.clear();
+
+           this.socket.off(EVENTS.READY, this.masterReadyListener);
+        this.socket.off(
+            "disconnect",
+            this.masterReadyDisconnectListener
+        );
+
+        this.masterReadyListenerAttached = false;
+    };
+
+    this.masterReadyListenerAttached = false;
+}
+static get MASTER_COLLECTIONS() {
+    return [
+        "getMastersGroups",
+        "getMastersUnits",
+        "getMastersLedgers",
+        "getMastersStockGroups",
+        "getMastersStocks",
+        "getMastersGodowns",
+        "getMastersCostCentres",
+        "getMasters"
+    ];
+}
+
+      masterReadyKey(requestId, collection) {
+        return JSON.stringify([requestId, collection]);
+    }
+
+    registerMasterReady(requestId) {
+        if (typeof requestId !== "string" || !requestId.trim()) {
+            throw new Error("Master READY registration requires requestId");
+        }
+
+               const maxActiveMasterRequests = 4;
+        const collectionsPerRequest =
+            ConnectorProtocolSender.MASTER_COLLECTIONS.length;
+
+        if (
+            this.masterReadyRegistrations.size +
+                collectionsPerRequest >
+            maxActiveMasterRequests * collectionsPerRequest
+        ) {
+            throw new Error(
+                "Master READY registration capacity exceeded"
+            );
+        }
+
+        const keys = ConnectorProtocolSender.MASTER_COLLECTIONS.map(
+            (collection) => this.masterReadyKey(requestId, collection)
+        );
+        // Reject duplicate registration before changing any state.
+        for (const key of keys) {
+            if (
+                this.masterReadyRegistrations.has(key) ||
+                this.masterReadyConsumed.has(key)
+            ) {
+                throw new Error(
+                    `Duplicate active master READY registration: ${key}`
+                );
+            }
+        }
+/* 041126
+             for (const key of keys) {
+            this.masterReadyRegistrations.set(key, true);
+        }
+    }
+
+    unregisterMasterReady(requestId) {
+        for (const collection of ConnectorProtocolSender.MASTER_COLLECTIONS) {
+            const key = this.masterReadyKey(requestId, collection);
+
+            this.masterReadyRegistrations.delete(key);
+            this.masterReadyBuffer.delete(key);
+            this.masterReadyConsumed.delete(key);
+        }
+        }
+        */
+
+                for (const key of keys) {
+            this.masterReadyRegistrations.set(key, true);
+        }
+
+        if (!this.masterReadyListenerAttached) {
+            this.socket.on(EVENTS.READY, this.masterReadyListener);
+            this.socket.on(
+                "disconnect",
+                this.masterReadyDisconnectListener
+            );
+            this.masterReadyListenerAttached = true;
+        }
+    }
+
+    unregisterMasterReady(requestId) {
+        for (const collection of ConnectorProtocolSender.MASTER_COLLECTIONS) {
+            const key = this.masterReadyKey(requestId, collection);
+
+            const waiter = this.masterReadyWaiters.get(key);
+
+            if (waiter) {
+                waiter.reject(
+                    new Error(
+                        `Master READY registration ended: ${collection}`
+                    )
+                );
+            }
+
+            this.masterReadyWaiters.delete(key);
+            this.masterReadyRegistrations.delete(key);
+            this.masterReadyBuffer.delete(key);
+            this.masterReadyConsumed.delete(key);
+        }
+
+        if (
+            this.masterReadyRegistrations.size === 0 &&
+            this.masterReadyListenerAttached
+        ) {
+            this.socket.off(EVENTS.READY, this.masterReadyListener);
+            this.socket.off(
+                "disconnect",
+                this.masterReadyDisconnectListener
+            );
+            this.masterReadyListenerAttached = false;
+        }
+    }
+    captureMasterReady(data) {
+        if (
+            !data ||
+            typeof data.requestId !== "string" ||
+            !data.requestId ||
+            !ConnectorProtocolSender.MASTER_COLLECTIONS.includes(
+                data.collection
+            )
+        ) {
+            return;
+        }
+
+        const key = this.masterReadyKey(
+            data.requestId,
+            data.collection
+        );
+
+        // Only capture explicitly registered master collections.
+        if (!this.masterReadyRegistrations.has(key)) {
+            return;
+        }
+
+        // Never buffer a READY already consumed by its transfer.
+        if (this.masterReadyConsumed.has(key)) {
+            return;
+        }
+
+                // First matching READY wins, including explicit rejection.
+        if (this.masterReadyBuffer.has(key)) {
+            return;
+        }
+
+        this.masterReadyBuffer.set(key, data);
+
+        const waiter = this.masterReadyWaiters.get(key);
+
+        if (waiter) {
+            try {
+                waiter.resolve(
+                    this.consumeMasterReady(
+                        data.collection,
+                        data.requestId
+                    )
+                );
+            } catch (error) {
+                waiter.reject(error);
+            }
+        }
+    }
+
+    consumeMasterReady(collection, requestId) {
+        const key = this.masterReadyKey(requestId, collection);
+
+        if (!this.masterReadyRegistrations.has(key)) {
+            return null;
+        }
+
+        if (this.masterReadyConsumed.has(key)) {
+            throw new Error(
+                `Master READY already consumed: ${collection}, request ${requestId}`
+            );
+        }
+
+        if (!this.masterReadyBuffer.has(key)) {
+            return null;
+        }
+
+        const data = this.masterReadyBuffer.get(key);
+
+        this.masterReadyBuffer.delete(key);
+        this.masterReadyConsumed.add(key);
+
+        if (data.success === false) {
+            throw new Error(
+                data.error || `Protocol READY rejected: ${collection}`
+            );
+        }
+
+        return data;
     }
 
     async waitForReady(collection, requestId) {
+        const key = this.masterReadyKey(requestId, collection);
 
-    return new Promise((resolve, reject) => {
+        if (this.masterReadyRegistrations.has(key)) {
+            if (this.masterReadyConsumed.has(key)) {
+                throw new Error(
+                    `Master READY already consumed: ${collection}`
+                );
+            }
+
+            if (this.masterReadyWaiters.has(key)) {
+                throw new Error(
+                    `Duplicate master READY waiter: ${collection}`
+                );
+            }
+
+            if (this.masterReadyBuffer.has(key)) {
+                return this.consumeMasterReady(collection, requestId);
+            }
+
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    cleanup();
+                    reject(
+                        new Error(
+                            `Protocol READY timeout: ${collection}, request ${requestId}`
+                        )
+                    );
+                }, 120 * 1000);
+
+                const cleanup = () => {
+                    clearTimeout(timeout);
+                    this.masterReadyWaiters.delete(key);
+                };
+
+                this.masterReadyWaiters.set(key, {
+                    resolve: (data) => {
+                        cleanup();
+                        resolve(data);
+                    },
+                    reject: (error) => {
+                        cleanup();
+                        reject(error);
+                    }
+                });
+            });
+        }
+
+        // Legacy path for unregistered collections.
+        return new Promise((resolve, reject) => {
 
         const event = EVENTS.READY;
 
@@ -301,7 +580,7 @@ createSession(
             items,
             maxChunkSize
         );
-
+/* 041126
     this.session.start({
 
         collection,
@@ -314,14 +593,22 @@ createSession(
             chunks.length
 
     });
+*/
 
-    return {
+const session = new ConnectorProtocolSession(this.socket);
 
-        batchId,
+session.start({
+    collection,
+    batchId,
+    items,
+    totalChunks: chunks.length
+});
 
-        chunks
-
-    };
+   return {
+    batchId,
+    chunks,
+    session
+};
 
 }
 
@@ -344,23 +631,18 @@ async sendCollection(
         requestId
     );
 
-   try {
-
-    const {
-
-        batchId,
-
-        chunks
-
-    } = this.createSession(
-
+      const {
+       batchId,
+       chunks,
+       session
+   } = this.createSession(
         collection,
-
         items,
-
         maxChunkSize
+        );
 
-    );
+    try {
+
     console.log(
         `Starting ${collection}`
     );
@@ -416,7 +698,7 @@ console.log(
 
 await ackPromise;
 
-        this.session.nextChunk();
+        session.nextChunk();
 
     }
 
@@ -459,9 +741,9 @@ await completedPromise;
 
         return true;
 
-    } finally {
-        this.session.finish();
-    }
+ } finally {
+    session.finish();
+}
 
 }
 

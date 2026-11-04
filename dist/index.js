@@ -32775,6 +32775,28 @@ var require_tallyRequestQueue = __commonJS({
         operationGeneration
       };
     }
+    var tallyQueueStatusListener = null;
+    function setTallyQueueStatusListener(listener) {
+      if (listener !== null && typeof listener !== "function") {
+        throw new TypeError(
+          "Tally queue status listener must be a function or null"
+        );
+      }
+      tallyQueueStatusListener = listener;
+    }
+    function notifyTallyQueueStatusChanged() {
+      if (!tallyQueueStatusListener) {
+        return;
+      }
+      try {
+        tallyQueueStatusListener(getTallyQueueStatus());
+      } catch (error) {
+        console.error(
+          "[TALLY QUEUE STATUS NOTIFICATION FAILED]",
+          error
+        );
+      }
+    }
     async function waitForTallyQueueIdle() {
       const observedGeneration = operationGeneration;
       const observedTail = tail;
@@ -32788,9 +32810,12 @@ var require_tallyRequestQueue = __commonJS({
     function enqueue(operation) {
       pendingOperations++;
       operationGeneration++;
+      notifyTallyQueueStatusChanged();
       const task = tail.then(async () => {
         pendingOperations--;
         runningOperations++;
+        operationGeneration++;
+        notifyTallyQueueStatusChanged();
         const context = {
           requestOnly: true,
           active: true,
@@ -32813,6 +32838,8 @@ var require_tallyRequestQueue = __commonJS({
           );
         } finally {
           runningOperations--;
+          operationGeneration++;
+          notifyTallyQueueStatusChanged();
         }
       });
       tail = task.then(
@@ -32930,6 +32957,7 @@ var require_tallyRequestQueue = __commonJS({
       withTallyRequestQueue,
       withTallyOperationQueue,
       getTallyQueueStatus,
+      setTallyQueueStatusListener,
       waitForTallyQueueIdle,
       // Execution identity and admission
       admitTallyRequest,
@@ -52056,7 +52084,7 @@ var require_tallyMonitor = __commonJS({
       withTallyOperationQueue
     } = require_tallyOperationQueue();
     var MONITOR_INTERVAL_MS = 5e3;
-    function startTallyMonitor(socket) {
+    function startTallyMonitor(socket, syncSocket) {
       if (!socket) {
         throw new Error("Tally monitor requires socket");
       }
@@ -52104,13 +52132,13 @@ var require_tallyMonitor = __commonJS({
         if (!socket.connected || socket.tallyMonitorToken !== monitorToken) {
           return;
         }
-        if (socket.tallyOperationActive || socket.tallyRequestActive) {
+        if (socket.tallyOperationActive || socket.tallyRequestActive || syncSocket?.tallyOperationActive || syncSocket?.tallyRequestActive) {
           return;
         }
         checking = true;
         try {
           const result = await withTallyOperationQueue(() => {
-            if (!socket.connected || !socket.tallyMonitorInterval || socket.tallyMonitorToken !== monitorToken || socket.tallyOperationActive || socket.tallyRequestActive) {
+            if (!socket.connected || !socket.tallyMonitorInterval || socket.tallyMonitorToken !== monitorToken || socket.tallyOperationActive || socket.tallyRequestActive || syncSocket?.tallyOperationActive || syncSocket?.tallyRequestActive) {
               return null;
             }
             return runWithTallyMonitor(
@@ -58479,6 +58507,7 @@ var require_secondSyncClientEvents = __commonJS({
     } = require_tallyOperationQueue();
     var {
       getTallyQueueStatus,
+      setTallyQueueStatusListener,
       admitTallyRequest,
       runWithTallyExecution,
       getTallyRequestIdentity,
@@ -58600,6 +58629,38 @@ var require_secondSyncClientEvents = __commonJS({
       });
       let syncSocket = null;
       let syncProtocolController = null;
+      let syncRegistrationRetryTimer = null;
+      let syncConnectorRegistered = false;
+      function sendSyncConnectorIdentification() {
+        if (!syncSocket?.connected || !socket?.connected || identifiedCompanyGuids.length === 0) {
+          return false;
+        }
+        const tallyQueueStatus = getTallyQueueStatus();
+        syncSocket.emit("identifyConnector", {
+          company_guids: [...identifiedCompanyGuids],
+          tally_queue_status: tallyQueueStatus
+        });
+        console.log("[SYNC CONNECTOR IDENTIFY SENT]", {
+          socket_id: syncSocket.id,
+          guid_count: identifiedCompanyGuids.length,
+          tally_queue_status: tallyQueueStatus,
+          sent_at: (/* @__PURE__ */ new Date()).toISOString()
+        });
+        return true;
+      }
+      setTallyQueueStatusListener((status) => {
+        if (!syncSocket?.connected || !syncConnectorRegistered) {
+          return;
+        }
+        syncSocket.emit("tally:queue:status", status);
+        console.log("[SYNC TALLY QUEUE STATUS SENT]", {
+          socket_id: syncSocket.id,
+          idle: status.idle,
+          pendingOperations: status.pendingOperations,
+          runningOperations: status.runningOperations,
+          operationGeneration: status.operationGeneration
+        });
+      });
       function connectSyncServer() {
         if (syncSocket) {
           return syncSocket;
@@ -58617,7 +58678,12 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncProtocolController = new ConnectorProtocolController(syncSocket);
         syncSocket.on("connect", () => {
+          syncConnectorRegistered = false;
           console.log("\u2705 Connected to Second Sync Server", syncSocket.id);
+          if (syncRegistrationRetryTimer) {
+            clearTimeout(syncRegistrationRetryTimer);
+            syncRegistrationRetryTimer = null;
+          }
           if (syncSocket.heartbeatInterval) {
             clearInterval(syncSocket.heartbeatInterval);
           }
@@ -58625,25 +58691,25 @@ var require_secondSyncClientEvents = __commonJS({
             timestamp: Date.now()
           });
           syncSocket.heartbeatInterval = setInterval(() => {
-            if (syncSocket.connected) {
-              syncSocket.emit("protocol:heartbeat", {
-                timestamp: Date.now()
+            if (!syncSocket.connected) {
+              return;
+            }
+            syncSocket.emit("protocol:heartbeat", {
+              timestamp: Date.now()
+            });
+            if (syncConnectorRegistered) {
+              const status = getTallyQueueStatus();
+              syncSocket.emit("tally:queue:status", status);
+              console.log("[SYNC TALLY QUEUE PROOF RENEWAL]", {
+                socket_id: syncSocket.id,
+                idle: status.idle,
+                pendingOperations: status.pendingOperations,
+                runningOperations: status.runningOperations,
+                operationGeneration: status.operationGeneration
               });
             }
           }, 15e3);
-          if (socket.connected && identifiedCompanyGuids.length > 0) {
-            const tallyQueueStatus = getTallyQueueStatus();
-            syncSocket.emit("identifyConnector", {
-              company_guids: identifiedCompanyGuids,
-              tally_queue_status: tallyQueueStatus
-            });
-            console.log(
-              "IDENTIFY CONNECTOR SENT TO SYNC SERVER:",
-              identifiedCompanyGuids.length,
-              "TALLY QUEUE STATUS:",
-              tallyQueueStatus
-            );
-          }
+          sendSyncConnectorIdentification();
           if (socket.connected && (socket.tallyStatus === "ONLINE" || socket.tallyStatus === "OFFLINE") && Number.isFinite(socket.lastTallyStatusAt) && Date.now() - socket.lastTallyStatusAt <= 15e3) {
             syncSocket.emit("tally:status", {
               status: socket.tallyStatus,
@@ -58652,6 +58718,48 @@ var require_secondSyncClientEvents = __commonJS({
             });
           }
         });
+        syncSocket.on("connector:registration:status", (data) => {
+          console.log("[SYNC CONNECTOR REGISTRATION STATUS]", {
+            socket_id: syncSocket.id,
+            registered: data?.registered,
+            reason: data?.reason,
+            connector_id: data?.connector_id,
+            received_at: (/* @__PURE__ */ new Date()).toISOString()
+          });
+          if (data?.registered === true) {
+            syncConnectorRegistered = true;
+            if (syncRegistrationRetryTimer) {
+              clearTimeout(syncRegistrationRetryTimer);
+              syncRegistrationRetryTimer = null;
+            }
+            syncSocket.emit(
+              "tally:queue:status",
+              getTallyQueueStatus()
+            );
+            return;
+          }
+          if (data?.registered !== false) {
+            return;
+          }
+          syncConnectorRegistered = false;
+          if (syncRegistrationRetryTimer) {
+            clearTimeout(syncRegistrationRetryTimer);
+            syncRegistrationRetryTimer = null;
+          }
+          if (data?.reason !== "OTHER_CONNECTED_SOCKET") {
+            return;
+          }
+          syncRegistrationRetryTimer = setTimeout(() => {
+            syncRegistrationRetryTimer = null;
+            if (!syncSocket?.connected || !socket?.connected || identifiedCompanyGuids.length === 0) {
+              console.warn(
+                "[SYNC REGISTRATION RETRY SKIPPED] Connection or verified company GUIDs unavailable"
+              );
+              return;
+            }
+            sendSyncConnectorIdentification();
+          }, 6e4);
+        });
         syncSocket.on("connect_error", (err) => {
           console.error(
             "\u274C Second Sync Server connection error:",
@@ -58659,6 +58767,11 @@ var require_secondSyncClientEvents = __commonJS({
           );
         });
         syncSocket.on("disconnect", (reason) => {
+          syncConnectorRegistered = false;
+          if (syncRegistrationRetryTimer) {
+            clearTimeout(syncRegistrationRetryTimer);
+            syncRegistrationRetryTimer = null;
+          }
           if (syncSocket.heartbeatInterval) {
             clearInterval(syncSocket.heartbeatInterval);
             syncSocket.heartbeatInterval = null;
@@ -58681,6 +58794,11 @@ var require_secondSyncClientEvents = __commonJS({
         socket
       );
       socket.on("connect", async () => {
+        syncConnectorRegistered = false;
+        if (syncRegistrationRetryTimer) {
+          clearTimeout(syncRegistrationRetryTimer);
+          syncRegistrationRetryTimer = null;
+        }
         socket.tallyStatus = "OFFLINE";
         socket.lastTallyStatusAt = 0;
         identifiedCompanyGuids = [];
@@ -58697,12 +58815,23 @@ var require_secondSyncClientEvents = __commonJS({
         console.log("Connected to Billey Server");
         console.log("Socket ID :", socket.id);
         console.log("================================");
+        const identificationSocketId = socket.id;
         try {
           console.log("\u{1F50E} STARTING TALLY COMPANY IDENTIFICATION");
           const tallyResult = await withTallyOperationQueue(
             () => getTallyCompanies()
           );
           console.log("\u{1F50E} TALLY COMPANY IDENTIFICATION RESULT RECEIVED");
+          if (!socket.connected || socket.id !== identificationSocketId) {
+            console.warn(
+              "[CONNECTOR IDENTIFY SKIPPED] Main socket disconnected or changed during Tally verification",
+              {
+                identificationSocketId,
+                currentSocketId: socket.id
+              }
+            );
+            return;
+          }
           if (!tallyResult.success || !tallyResult.companies?.length) {
             console.log(
               "\u274C Unable to identify Tally companies"
@@ -58721,18 +58850,19 @@ var require_secondSyncClientEvents = __commonJS({
               company_guids
             }
           );
-          if (syncSocket && syncSocket.connected) {
-            syncSocket.emit("identifyConnector", {
-              company_guids,
-              tally_queue_status: getTallyQueueStatus()
-            });
-          }
+          sendSyncConnectorIdentification();
         } catch (err) {
+          if (!socket.connected || socket.id !== identificationSocketId) {
+            return;
+          }
           console.error(
             "\u274C CONNECTOR IDENTIFICATION ERROR:",
             err
           );
         } finally {
+          if (!socket.connected || socket.id !== identificationSocketId) {
+            return;
+          }
           if (!socket.tallyStatusForwardingInstalled) {
             socket.tallyStatusForwardingInstalled = true;
             const originalEmit = socket.emit.bind(socket);
@@ -58747,12 +58877,7 @@ var require_secondSyncClientEvents = __commonJS({
                     const previousGuids = [...identifiedCompanyGuids].sort();
                     if (latestGuids.length > 0 && JSON.stringify(latestGuids) !== JSON.stringify(previousGuids)) {
                       identifiedCompanyGuids = latestGuids;
-                      if (syncSocket?.connected) {
-                        syncSocket.emit("identifyConnector", {
-                          company_guids: latestGuids,
-                          tally_queue_status: getTallyQueueStatus()
-                        });
-                      }
+                      sendSyncConnectorIdentification();
                     }
                   }
                 }
@@ -58763,10 +58888,17 @@ var require_secondSyncClientEvents = __commonJS({
               return originalEmit(event, ...args);
             };
           }
-          startTallyMonitor(socket);
+          if (socket.connected && socket.id === identificationSocketId) {
+            startTallyMonitor(socket, syncSocket);
+          }
         }
       });
       socket.on("disconnect", (reason) => {
+        syncConnectorRegistered = false;
+        if (syncRegistrationRetryTimer) {
+          clearTimeout(syncRegistrationRetryTimer);
+          syncRegistrationRetryTimer = null;
+        }
         if (socket.heartbeatInterval) {
           clearInterval(socket.heartbeatInterval);
           socket.heartbeatInterval = null;
@@ -59098,6 +59230,14 @@ var require_secondSyncClientEvents = __commonJS({
           );
         }
         syncSocket.on("getMasters", async (data) => {
+          console.log("[SYNC GET_MASTERS RECEIVED]", {
+            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+            requestId: data?.requestId,
+            batchId: data?.batchId,
+            socketId: syncSocket.id,
+            socketConnected: syncSocket.connected,
+            companyIdentity: data?.companyIdentity
+          });
           const hasDurableIdentity = data?.identityScope !== void 0 || data?.companyIdentity !== void 0 || data?.payloadFingerprint !== void 0 || data?.tallyInputFingerprint !== void 0;
           if (hasDurableIdentity) {
             const validIdentity = typeof data?.requestId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(

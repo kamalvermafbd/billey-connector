@@ -14,6 +14,14 @@ class ConnectorProtocolController {
                 socket
             );
 
+       }
+
+    registerMasterReady(requestId) {
+        this.sender.registerMasterReady(requestId);
+    }
+
+    unregisterMasterReady(requestId) {
+        this.sender.unregisterMasterReady(requestId);
     }
 
     async sendCollection(

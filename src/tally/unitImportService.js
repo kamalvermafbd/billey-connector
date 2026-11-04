@@ -68,7 +68,7 @@ async function importUnits({
                 objectResponse
             );
 
-
+/* 041126
         if (fullUnit) {
 
             finalUnits.push(
@@ -82,6 +82,18 @@ async function importUnits({
             );
 
         }
+*/
+if (fullUnit) {
+
+    finalUnits.push(
+        fullUnit
+    );
+
+} else {
+
+    throw new Error("UNIT_EXTRACTION_INCOMPLETE");
+
+}
 
     }
 

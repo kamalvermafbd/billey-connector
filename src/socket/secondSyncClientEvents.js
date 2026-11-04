@@ -740,7 +740,7 @@ if (
     socket.connected &&
     socket.id === identificationSocketId
 ) {
-    startTallyMonitor(socket);
+    startTallyMonitor(socket, syncSocket);
 }
 }
 });
@@ -1255,6 +1255,14 @@ async function sendGetMastersTransferCompleteWithAck(requestId) {
 }
 
 syncSocket.on("getMasters", async (data) => {
+    console.log("[SYNC GET_MASTERS RECEIVED]", {
+    timestamp: new Date().toISOString(),
+    requestId: data?.requestId,
+    batchId: data?.batchId,
+    socketId: syncSocket.id,
+    socketConnected: syncSocket.connected,
+    companyIdentity: data?.companyIdentity
+});
     // Validate durable getMasters input before Tally execution.
 
         const hasDurableIdentity =
@@ -1672,6 +1680,10 @@ console.log(
     "KB"
 );
 
+// Register all master READY collections before the handshake.
+// The server may send READY immediately after getMastersResult.
+syncProtocolController.registerMasterReady(data.requestId);
+
 syncSocket.emit(
     "getMastersResult",
     masterPayload
@@ -1689,8 +1701,8 @@ try {
     );
 
     await sendGetMastersTransferCompleteWithAck(
-    data.requestId
-);
+        data.requestId
+    );
 } catch (transferError) {
     console.error(
         "GET_MASTERS_TRANSFER_FAILED_AFTER_TALLY_EXECUTION",
@@ -1708,6 +1720,10 @@ try {
     error.cause = transferError;
 
     throw error;
+} finally {
+    syncProtocolController.unregisterMasterReady(
+        data.requestId
+    );
 }
 // MONITORING ONLY
 

@@ -23,7 +23,7 @@ const MONITOR_INTERVAL_MS = 5000;
  * Existing Tally sync / getMasters flow ko modify nahi karta.
  */
 
-function startTallyMonitor(socket) {
+function startTallyMonitor(socket, syncSocket) {
 
     if (!socket) {
         throw new Error("Tally monitor requires socket");
@@ -133,12 +133,14 @@ if (
          *
          * Existing getMasters/importMasters flow safe rahega.
          */
-        if (
-            socket.tallyOperationActive ||
-            socket.tallyRequestActive
-        ) {
-            return;
-        }
+       if (
+    socket.tallyOperationActive ||
+    socket.tallyRequestActive ||
+    syncSocket?.tallyOperationActive ||
+    syncSocket?.tallyRequestActive
+) {
+    return;
+}
 
         checking = true;
 
@@ -152,7 +154,9 @@ const result = await withTallyOperationQueue(() => {
     !socket.tallyMonitorInterval ||
     socket.tallyMonitorToken !== monitorToken ||
     socket.tallyOperationActive ||
-    socket.tallyRequestActive
+    socket.tallyRequestActive ||
+    syncSocket?.tallyOperationActive ||
+    syncSocket?.tallyRequestActive
 ) {
     return null;
 }

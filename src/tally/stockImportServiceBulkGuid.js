@@ -121,6 +121,36 @@ await executeChunks({
             parseStockResponse(
                 responseXml
             );
+
+            const isUsableGuid = guid =>
+            typeof guid === "string" && /\S/.test(guid);
+
+        const requestedGuids = new Set(chunk.data);
+        const returnedGuids = new Set();
+
+        if (chunk.data.some(guid => !isUsableGuid(guid))) {
+            throw new Error("STOCK_GUID_COVERAGE_MISMATCH");
+        }
+
+        for (const stock of stocks) {
+            const guid = stock.guid;
+
+            if (
+                !isUsableGuid(guid) ||
+                !requestedGuids.has(guid) ||
+                returnedGuids.has(guid)
+            ) {
+                throw new Error("STOCK_GUID_COVERAGE_MISMATCH");
+            }
+
+            returnedGuids.add(guid);
+        }
+
+        if (
+            [...requestedGuids].some(guid => !returnedGuids.has(guid))
+        ) {
+            throw new Error("STOCK_GUID_COVERAGE_MISMATCH");
+        }
       
             for (const stock of stocks) {
 
