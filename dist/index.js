@@ -59410,15 +59410,18 @@ var require_secondSyncClientEvents = __commonJS({
           }
         });
         async function sendGetMastersTransferCompleteWithAck(requestId) {
+          const originalSocket = syncSocket;
+          const originalSocketId = originalSocket?.id;
           const ACK_TIMEOUT_MS = 5e3;
-          const MAX_ATTEMPTS = 3;
+          const ACK_RETRY_DEADLINE_MS = 12e4;
+          const retryDeadline = Date.now() + ACK_RETRY_DEADLINE_MS;
           if (typeof requestId !== "string" || requestId.length === 0) {
             throw new Error(
               "GET_MASTERS_COMPLETION_REQUEST_ID_MISSING"
             );
           }
-          for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            if (!syncSocket.connected) {
+          for (let attempt = 1; Date.now() < retryDeadline; attempt++) {
+            if (!originalSocket?.connected || !originalSocketId || syncSocket !== originalSocket || originalSocket.id !== originalSocketId) {
               throw new Error(
                 "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
               );
@@ -59428,11 +59431,11 @@ var require_secondSyncClientEvents = __commonJS({
               let timer;
               function cleanup() {
                 clearTimeout(timer);
-                syncSocket.off(
+                originalSocket.off(
                   "getMastersTransferCompleteAck",
                   onAck
                 );
-                syncSocket.off("disconnect", onDisconnect);
+                originalSocket.off("disconnect", onDisconnect);
               }
               function finish(success) {
                 if (settled) return;
@@ -59444,27 +59447,53 @@ var require_secondSyncClientEvents = __commonJS({
                 if (data?.requestId !== requestId) {
                   return;
                 }
-                finish(data.success === true);
+                if (!originalSocket.connected || originalSocket.id !== originalSocketId || syncSocket !== originalSocket) {
+                  finish("DISCONNECTED");
+                  return;
+                }
+                if (data.success !== true) {
+                  finish("REJECTED");
+                  return;
+                }
+                finish("ACKNOWLEDGED");
               }
               function onDisconnect() {
-                finish(false);
+                finish("DISCONNECTED");
               }
-              syncSocket.on(
+              originalSocket.on(
                 "getMastersTransferCompleteAck",
                 onAck
               );
-              syncSocket.once("disconnect", onDisconnect);
+              originalSocket.once("disconnect", onDisconnect);
               timer = setTimeout(
-                () => finish(false),
-                ACK_TIMEOUT_MS
+                () => finish("TIMEOUT"),
+                Math.min(
+                  ACK_TIMEOUT_MS,
+                  Math.max(0, retryDeadline - Date.now())
+                )
               );
-              syncSocket.emit("getMastersTransferComplete", {
-                requestId,
-                success: true
-              });
+              try {
+                originalSocket.emit("getMastersTransferComplete", {
+                  requestId,
+                  success: true
+                });
+              } catch (error) {
+                cleanup();
+                throw error;
+              }
             });
-            if (acknowledged) {
+            if (acknowledged === "ACKNOWLEDGED") {
               return true;
+            }
+            if (acknowledged === "REJECTED") {
+              throw new Error(
+                "GET_MASTERS_COMPLETION_ACK_REJECTED"
+              );
+            }
+            if (acknowledged === "DISCONNECTED" || !originalSocket.connected || syncSocket !== originalSocket || originalSocket.id !== originalSocketId) {
+              throw new Error(
+                "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
+              );
             }
             console.warn(
               "GET_MASTERS_COMPLETION_ACK_NOT_RECEIVED",
