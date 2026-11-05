@@ -1169,9 +1169,46 @@ syncSocket.on("getStockGodownSummary", async (data) => {
 
 });
 
-async function sendGetMastersTransferCompleteWithAck(requestId) {
+
+function captureGetMastersSession() {
     const originalSocket = syncSocket;
     const originalSocketId = originalSocket?.id;
+    let disconnected = false;
+
+    function onDisconnect() {
+        disconnected = true;
+    }
+
+    originalSocket?.once("disconnect", onDisconnect);
+
+    function isCurrent() {
+        return (
+            !disconnected &&
+            Boolean(originalSocketId) &&
+            originalSocket?.connected === true &&
+            syncSocket === originalSocket &&
+            originalSocket.id === originalSocketId
+        );
+    }
+
+    return Object.freeze({
+        socket: originalSocket,
+        socketId: originalSocketId,
+        isCurrent,
+        assertCurrent() {
+            if (!isCurrent()) {
+                throw new Error("GET_MASTERS_SESSION_LOST");
+            }
+        },
+        dispose() {
+            originalSocket?.off("disconnect", onDisconnect);
+        }
+    });
+}
+
+
+async function sendGetMastersTransferCompleteWithAck(requestId, session) {
+    const originalSocket = session.socket;
 
     const ACK_TIMEOUT_MS = 5000;
 const ACK_RETRY_DEADLINE_MS = 120000;
@@ -1191,16 +1228,11 @@ const retryDeadline =
     Date.now() < retryDeadline;
     attempt++
 ) {
-    if (
-        !originalSocket?.connected ||
-        !originalSocketId ||
-        syncSocket !== originalSocket ||
-        originalSocket.id !== originalSocketId
-    ) {
-        throw new Error(
-            "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
-        );
-    }
+   if (!session.isCurrent()) {
+    throw new Error(
+        "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
+    );
+}
         const acknowledged = await new Promise((resolve) => {
             let settled = false;
             let timer;
@@ -1226,14 +1258,10 @@ const retryDeadline =
         return;
     }
 
-    if (
-        !originalSocket.connected ||
-        originalSocket.id !== originalSocketId ||
-        syncSocket !== originalSocket
-    ) {
-        finish("DISCONNECTED");
-        return;
-    }
+   if (!session.isCurrent()) {
+    finish("DISCONNECTED");
+    return;
+}
 
     if (data.success !== true) {
         finish("REJECTED");
@@ -1261,14 +1289,17 @@ function onDisconnect() {
     )
 );
 
-            try {
-    originalSocket.emit("getMastersTransferComplete", {
-        requestId,
-        success: true
-    });
+           try {
+    if (!session.isCurrent()) {
+        finish("DISCONNECTED");
+    } else {
+        originalSocket.emit("getMastersTransferComplete", {
+            requestId,
+            success: true
+        });
+    }
 } catch (error) {
-    cleanup();
-    throw error;
+    finish("DISCONNECTED");
 }
         });
 
@@ -1286,9 +1317,7 @@ if (acknowledged === "REJECTED") {
 
 if (
     acknowledged === "DISCONNECTED" ||
-    !originalSocket.connected ||
-    syncSocket !== originalSocket ||
-    originalSocket.id !== originalSocketId
+    !session.isCurrent()
 ) {
     throw new Error(
         "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
@@ -1307,15 +1336,20 @@ if (
 }
 
 syncSocket.on("getMasters", async (data) => {
-    console.log("[SYNC GET_MASTERS RECEIVED]", {
-    timestamp: new Date().toISOString(),
-    requestId: data?.requestId,
-    batchId: data?.batchId,
-    socketId: syncSocket.id,
-    socketConnected: syncSocket.connected,
-    companyIdentity: data?.companyIdentity
-});
-    // Validate durable getMasters input before Tally execution.
+    const session = captureGetMastersSession();
+    const operationController = syncProtocolController;
+
+    try {
+        console.log("[SYNC GET_MASTERS RECEIVED]", {
+            timestamp: new Date().toISOString(),
+            requestId: data?.requestId,
+            batchId: data?.batchId,
+            socketId: session.socketId,
+            socketConnected: session.socket?.connected,
+            companyIdentity: data?.companyIdentity
+        });
+
+        // Validate durable getMasters input before Tally execution.
 
         const hasDurableIdentity =
         data?.identityScope !== undefined ||
@@ -1340,13 +1374,15 @@ syncSocket.on("getMasters", async (data) => {
             /^sha256:[0-9a-f]{64}$/i.test(data.tallyInputFingerprint);
 
         if (!validIdentity) {
-            syncSocket.emit("getMastersResult", {
-                requestId: data?.requestId,
-                success: false,
-                error: "INVALID_DURABLE_GET_MASTERS_IDENTITY"
-            });
-            return;
-        }
+    if (session.isCurrent()) {
+        session.socket.emit("getMastersResult", {
+            requestId: data?.requestId,
+            success: false,
+            error: "INVALID_DURABLE_GET_MASTERS_IDENTITY"
+        });
+    }
+    return;
+}
     }
 
     if (data?.tallyInputFingerprint !== undefined) {
@@ -1355,22 +1391,26 @@ syncSocket.on("getMasters", async (data) => {
         try {
             actualFingerprint = getMastersPayloadFingerprint(data);
         } catch (error) {
-            syncSocket.emit("getMastersResult", {
-                requestId: data?.requestId,
-                success: false,
-                error: "INVALID_GET_MASTERS_INPUT"
-            });
-            return;
-        }
+    if (session.isCurrent()) {
+        session.socket.emit("getMastersResult", {
+            requestId: data?.requestId,
+            success: false,
+            error: "INVALID_GET_MASTERS_INPUT"
+        });
+    }
+    return;
+}
 
         if (data.tallyInputFingerprint !== actualFingerprint) {
-            syncSocket.emit("getMastersResult", {
-                requestId: data?.requestId,
-                success: false,
-                error: "GET_MASTERS_FINGERPRINT_MISMATCH"
-            });
-            return;
-        }
+    if (session.isCurrent()) {
+        session.socket.emit("getMastersResult", {
+            requestId: data?.requestId,
+            success: false,
+            error: "GET_MASTERS_FINGERPRINT_MISMATCH"
+        });
+    }
+    return;
+}
     }
 
         let admission;
@@ -1395,64 +1435,72 @@ try {
         error
     );
 
-    syncSocket.emit("getMastersResult", {
+    if (session.isCurrent()) {
+    session.socket.emit("getMastersResult", {
         requestId: data?.requestId,
         success: false,
         error: "INVALID_GET_MASTERS_ADMISSION_IDENTITY"
     });
-
+}
     return;
 }
 
-    if (admission.status !== "ADMITTED" &&
-        admission.status !== "LEGACY_UNPROTECTED") {
+ if (admission.status !== "ADMITTED" &&
+    admission.status !== "LEGACY_UNPROTECTED") {
 
-        syncSocket.emit("getMastersResult", {
+    if (session.isCurrent()) {
+        session.socket.emit("getMastersResult", {
             requestId: data?.requestId,
             success: false,
             error: admission.status === "DUPLICATE"
                 ? "DUPLICATE_TALLY_REQUEST"
                 : "TALLY_REQUEST_IDENTITY_CONFLICT"
         });
-
-        return;
     }
+
+    return;
+}
     try {
 
-        // MONITORING ONLY
-        syncSocket.tallyOperationActive = true;
-        syncSocket.lastTallyActivity = Date.now();
+    // MONITORING ONLY
+session.socket.tallyOperationActive = true;
+session.socket.lastTallyActivity = Date.now();
+        const result = await withTallyOperationQueue(() => {
+    session.assertCurrent();
 
-        const result = await withTallyOperationQueue(() =>
-    runWithTallyExecution(admission, () =>
+    return runWithTallyExecution(admission, () =>
         runWithTallyMonitor({
 
            onTallyRequestStart: () => {
-                syncSocket.tallyRequestActive = true;
-                syncSocket.tallyRequestStartedAt = Date.now();
-                syncSocket.lastTallyActivity = Date.now();
+                session.socket.tallyRequestActive = true;
+session.socket.tallyRequestStartedAt = Date.now();
+session.socket.lastTallyActivity = Date.now();
 
-                syncSocket.emit("tally:request:start", {
-                    batchId: data.batchId,
-                    timestamp: syncSocket.tallyRequestStartedAt
-                });
+if (session.isCurrent()) {
+    session.socket.emit("tally:request:start", {
+        batchId: data.batchId,
+        timestamp: session.socket.tallyRequestStartedAt
+    });
+}
             },
 
            onTallyRequestEnd: () => {
-    syncSocket.tallyRequestActive = false;
-    syncSocket.tallyRequestStartedAt = 0;
-    syncSocket.lastTallyActivity = Date.now();
+    session.socket.tallyRequestActive = false;
+    session.socket.tallyRequestStartedAt = 0;
+    session.socket.lastTallyActivity = Date.now();
 
-    syncSocket.emit("tally:request:end", {
-        batchId: data.batchId,
-        timestamp: Date.now()
-    });
+    if (session.isCurrent()) {
+        session.socket.emit("tally:request:end", {
+            batchId: data.batchId,
+            timestamp: Date.now()
+        });
+    }
 },
 
          onTallyRequestError: (err) => {
-    syncSocket.tallyRequestActive = false;
-    syncSocket.tallyRequestStartedAt = 0;
-    syncSocket.lastTallyActivity = Date.now();
+    session.socket.tallyRequestActive = false;
+    session.socket.tallyRequestStartedAt = 0;
+    session.socket.lastTallyActivity = Date.now();
 
     const tallyErrorCode =
         err?.code ||
@@ -1464,13 +1512,15 @@ try {
         tallyErrorCode === "ECONNRESET" ||
         err?.message === "socket hang up";
 
-    syncSocket.emit("tally:request:error", {
-        batchId: data.batchId,
-        timestamp: Date.now(),
-        error: isTallyOffline
-            ? "TALLY_OFFLINE"
-            : (tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR")
-    });
+    if (session.isCurrent()) {
+        session.socket.emit("tally:request:error", {
+            batchId: data.batchId,
+            timestamp: Date.now(),
+            error: isTallyOffline
+                ? "TALLY_OFFLINE"
+                : (tallyErrorCode || err?.message || "TALLY_REQUEST_ERROR")
+        });
+    }
 },
 
         }, async () => {
@@ -1482,17 +1532,29 @@ try {
                 lastLedgerAlterId: data.lastLedgerAlterId,
 
                 onProgress: (progressData) => {
-                    sendProgress(
-                        progressData.stage,
-                        progressData.progress,
-                        data.batchId
-                    );
-                }
+    if (!session.isCurrent()) {
+        return;
+    }
+
+    trackSyncEvent({
+        batchId: data.batchId,
+        stage: progressData.stage,
+        progress: progressData.progress,
+        event: "SYNC_PROGRESS"
+    });
+
+    session.socket.emit("getMastersProgress", {
+        stage: progressData.stage,
+        progress: progressData.progress,
+        batchId: data.batchId,
+        timestamp: Date.now()
+    });
+}
             });
 
         })
-    )
-   );
+       );
+});
         // ===========================
         // Debug Analysis
         // ===========================
@@ -1522,43 +1584,60 @@ try {
         console.log("========== PAYLOAD ANALYSIS ==========");
 
         for (const [name, value] of Object.entries(collections)) {
+    try {
+        const size = Buffer.byteLength(
+            JSON.stringify(value || [])
+        );
 
-            const size = Buffer.byteLength(
-                JSON.stringify(value || [])
-            );
-
-            console.log(
-                `${name}: ${size} bytes (${(size / 1024).toFixed(2)} KB)`
-            );
-
-        }
+        console.log(
+            `${name}: ${size} bytes (${(size / 1024).toFixed(2)} KB)`
+        );
+    } catch (debugError) {
+        console.warn(
+            "GET_MASTERS_DEBUG_SIZE_FAILED",
+            {
+                collection: name,
+                error: debugError
+            }
+        );
+    }
+}
 
 
         // ===========================
 // Voucher Structure Analysis
 // ===========================
 
-if (result.vouchers && result.vouchers.length > 0) {
+if (Array.isArray(result.vouchers) && result.vouchers.length > 0) {
+    try {
+        const voucher = result.vouchers[0];
 
-    const voucher = result.vouchers[0];
+        if (voucher && typeof voucher === "object") {
+            console.log("========== FIRST VOUCHER KEYS ==========");
+            console.log(Object.keys(voucher));
 
-    console.log("========== FIRST VOUCHER KEYS ==========");
-    console.log(Object.keys(voucher));
+            console.log("========== FIRST VOUCHER FIELD SIZE ==========");
 
-    console.log("========== FIRST VOUCHER FIELD SIZE ==========");
+            for (const [key, value] of Object.entries(voucher)) {
+                try {
+                    const size = Buffer.byteLength(
+                        JSON.stringify(value ?? null)
+                    );
 
-    for (const [key, value] of Object.entries(voucher)) {
-
-        const size = Buffer.byteLength(
-            JSON.stringify(value ?? null)
-        );
-
-        console.log(
-            `${key}: ${(size / 1024).toFixed(2)} KB`
-        );
-
+                    console.log(
+                        `${key}: ${(size / 1024).toFixed(2)} KB`
+                    );
+                } catch (fieldError) {
+                    console.warn("GET_MASTERS_VOUCHER_DEBUG_FIELD_FAILED", {
+                        field: key,
+                        error: fieldError
+                    });
+                }
+            }
+        }
+    } catch (debugError) {
+        console.warn("GET_MASTERS_VOUCHER_DEBUG_FAILED", debugError);
     }
-
 }
         // ===========================
         // Voucher Chunk Test
@@ -1722,38 +1801,54 @@ const masterPayload = {
 };
 
 
-console.log(
-    "Master Payload Size :",
-    (
-        Buffer.byteLength(
-            JSON.stringify(masterPayload)
-        ) / 1024
-    ).toFixed(2),
-    "KB"
-);
-
-// Register all master READY collections before the handshake.
-// The server may send READY immediately after getMastersResult.
-syncProtocolController.registerMasterReady(data.requestId);
-
-syncSocket.emit(
-    "getMastersResult",
-    masterPayload
-);
-
-
-console.log(
-    "✅ Master payload sent"
-);
-
 try {
-    await syncProtocolController.sendMasters(
-        result,
-        data.requestId
+    console.log(
+        "Master Payload Size :",
+        (
+            Buffer.byteLength(
+                JSON.stringify(masterPayload)
+            ) / 1024
+        ).toFixed(2),
+        "KB"
+    );
+} catch (debugError) {
+    console.warn(
+        "GET_MASTERS_PAYLOAD_SIZE_DEBUG_FAILED",
+        debugError
+    );
+}
+
+// Tally execution completed; all subsequent transfer failures
+// must be classified as an uncertain transfer outcome.
+try {
+    session.assertCurrent();
+
+    // Register READY handlers before the server can respond.
+    operationController.registerMasterReady(data.requestId);
+
+    session.assertCurrent();
+
+    session.socket.emit(
+        "getMastersResult",
+        masterPayload
     );
 
+    console.log(
+        "✅ Master payload sent"
+    );
+
+    session.assertCurrent();
+
+    await operationController.sendMasters(
+    result,
+    data.requestId
+);
+
+    session.assertCurrent();
+
     await sendGetMastersTransferCompleteWithAck(
-        data.requestId
+        data.requestId,
+        session
     );
 } catch (transferError) {
     console.error(
@@ -1773,28 +1868,37 @@ try {
 
     throw error;
 } finally {
-    syncProtocolController.unregisterMasterReady(
-        data.requestId
-    );
+    try {
+        operationController.unregisterMasterReady(
+            data.requestId
+        );
+    } catch (cleanupError) {
+        console.error(
+            "GET_MASTERS_READY_CLEANUP_FAILED",
+            {
+                requestId: data.requestId,
+                error: cleanupError
+            }
+        );
+    }
 }
 // MONITORING ONLY
 
-syncSocket.tallyOperationActive = false;
-syncSocket.lastTallyActivity = Date.now();
-
+session.socket.tallyOperationActive = false;
+session.socket.lastTallyActivity = Date.now();
 
   } catch (err) {
 
     const isTransferOutcomeUnknown =
         err?.code === "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN";
 
-    syncSocket.tallyOperationActive = false;
+    session.socket.tallyOperationActive = false;
+session.socket.lastTallyActivity = Date.now();
 
-    if (!isTransferOutcomeUnknown) {
-        syncSocket.tallyRequestActive = false;
-        syncSocket.tallyRequestStartedAt = 0;
-    }
-
+if (!isTransferOutcomeUnknown) {
+    session.socket.tallyRequestActive = false;
+    session.socket.tallyRequestStartedAt = 0;
+}
 
     console.error("GET MASTERS ERROR");
     console.error(err);
@@ -1810,24 +1914,37 @@ syncSocket.lastTallyActivity = Date.now();
         err?.message === "socket hang up";
 
     
-syncSocket.emit(
-    "getMastersResult",
-    {
-        requestId: data?.requestId,
-        success: false,
-        error: isTransferOutcomeUnknown
-            ? "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN"
-            : isTallyOffline
-                ? "TALLY_OFFLINE"
-                : err.message,
-        ...(isTransferOutcomeUnknown
-            ? { outcomeUnknown: true }
-            : {})
-    }
-);
-
+if (session.isCurrent() && !isTransferOutcomeUnknown) {
+    session.socket.emit(
+        "getMastersResult",
+        {
+            requestId: data?.requestId,
+            success: false,
+            error: isTallyOffline
+    ? "TALLY_OFFLINE"
+    : err.message
+        }
+    );
+} else {
+    console.warn(
+        "GET_MASTERS_RESULT_NOT_EMITTED_SESSION_LOST",
+        {
+            requestId: data?.requestId,
+            originalSocketId: session.socketId,
+            error: err?.message,
+            outcomeUnknown: isTransferOutcomeUnknown
+        }
+    );
 }
-
+    } // Close inner catch (err)
+    } catch (outerError) {
+        console.error(
+            "GET_MASTERS_OUTER_HANDLER_ERROR",
+            outerError
+        );
+    } finally {
+        session.dispose();
+    }
 });
 syncSocket.on("getMastersVoucherGuids", async (data) => {
 
