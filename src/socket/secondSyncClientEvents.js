@@ -1170,9 +1170,13 @@ syncSocket.on("getStockGodownSummary", async (data) => {
 });
 
 async function sendGetMastersTransferCompleteWithAck(requestId) {
-    const ACK_TIMEOUT_MS = 5000;
-    const MAX_ATTEMPTS = 3;
+    const originalSocket = syncSocket;
+    const originalSocketId = originalSocket?.id;
 
+    const ACK_TIMEOUT_MS = 5000;
+const ACK_RETRY_DEADLINE_MS = 120000;
+const retryDeadline =
+    Date.now() + ACK_RETRY_DEADLINE_MS;
     if (
         typeof requestId !== "string" ||
         requestId.length === 0
@@ -1182,24 +1186,32 @@ async function sendGetMastersTransferCompleteWithAck(requestId) {
         );
     }
 
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        if (!syncSocket.connected) {
-            throw new Error(
-                "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
-            );
-        }
-
+    for (
+    let attempt = 1;
+    Date.now() < retryDeadline;
+    attempt++
+) {
+    if (
+        !originalSocket?.connected ||
+        !originalSocketId ||
+        syncSocket !== originalSocket ||
+        originalSocket.id !== originalSocketId
+    ) {
+        throw new Error(
+            "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
+        );
+    }
         const acknowledged = await new Promise((resolve) => {
             let settled = false;
             let timer;
 
             function cleanup() {
                 clearTimeout(timer);
-                syncSocket.off(
+                originalSocket.off(
                     "getMastersTransferCompleteAck",
                     onAck
                 );
-                syncSocket.off("disconnect", onDisconnect);
+                originalSocket.off("disconnect", onDisconnect);
             }
 
             function finish(success) {
@@ -1209,39 +1221,79 @@ async function sendGetMastersTransferCompleteWithAck(requestId) {
                 resolve(success);
             }
 
-            function onAck(data) {
-                if (data?.requestId !== requestId) {
-                    return;
-                }
+     function onAck(data) {
+    if (data?.requestId !== requestId) {
+        return;
+    }
 
-                finish(data.success === true);
-            }
+    if (
+        !originalSocket.connected ||
+        originalSocket.id !== originalSocketId ||
+        syncSocket !== originalSocket
+    ) {
+        finish("DISCONNECTED");
+        return;
+    }
 
-            function onDisconnect() {
-                finish(false);
-            }
+    if (data.success !== true) {
+        finish("REJECTED");
+        return;
+    }
 
-            syncSocket.on(
+    finish("ACKNOWLEDGED");
+}
+
+function onDisconnect() {
+    finish("DISCONNECTED");
+}
+            originalSocket.on(
                 "getMastersTransferCompleteAck",
                 onAck
             );
 
-            syncSocket.once("disconnect", onDisconnect);
+            originalSocket.once("disconnect", onDisconnect);
 
             timer = setTimeout(
-                () => finish(false),
-                ACK_TIMEOUT_MS
-            );
+    () => finish("TIMEOUT"),
+    Math.min(
+        ACK_TIMEOUT_MS,
+        Math.max(0, retryDeadline - Date.now())
+    )
+);
 
-            syncSocket.emit("getMastersTransferComplete", {
-                requestId,
-                success: true
-            });
+            try {
+    originalSocket.emit("getMastersTransferComplete", {
+        requestId,
+        success: true
+    });
+} catch (error) {
+    cleanup();
+    throw error;
+}
         });
 
-        if (acknowledged) {
-            return true;
-        }
+        
+
+if (acknowledged === "ACKNOWLEDGED") {
+    return true;
+}
+
+if (acknowledged === "REJECTED") {
+    throw new Error(
+        "GET_MASTERS_COMPLETION_ACK_REJECTED"
+    );
+}
+
+if (
+    acknowledged === "DISCONNECTED" ||
+    !originalSocket.connected ||
+    syncSocket !== originalSocket ||
+    originalSocket.id !== originalSocketId
+) {
+    throw new Error(
+        "GET_MASTERS_COMPLETION_SOCKET_DISCONNECTED"
+    );
+}
 
         console.warn(
             "GET_MASTERS_COMPLETION_ACK_NOT_RECEIVED",
