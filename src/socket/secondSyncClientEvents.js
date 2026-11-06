@@ -1169,6 +1169,89 @@ syncSocket.on("getStockGodownSummary", async (data) => {
 
 });
 
+// Monitoring is owned by each getMasters operation.
+// Older operations must never clear newer operations' status.
+const getMastersMonitoringRecords = new WeakMap();
+
+function beginGetMastersMonitoring(session) {
+    const socket = session.socket;
+
+    let records = getMastersMonitoringRecords.get(socket);
+
+    if (!records) {
+        records = new Set();
+        getMastersMonitoringRecords.set(socket, records);
+    }
+
+    const record = {
+        requestActive: false,
+        requestStartedAt: 0
+    };
+
+    records.add(record);
+
+    let finished = false;
+
+    function publish() {
+        const activeRequests = [...records].filter(
+            (entry) => entry.requestActive
+        );
+
+        socket.tallyOperationActive = records.size > 0;
+        socket.tallyRequestActive = activeRequests.length > 0;
+
+        socket.tallyRequestStartedAt = activeRequests.length > 0
+            ? Math.min(
+                ...activeRequests.map(
+                    (entry) => entry.requestStartedAt
+                )
+            )
+            : 0;
+
+        socket.lastTallyActivity = Date.now();
+    }
+
+    publish();
+
+    return {
+        requestStart() {
+            if (finished) return;
+
+            record.requestActive = true;
+            record.requestStartedAt = Date.now();
+            publish();
+        },
+
+        requestEnd() {
+            if (finished) return;
+
+            record.requestActive = false;
+            record.requestStartedAt = 0;
+            publish();
+        },
+
+        get requestStartedAt() {
+            return record.requestStartedAt;
+        },
+
+      finish() {
+    if (finished) return;
+
+    finished = true;
+
+    record.requestActive = false;
+    record.requestStartedAt = 0;
+
+    records.delete(record);
+
+    publish();
+
+    if (records.size === 0) {
+        getMastersMonitoringRecords.delete(socket);
+    }
+}
+    };
+}
 
 function captureGetMastersSession() {
     const originalSocket = syncSocket;
@@ -1338,6 +1421,7 @@ if (
 syncSocket.on("getMasters", async (data) => {
     const session = captureGetMastersSession();
     const operationController = syncProtocolController;
+    let monitoring = null;
 
     try {
         console.log("[SYNC GET_MASTERS RECEIVED]", {
@@ -1462,9 +1546,8 @@ try {
 }
     try {
 
-    // MONITORING ONLY
-session.socket.tallyOperationActive = true;
-session.socket.lastTallyActivity = Date.now();
+// MONITORING ONLY — owned by this getMasters operation
+monitoring = beginGetMastersMonitoring(session);
         const result = await withTallyOperationQueue(() => {
     session.assertCurrent();
 
@@ -1472,22 +1555,18 @@ session.socket.lastTallyActivity = Date.now();
         runWithTallyMonitor({
 
            onTallyRequestStart: () => {
-                session.socket.tallyRequestActive = true;
-session.socket.tallyRequestStartedAt = Date.now();
-session.socket.lastTallyActivity = Date.now();
+    monitoring.requestStart();
 
-if (session.isCurrent()) {
-    session.socket.emit("tally:request:start", {
-        batchId: data.batchId,
-        timestamp: session.socket.tallyRequestStartedAt
-    });
-}
-            },
+    if (session.isCurrent()) {
+        session.socket.emit("tally:request:start", {
+            batchId: data.batchId,
+            timestamp: monitoring.requestStartedAt
+        });
+    }
+},
 
            onTallyRequestEnd: () => {
-    session.socket.tallyRequestActive = false;
-    session.socket.tallyRequestStartedAt = 0;
-    session.socket.lastTallyActivity = Date.now();
+    monitoring.requestEnd();
 
     if (session.isCurrent()) {
         session.socket.emit("tally:request:end", {
@@ -1497,10 +1576,8 @@ if (session.isCurrent()) {
     }
 },
 
-         onTallyRequestError: (err) => {
-    session.socket.tallyRequestActive = false;
-    session.socket.tallyRequestStartedAt = 0;
-    session.socket.lastTallyActivity = Date.now();
+        onTallyRequestError: (err) => {
+    monitoring.requestEnd();
 
     const tallyErrorCode =
         err?.code ||
@@ -1841,7 +1918,8 @@ try {
 
     await operationController.sendMasters(
     result,
-    data.requestId
+    data.requestId,
+    session
 );
 
     session.assertCurrent();
@@ -1882,23 +1960,14 @@ try {
         );
     }
 }
-// MONITORING ONLY
 
-session.socket.tallyOperationActive = false;
-session.socket.lastTallyActivity = Date.now();
 
   } catch (err) {
 
     const isTransferOutcomeUnknown =
         err?.code === "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN";
 
-    session.socket.tallyOperationActive = false;
-session.socket.lastTallyActivity = Date.now();
-
-if (!isTransferOutcomeUnknown) {
-    session.socket.tallyRequestActive = false;
-    session.socket.tallyRequestStartedAt = 0;
-}
+    
 
     console.error("GET MASTERS ERROR");
     console.error(err);
@@ -1914,15 +1983,20 @@ if (!isTransferOutcomeUnknown) {
         err?.message === "socket hang up";
 
     
-if (session.isCurrent() && !isTransferOutcomeUnknown) {
+if (session.isCurrent()) {
     session.socket.emit(
         "getMastersResult",
         {
             requestId: data?.requestId,
             success: false,
-            error: isTallyOffline
-    ? "TALLY_OFFLINE"
-    : err.message
+            error: isTransferOutcomeUnknown
+                ? "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN"
+                : isTallyOffline
+                    ? "TALLY_OFFLINE"
+                    : err.message,
+            ...(isTransferOutcomeUnknown
+                ? { outcomeUnknown: true }
+                : {})
         }
     );
 } else {
@@ -1942,9 +2016,13 @@ if (session.isCurrent() && !isTransferOutcomeUnknown) {
             "GET_MASTERS_OUTER_HANDLER_ERROR",
             outerError
         );
+  } finally {
+    try {
+        monitoring?.finish();
     } finally {
         session.dispose();
     }
+}
 });
 syncSocket.on("getMastersVoucherGuids", async (data) => {
 

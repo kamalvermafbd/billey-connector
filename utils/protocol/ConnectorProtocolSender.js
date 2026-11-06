@@ -617,8 +617,22 @@ async sendCollection(
     collection,
     items,
     maxChunkSize,
-    requestId
+    requestId,
+    operationSession
 ) {
+    const assertCurrentSession = () => {
+        if (!operationSession) {
+            return;
+        }
+
+        operationSession.assertCurrent();
+
+        if (operationSession.socket !== this.socket) {
+            throw new Error(
+                "GET_MASTERS_SESSION_SOCKET_MISMATCH"
+            );
+        }
+    };
 
     if (!requestId) {
         throw new Error(
@@ -626,11 +640,14 @@ async sendCollection(
         );
     }
 
+    assertCurrentSession();
+
     await this.waitForReady(
         collection,
         requestId
     );
 
+    assertCurrentSession();
       const {
        batchId,
        chunks,
@@ -669,6 +686,8 @@ async sendCollection(
 );
 
 
+assertCurrentSession();
+
 const ackPromise = this.waitForReceived(
     collection,
     batchId,
@@ -698,7 +717,8 @@ console.log(
 
 await ackPromise;
 
-        session.nextChunk();
+assertCurrentSession();
+session.nextChunk();
 
     }
 
@@ -707,7 +727,9 @@ await ackPromise;
     collection
 );
 
-    const completedPromise = this.waitForCompleted(
+    assertCurrentSession();
+
+const completedPromise = this.waitForCompleted(
     collection,
     batchId,
     requestId
@@ -725,6 +747,7 @@ this.socket.emit(
 );
 
 await completedPromise;
+assertCurrentSession();
 
     console.log(
     "COMPLETED ACK",

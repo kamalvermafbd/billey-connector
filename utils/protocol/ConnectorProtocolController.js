@@ -24,10 +24,11 @@ class ConnectorProtocolController {
         this.sender.unregisterMasterReady(requestId);
     }
 
-    async sendCollection(
+ async sendCollection(
     event,
     rows,
-    requestId
+    requestId,
+    operationSession
 ) {
 
     console.log(
@@ -48,7 +49,8 @@ class ConnectorProtocolController {
             event,
             [],
             DEFAULT_MAX_CHUNK_SIZE,
-            requestId
+            requestId,
+            operationSession
         );
 
         console.log(
@@ -60,11 +62,12 @@ class ConnectorProtocolController {
     }
 
     await this.sender.sendCollection(
-        event,
-        rows,
-        DEFAULT_MAX_CHUNK_SIZE,
-        requestId
-    );
+    event,
+    rows,
+    DEFAULT_MAX_CHUNK_SIZE,
+    requestId,
+    operationSession
+);
 
     console.log(
         `Finished ${event}`
@@ -90,19 +93,29 @@ async sendTrialBalance(rows, requestId) {
 
 }
 
-async sendMasters(result, requestId) {
+async sendMasters(result, requestId, operationSession) {
+    if (
+        !operationSession ||
+        typeof operationSession.assertCurrent !== "function"
+    ) {
+        throw new Error("GET_MASTERS_SESSION_REQUIRED");
+    }
 
-    await this.sendCollection(
-        "getMastersGroups",
-        result.groups || [],
-        requestId
-    );
+    operationSession.assertCurrent();
 
-    await this.sendCollection(
-        "getMastersUnits",
-        result.units || [],
-        requestId
-    );
+  await this.sendCollection(
+    "getMastersGroups",
+    result.groups || [],
+    requestId,
+    operationSession
+);
+
+   await this.sendCollection(
+    "getMastersUnits",
+    result.units || [],
+    requestId,
+    operationSession
+);
 
     console.log("================================");
     console.log("SEND MASTER LEDGERS");
@@ -119,41 +132,47 @@ async sendMasters(result, requestId) {
     console.dir(newTech, { depth: null });
     console.log("================================");
 
-    await this.sendCollection(
-        "getMastersLedgers",
-        result.ledgers || [],
-        requestId
-    );
+await this.sendCollection(
+    "getMastersLedgers",
+    result.ledgers || [],
+    requestId,
+    operationSession
+);
+
+await this.sendCollection(
+    "getMastersStockGroups",
+    result.stockGroups || [],
+    requestId,
+    operationSession
+);
+
+await this.sendCollection(
+    "getMastersStocks",
+    result.stocks || [],
+    requestId,
+    operationSession
+);
+
+   await this.sendCollection(
+    "getMastersGodowns",
+    result.godowns || [],
+    requestId,
+    operationSession
+);
 
     await this.sendCollection(
-        "getMastersStockGroups",
-        result.stockGroups || [],
-        requestId
-    );
+    "getMastersCostCentres",
+    result.costCentres || [],
+    requestId,
+    operationSession
+);
 
-    await this.sendCollection(
-        "getMastersStocks",
-        result.stocks || [],
-        requestId
-    );
-
-    await this.sendCollection(
-        "getMastersGodowns",
-        result.godowns || [],
-        requestId
-    );
-
-    await this.sendCollection(
-        "getMastersCostCentres",
-        result.costCentres || [],
-        requestId
-    );
-
-    await this.sendCollection(
-        "getMasters",
-        result.vouchers || [],
-        requestId
-    );
+await this.sendCollection(
+    "getMasters",
+    result.vouchers || [],
+    requestId,
+    operationSession
+);
 
 }
 }
