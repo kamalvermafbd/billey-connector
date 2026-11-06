@@ -53121,16 +53121,29 @@ var require_ConnectorProtocolSender = __commonJS({
           session
         };
       }
-      async sendCollection(collection, items, maxChunkSize, requestId) {
+      async sendCollection(collection, items, maxChunkSize, requestId, operationSession) {
+        const assertCurrentSession = () => {
+          if (!operationSession) {
+            return;
+          }
+          operationSession.assertCurrent();
+          if (operationSession.socket !== this.socket) {
+            throw new Error(
+              "GET_MASTERS_SESSION_SOCKET_MISMATCH"
+            );
+          }
+        };
         if (!requestId) {
           throw new Error(
             "Protocol sendCollection requires requestId"
           );
         }
+        assertCurrentSession();
         await this.waitForReady(
           collection,
           requestId
         );
+        assertCurrentSession();
         const {
           batchId,
           chunks,
@@ -53159,6 +53172,7 @@ var require_ConnectorProtocolSender = __commonJS({
               batchId,
               chunk.chunkIndex
             );
+            assertCurrentSession();
             const ackPromise = this.waitForReceived(
               collection,
               batchId,
@@ -53184,12 +53198,14 @@ var require_ConnectorProtocolSender = __commonJS({
               chunk.chunkIndex
             );
             await ackPromise;
+            assertCurrentSession();
             session.nextChunk();
           }
           console.log(
             "Sending COMPLETE",
             collection
           );
+          assertCurrentSession();
           const completedPromise = this.waitForCompleted(
             collection,
             batchId,
@@ -53206,6 +53222,7 @@ var require_ConnectorProtocolSender = __commonJS({
             }
           );
           await completedPromise;
+          assertCurrentSession();
           console.log(
             "COMPLETED ACK",
             collection
@@ -53242,7 +53259,7 @@ var require_ConnectorProtocolController = __commonJS({
       unregisterMasterReady(requestId) {
         this.sender.unregisterMasterReady(requestId);
       }
-      async sendCollection(event, rows, requestId) {
+      async sendCollection(event, rows, requestId, operationSession) {
         console.log(
           `================================`
         );
@@ -53257,7 +53274,8 @@ var require_ConnectorProtocolController = __commonJS({
             event,
             [],
             DEFAULT_MAX_CHUNK_SIZE,
-            requestId
+            requestId,
+            operationSession
           );
           console.log(
             `Finished ${event}`
@@ -53268,7 +53286,8 @@ var require_ConnectorProtocolController = __commonJS({
           event,
           rows,
           DEFAULT_MAX_CHUNK_SIZE,
-          requestId
+          requestId,
+          operationSession
         );
         console.log(
           `Finished ${event}`
@@ -53288,16 +53307,22 @@ var require_ConnectorProtocolController = __commonJS({
           requestId
         );
       }
-      async sendMasters(result, requestId) {
+      async sendMasters(result, requestId, operationSession) {
+        if (!operationSession || typeof operationSession.assertCurrent !== "function") {
+          throw new Error("GET_MASTERS_SESSION_REQUIRED");
+        }
+        operationSession.assertCurrent();
         await this.sendCollection(
           "getMastersGroups",
           result.groups || [],
-          requestId
+          requestId,
+          operationSession
         );
         await this.sendCollection(
           "getMastersUnits",
           result.units || [],
-          requestId
+          requestId,
+          operationSession
         );
         console.log("================================");
         console.log("SEND MASTER LEDGERS");
@@ -53314,32 +53339,38 @@ var require_ConnectorProtocolController = __commonJS({
         await this.sendCollection(
           "getMastersLedgers",
           result.ledgers || [],
-          requestId
+          requestId,
+          operationSession
         );
         await this.sendCollection(
           "getMastersStockGroups",
           result.stockGroups || [],
-          requestId
+          requestId,
+          operationSession
         );
         await this.sendCollection(
           "getMastersStocks",
           result.stocks || [],
-          requestId
+          requestId,
+          operationSession
         );
         await this.sendCollection(
           "getMastersGodowns",
           result.godowns || [],
-          requestId
+          requestId,
+          operationSession
         );
         await this.sendCollection(
           "getMastersCostCentres",
           result.costCentres || [],
-          requestId
+          requestId,
+          operationSession
         );
         await this.sendCollection(
           "getMasters",
           result.vouchers || [],
-          requestId
+          requestId,
+          operationSession
         );
       }
     };
@@ -59354,7 +59385,62 @@ var require_secondSyncClientEvents = __commonJS({
         });
       }
       if (syncSocket) {
-        let captureGetMastersSession2 = function() {
+        let beginGetMastersMonitoring2 = function(session) {
+          const socket2 = session.socket;
+          let records = getMastersMonitoringRecords.get(socket2);
+          if (!records) {
+            records = /* @__PURE__ */ new Set();
+            getMastersMonitoringRecords.set(socket2, records);
+          }
+          const record = {
+            requestActive: false,
+            requestStartedAt: 0
+          };
+          records.add(record);
+          let finished = false;
+          function publish() {
+            const activeRequests = [...records].filter(
+              (entry) => entry.requestActive
+            );
+            socket2.tallyOperationActive = records.size > 0;
+            socket2.tallyRequestActive = activeRequests.length > 0;
+            socket2.tallyRequestStartedAt = activeRequests.length > 0 ? Math.min(
+              ...activeRequests.map(
+                (entry) => entry.requestStartedAt
+              )
+            ) : 0;
+            socket2.lastTallyActivity = Date.now();
+          }
+          publish();
+          return {
+            requestStart() {
+              if (finished) return;
+              record.requestActive = true;
+              record.requestStartedAt = Date.now();
+              publish();
+            },
+            requestEnd() {
+              if (finished) return;
+              record.requestActive = false;
+              record.requestStartedAt = 0;
+              publish();
+            },
+            get requestStartedAt() {
+              return record.requestStartedAt;
+            },
+            finish() {
+              if (finished) return;
+              finished = true;
+              record.requestActive = false;
+              record.requestStartedAt = 0;
+              records.delete(record);
+              publish();
+              if (records.size === 0) {
+                getMastersMonitoringRecords.delete(socket2);
+              }
+            }
+          };
+        }, captureGetMastersSession2 = function() {
           const originalSocket = syncSocket;
           const originalSocketId = originalSocket?.id;
           let disconnected = false;
@@ -59379,7 +59465,7 @@ var require_secondSyncClientEvents = __commonJS({
             }
           });
         };
-        var captureGetMastersSession = captureGetMastersSession2;
+        var beginGetMastersMonitoring = beginGetMastersMonitoring2, captureGetMastersSession = captureGetMastersSession2;
         syncSocket.on("getStockGodownSummary", async (data) => {
           try {
             console.log("=================================");
@@ -59435,6 +59521,7 @@ var require_secondSyncClientEvents = __commonJS({
             );
           }
         });
+        const getMastersMonitoringRecords = /* @__PURE__ */ new WeakMap();
         async function sendGetMastersTransferCompleteWithAck(requestId, session) {
           const originalSocket = session.socket;
           const ACK_TIMEOUT_MS = 5e3;
@@ -59535,6 +59622,7 @@ var require_secondSyncClientEvents = __commonJS({
         syncSocket.on("getMasters", async (data) => {
           const session = captureGetMastersSession2();
           const operationController = syncProtocolController;
+          let monitoring = null;
           try {
             console.log("[SYNC GET_MASTERS RECEIVED]", {
               timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -59623,28 +59711,23 @@ var require_secondSyncClientEvents = __commonJS({
               return;
             }
             try {
-              session.socket.tallyOperationActive = true;
-              session.socket.lastTallyActivity = Date.now();
+              monitoring = beginGetMastersMonitoring2(session);
               const result = await withTallyOperationQueue(() => {
                 session.assertCurrent();
                 return runWithTallyExecution(
                   admission,
                   () => runWithTallyMonitor({
                     onTallyRequestStart: () => {
-                      session.socket.tallyRequestActive = true;
-                      session.socket.tallyRequestStartedAt = Date.now();
-                      session.socket.lastTallyActivity = Date.now();
+                      monitoring.requestStart();
                       if (session.isCurrent()) {
                         session.socket.emit("tally:request:start", {
                           batchId: data.batchId,
-                          timestamp: session.socket.tallyRequestStartedAt
+                          timestamp: monitoring.requestStartedAt
                         });
                       }
                     },
                     onTallyRequestEnd: () => {
-                      session.socket.tallyRequestActive = false;
-                      session.socket.tallyRequestStartedAt = 0;
-                      session.socket.lastTallyActivity = Date.now();
+                      monitoring.requestEnd();
                       if (session.isCurrent()) {
                         session.socket.emit("tally:request:end", {
                           batchId: data.batchId,
@@ -59653,9 +59736,7 @@ var require_secondSyncClientEvents = __commonJS({
                       }
                     },
                     onTallyRequestError: (err) => {
-                      session.socket.tallyRequestActive = false;
-                      session.socket.tallyRequestStartedAt = 0;
-                      session.socket.lastTallyActivity = Date.now();
+                      monitoring.requestEnd();
                       const tallyErrorCode = err?.code || err?.cause?.code || "";
                       const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
                       if (session.isCurrent()) {
@@ -59791,7 +59872,8 @@ var require_secondSyncClientEvents = __commonJS({
                 session.assertCurrent();
                 await operationController.sendMasters(
                   result,
-                  data.requestId
+                  data.requestId,
+                  session
                 );
                 session.assertCurrent();
                 await sendGetMastersTransferCompleteWithAck(
@@ -59827,27 +59909,20 @@ var require_secondSyncClientEvents = __commonJS({
                   );
                 }
               }
-              session.socket.tallyOperationActive = false;
-              session.socket.lastTallyActivity = Date.now();
             } catch (err) {
               const isTransferOutcomeUnknown = err?.code === "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN";
-              session.socket.tallyOperationActive = false;
-              session.socket.lastTallyActivity = Date.now();
-              if (!isTransferOutcomeUnknown) {
-                session.socket.tallyRequestActive = false;
-                session.socket.tallyRequestStartedAt = 0;
-              }
               console.error("GET MASTERS ERROR");
               console.error(err);
               const tallyErrorCode = err?.code || err?.cause?.code || "";
               const isTallyOffline = tallyErrorCode === "ECONNREFUSED" || tallyErrorCode === "ECONNRESET" || err?.message === "socket hang up";
-              if (session.isCurrent() && !isTransferOutcomeUnknown) {
+              if (session.isCurrent()) {
                 session.socket.emit(
                   "getMastersResult",
                   {
                     requestId: data?.requestId,
                     success: false,
-                    error: isTallyOffline ? "TALLY_OFFLINE" : err.message
+                    error: isTransferOutcomeUnknown ? "GET_MASTERS_TRANSFER_OUTCOME_UNKNOWN" : isTallyOffline ? "TALLY_OFFLINE" : err.message,
+                    ...isTransferOutcomeUnknown ? { outcomeUnknown: true } : {}
                   }
                 );
               } else {
@@ -59868,7 +59943,11 @@ var require_secondSyncClientEvents = __commonJS({
               outerError
             );
           } finally {
-            session.dispose();
+            try {
+              monitoring?.finish();
+            } finally {
+              session.dispose();
+            }
           }
         });
         syncSocket.on("getMastersVoucherGuids", async (data) => {
