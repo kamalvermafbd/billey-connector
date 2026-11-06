@@ -56944,6 +56944,12 @@ var require_importMasters = __commonJS({
       const companyInfo = await importCompany({
         company
       });
+      console.log("========== COMPANY DATE DEBUG ==========");
+      console.log("COMPANY:", companyInfo.companyName);
+      console.log("BOOKSFROM:", companyInfo.booksBeginningFrom);
+      console.log("FINANCIALYEARFROM:", companyInfo.financialYearBeginning);
+      console.log("STARTINGFROM:", companyInfo.startingFrom);
+      console.log("========================================");
       console.log("After importCompany");
       console.log(
         `\u2713 Company Imported : ${companyInfo.companyName}`

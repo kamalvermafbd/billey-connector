@@ -108,6 +108,13 @@ async function importMasters({
         company
     });
 
+    console.log("========== COMPANY DATE DEBUG ==========");
+console.log("COMPANY:", companyInfo.companyName);
+console.log("BOOKSFROM:", companyInfo.booksBeginningFrom);
+console.log("FINANCIALYEARFROM:", companyInfo.financialYearBeginning);
+console.log("STARTINGFROM:", companyInfo.startingFrom);
+console.log("========================================");
+
 console.log("After importCompany");
 
 //companyInfo.booksBeginningFrom = "20210401";
