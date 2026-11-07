@@ -2769,7 +2769,7 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
             "Merged Ledger GUIDs :",
             ledgerGuids.length
         );
-
+/*071126
         const ledgers =
     await withTallyOperationQueue(() =>
         importLedgerBulkByGuid({
@@ -2777,7 +2777,32 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
             ledgerGuids
         })
     );
+*/
+const ledgers = await withTallyOperationQueue(async () => {
+    const companyInfo = await importCompany({
+        company: data.company
+    });
 
+    const booksBeginningFrom =
+        companyInfo?.booksBeginningFrom;
+
+    if (!/^\d{8}$/.test(String(booksBeginningFrom || ""))) {
+        throw new Error(
+            "LEDGER_BY_GUID_BOOKS_BEGINNING_DATE_MISSING"
+        );
+    }
+    console.log("[LEDGER_BY_GUID_COMPLETE] DATE CHECK", {
+    company: data.company,
+    requestId: data.requestId,
+    booksBeginningFrom,
+    ledgerCount: ledgerGuids.length
+});
+    return importLedgerBulkByGuid({
+        company: data.company,
+        ledgerGuids,
+        booksBeginningFrom
+    });
+});
        syncSocket.emit(
     "ledgerByGuidResult",
     {
@@ -3105,7 +3130,7 @@ syncSocket.on("stockByGuid", async (data) => {
 syncSocket.on("ledgerByGuid", async (data) => {
 
     try {
-
+/* 071126
         const ledgers =
     await withTallyOperationQueue(() =>
         importLedgerBulkByGuid({
@@ -3113,6 +3138,33 @@ syncSocket.on("ledgerByGuid", async (data) => {
             ledgerGuids: data.ledgerGuids
         })
     );
+    */
+const ledgers = await withTallyOperationQueue(async () => {
+    const companyInfo = await importCompany({
+        company: data.company
+    });
+
+    const booksBeginningFrom =
+        companyInfo?.booksBeginningFrom;
+
+    if (!/^\d{8}$/.test(String(booksBeginningFrom || ""))) {
+        throw new Error(
+            "LEDGER_BY_GUID_BOOKS_BEGINNING_DATE_MISSING"
+        );
+    }
+console.log("[LEDGER_BY_GUID] DATE CHECK", {
+    company: data.company,
+    requestId: data.requestId,
+    booksBeginningFrom,
+    ledgerCount: data.ledgerGuids?.length
+});
+    return importLedgerBulkByGuid({
+        company: data.company,
+        ledgerGuids: data.ledgerGuids,
+        booksBeginningFrom
+    });
+});
+
    syncSocket.emit(
     "ledgerByGuidResult",
     {

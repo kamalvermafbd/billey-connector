@@ -55156,6 +55156,18 @@ var require_ledgerRequest = __commonJS({
       lastLedgerAlterId = null,
       masterIds = []
     }) {
+      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
+        throw new Error(
+          "LEDGER_XML_BOOKS_BEGINNING_DATE_INVALID"
+        );
+      }
+      console.log("[LEDGER_XML] DATE VERIFIED", {
+        company,
+        SVFROMDATE: booksBeginningFrom,
+        SVTODATE: booksBeginningFrom,
+        masterIdsCount: masterIds.length,
+        lastLedgerAlterId
+      });
       const xml = `
 <ENVELOPE>
 
@@ -55395,6 +55407,15 @@ var require_ledgerParser = __commonJS({
           parentAlterId: getValue(ledger.PARENTALTERID)
         });
         const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
+        if (String(getValue(ledger.NAME) || "").trim().toLowerCase() === "aggarwal electrial & hardware") {
+          console.log("========== AGGARWAL OPENING DEBUG ==========");
+          console.log("LEDGER:", getValue(ledger.NAME));
+          console.log("OPENINGBALANCE RAW:", getValue(ledger.OPENINGBALANCE));
+          console.log("OPENINGBALANCEON RAW:", getValue(ledger.OPENINGBALANCEON));
+          console.log("ORIGINALOPENINGBALANCE RAW:", getValue(ledger.ORIGINALOPENINGBALANCE));
+          console.log("PARSED OPENING:", openingBalance);
+          console.log("============================================");
+        }
         const creditLimitRaw = Number(
           getValue(ledger.CREDITLIMIT) || 0
         );
@@ -55604,6 +55625,17 @@ var require_ledgerBulkGuidRequest = __commonJS({
       ledgerGuids,
       booksBeginningFrom
     }) {
+      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
+        throw new Error(
+          "LEDGER_BULK_GUID_XML_DATE_INVALID"
+        );
+      }
+      console.log("[LEDGER_BULK_GUID_XML] DATE VERIFIED", {
+        company,
+        SVFROMDATE: booksBeginningFrom,
+        SVTODATE: booksBeginningFrom,
+        ledgerCount: ledgerGuids.length
+      });
       const filter = ledgerGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
       return `
 <ENVELOPE>
@@ -55809,7 +55841,16 @@ var require_ledgerImportServiceBulkGuid = __commonJS({
       ledgerGuids,
       groups = [],
       booksBeginningFrom
+      /*071126
+      }) {
+          await selectCompany(company);
+      */
     }) {
+      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
+        throw new Error(
+          "LEDGER_BULK_GUID_BOOKS_BEGINNING_DATE_INVALID"
+        );
+      }
       await selectCompany(company);
       if (!ledgerGuids?.length) {
         return [];
@@ -60505,12 +60546,28 @@ var require_secondSyncClientEvents = __commonJS({
               "Merged Ledger GUIDs :",
               ledgerGuids.length
             );
-            const ledgers = await withTallyOperationQueue(
-              () => importLedgerBulkByGuid({
+            const ledgers = await withTallyOperationQueue(async () => {
+              const companyInfo = await importCompany({
+                company: data.company
+              });
+              const booksBeginningFrom = companyInfo?.booksBeginningFrom;
+              if (!/^\d{8}$/.test(String(booksBeginningFrom || ""))) {
+                throw new Error(
+                  "LEDGER_BY_GUID_BOOKS_BEGINNING_DATE_MISSING"
+                );
+              }
+              console.log("[LEDGER_BY_GUID_COMPLETE] DATE CHECK", {
                 company: data.company,
-                ledgerGuids
-              })
-            );
+                requestId: data.requestId,
+                booksBeginningFrom,
+                ledgerCount: ledgerGuids.length
+              });
+              return importLedgerBulkByGuid({
+                company: data.company,
+                ledgerGuids,
+                booksBeginningFrom
+              });
+            });
             syncSocket.emit(
               "ledgerByGuidResult",
               {
@@ -60756,12 +60813,28 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncSocket.on("ledgerByGuid", async (data) => {
           try {
-            const ledgers = await withTallyOperationQueue(
-              () => importLedgerBulkByGuid({
+            const ledgers = await withTallyOperationQueue(async () => {
+              const companyInfo = await importCompany({
+                company: data.company
+              });
+              const booksBeginningFrom = companyInfo?.booksBeginningFrom;
+              if (!/^\d{8}$/.test(String(booksBeginningFrom || ""))) {
+                throw new Error(
+                  "LEDGER_BY_GUID_BOOKS_BEGINNING_DATE_MISSING"
+                );
+              }
+              console.log("[LEDGER_BY_GUID] DATE CHECK", {
                 company: data.company,
-                ledgerGuids: data.ledgerGuids
-              })
-            );
+                requestId: data.requestId,
+                booksBeginningFrom,
+                ledgerCount: data.ledgerGuids?.length
+              });
+              return importLedgerBulkByGuid({
+                company: data.company,
+                ledgerGuids: data.ledgerGuids,
+                booksBeginningFrom
+              });
+            });
             syncSocket.emit(
               "ledgerByGuidResult",
               {

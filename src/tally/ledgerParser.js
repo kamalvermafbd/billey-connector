@@ -151,7 +151,19 @@ global.parentDebug.push({
 });
 
     const openingBalance = Number(getValue(ledger.OPENINGBALANCE) || 0);
-
+if (
+    String(getValue(ledger.NAME) || "")
+        .trim()
+        .toLowerCase() === "aggarwal electrial & hardware"
+) {
+    console.log("========== AGGARWAL OPENING DEBUG ==========");
+    console.log("LEDGER:", getValue(ledger.NAME));
+    console.log("OPENINGBALANCE RAW:", getValue(ledger.OPENINGBALANCE));
+    console.log("OPENINGBALANCEON RAW:", getValue(ledger.OPENINGBALANCEON));
+    console.log("ORIGINALOPENINGBALANCE RAW:", getValue(ledger.ORIGINALOPENINGBALANCE));
+    console.log("PARSED OPENING:", openingBalance);
+    console.log("============================================");
+}
     const creditLimitRaw = Number(
         getValue(ledger.CREDITLIMIT) || 0
     );

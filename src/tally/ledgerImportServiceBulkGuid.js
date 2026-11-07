@@ -82,9 +82,22 @@ async function importLedgerBulkByGuid({
     ledgerGuids,
     groups = [],
     booksBeginningFrom
+    /*071126
 }) {
     await selectCompany(company);
+*/
 
+}) {
+    if (
+        typeof booksBeginningFrom !== "string" ||
+        !/^\d{8}$/.test(booksBeginningFrom)
+    ) {
+        throw new Error(
+            "LEDGER_BULK_GUID_BOOKS_BEGINNING_DATE_INVALID"
+        );
+    }
+
+    await selectCompany(company);
 if (!ledgerGuids?.length) {
 
     return [];

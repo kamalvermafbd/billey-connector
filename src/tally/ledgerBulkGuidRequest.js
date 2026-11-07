@@ -3,7 +3,21 @@ function buildLedgerBulkGuidRequest({
     ledgerGuids,
     booksBeginningFrom
 }) {
+    if (
+        typeof booksBeginningFrom !== "string" ||
+        !/^\d{8}$/.test(booksBeginningFrom)
+    ) {
+        throw new Error(
+            "LEDGER_BULK_GUID_XML_DATE_INVALID"
+        );
+    }
 
+    console.log("[LEDGER_BULK_GUID_XML] DATE VERIFIED", {
+        company,
+        SVFROMDATE: booksBeginningFrom,
+        SVTODATE: booksBeginningFrom,
+        ledgerCount: ledgerGuids.length
+    });
     const filter = ledgerGuids
     .map(guid => `$$IsEqual:$GUID:"${guid}"`)
     .join(" OR ");

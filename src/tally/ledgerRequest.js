@@ -4,6 +4,22 @@ function buildLedgerRequest({
     lastLedgerAlterId = null,
     masterIds = []
 }) {
+        if (
+        typeof booksBeginningFrom !== "string" ||
+        !/^\d{8}$/.test(booksBeginningFrom)
+    ) {
+        throw new Error(
+            "LEDGER_XML_BOOKS_BEGINNING_DATE_INVALID"
+        );
+    }
+
+    console.log("[LEDGER_XML] DATE VERIFIED", {
+        company,
+        SVFROMDATE: booksBeginningFrom,
+        SVTODATE: booksBeginningFrom,
+        masterIdsCount: masterIds.length,
+        lastLedgerAlterId
+    });
 
     const xml = `
 <ENVELOPE>
