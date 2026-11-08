@@ -1,0 +1,329 @@
+﻿diff --git a/src/socket/secondSyncClientEvents.js b/src/socket/secondSyncClientEvents.js
+index 40f8c11..119d500 100644
+--- a/src/socket/secondSyncClientEvents.js
++++ b/src/socket/secondSyncClientEvents.js
+@@ -13,6 +13,10 @@ const {
+     withTallyOperationQueue
+ } = require("../tally/tallyOperationQueue");
+ 
++const {
++    fetchLedgerOpeningBalance
++} = require("../reconciliations/reconcileNow");
++
+ const {
+     getTallyQueueStatus,
+     setTallyQueueStatusListener,
+@@ -3329,7 +3333,55 @@ syncSocket.on("getTrialBalance", async (data) => {
+ 
+ });
+ 
++// ==============================================
++// RECONCILE NOW ΓÇö LEDGER OPENING (READ ONLY)
++// ==============================================
++
++syncSocket.on("reconcileLedgerOpening", async (data) => {
++    const requestId = data?.requestId;
++
++    try {
++        if (
++            !data ||
++            typeof requestId !== "string" ||
++            !requestId.trim() ||
++            typeof data.company !== "string" ||
++            !data.company.trim() ||
++            typeof data.ledgerGuid !== "string" ||
++            !data.ledgerGuid.trim() ||
++            typeof data.booksBeginningFrom !== "string" ||
++            !/^\d{8}$/.test(data.booksBeginningFrom)
++        ) {
++            throw new Error("RECONCILE_LEDGER_REQUEST_INVALID");
++        }
++
++        const result = await withTallyOperationQueue(() =>
++            fetchLedgerOpeningBalance({
++                company: data.company,
++                ledgerGuid: data.ledgerGuid,
++                booksBeginningFrom: data.booksBeginningFrom
++            })
++        );
++
++        syncSocket.emit("reconcileLedgerOpeningResult", {
++            requestId,
++            success: true,
++            data: result
++        });
++
++    } catch (err) {
++        console.error(
++            "[RECONCILE NOW] LEDGER OPENING ERROR",
++            err
++        );
+ 
++        syncSocket.emit("reconcileLedgerOpeningResult", {
++            requestId,
++            success: false,
++            error: err.message
++        });
++    }
++});
+ 
+ 
+ 
+diff --git a/src/tally/tallyRequestQueue.js b/src/tally/tallyRequestQueue.js
+index e2cf326..82237de 100644
+--- a/src/tally/tallyRequestQueue.js
++++ b/src/tally/tallyRequestQueue.js
+@@ -4,6 +4,11 @@ const { AsyncLocalStorage } = require("async_hooks");
+ 
+ const operationContext = new AsyncLocalStorage();
+ 
++// Strict reconciliation ownership context.
++// Separate from the legacy queue context and execution identity.
++// Process-local only; not a global connector lock.
++const reconciliationContext = new AsyncLocalStorage();
++
+ // Global FIFO queue for all Tally operations in this process.
+ let tail = Promise.resolve();
+ // Track all top-level Tally operations in this process.
+@@ -336,6 +341,124 @@ async function waitForTallyQueueIdle() {
+ };
+ }
+ 
++function rememberReconciliationFailure(state, error) {
++    if (!state.failed) {
++        state.failed = true;
++        state.error = error;
++    }
++
++    state.revoked = true;
++}
++
++function rejectReconciliation(state, code) {
++    const error = new Error(code);
++
++    if (state) {
++        rememberReconciliationFailure(state, error);
++    }
++
++    return Promise.reject(error);
++}
++
++// Process-local ownership only.
++// Does not establish global connector locking or session authorization.
++function runReconciliationTallyOperation(callback) {
++    const inherited = reconciliationContext.getStore();
++
++    // Reject active and stale inherited contexts.
++    // Never silently reuse ownership.
++    if (
++        inherited !== undefined ||
++        operationContext.getStore() !== undefined ||
++        tallyExecutionContext.getStore() !== undefined
++    ) {
++        return rejectReconciliation(
++            inherited,
++            "RECONCILE_TOP_LEVEL_REQUIRED"
++        );
++    }
++
++    if (typeof callback !== "function") {
++        return Promise.reject(
++            new TypeError("Reconciliation callback must be a function")
++        );
++    }
++
++    return enqueue(() => {
++        const context = {
++            exclusive: true,
++            active: true,
++            requestTail: Promise.resolve()
++        };
++
++        const state = {
++            context,
++            phase: "ACTIVE",
++            pending: false,
++            revoked: false,
++            failed: false,
++            error: undefined,
++            drain: Promise.resolve()
++        };
++
++        const control = Object.freeze({
++            assertActive() {
++                if (
++                    state.phase !== "ACTIVE" ||
++                    state.revoked ||
++                    !context.active
++                ) {
++                    throw new Error("RECONCILE_OWNER_REVOKED");
++                }
++            },
++
++            revoke(reason) {
++                if (state.phase === "CLOSED") {
++                    return;
++                }
++
++                rememberReconciliationFailure(
++                    state,
++                    reason instanceof Error
++                        ? reason
++                        : new Error("RECONCILE_OWNER_REVOKED")
++                );
++            }
++        });
++
++        return operationContext.run(context, () =>
++            reconciliationContext.run(state, async () => {
++                let value;
++
++                try {
++                    value = await callback(control);
++                } catch (error) {
++                    rememberReconciliationFailure(state, error);
++                }
++
++                // Close admission before draining.
++                // Already accepted requests must settle before release.
++                state.phase = "DRAINING";
++
++                try {
++                    await state.drain;
++                    await context.requestTail;
++                } finally {
++                    context.active = false;
++                    state.revoked = true;
++                    state.phase = "CLOSED";
++                }
++
++                if (state.failed) {
++                    throw state.error;
++                }
++
++                return value;
++            })
++        );
++    });
++}
++
+ function enqueue(operation) {
+     pendingOperations++;
+     operationGeneration++;
+@@ -386,7 +509,91 @@ function enqueue(operation) {
+ 
+     return task;
+ }
++
+ function withTallyRequestQueue(operation) {
++    const state = reconciliationContext.getStore();
++
++    // Preserve legacy behavior outside reconciliation.
++    if (state === undefined) {
++        return scheduleTallyRequest(operation);
++    }
++
++    if (typeof operation !== "function") {
++        return rejectReconciliation(
++            state,
++            "RECONCILE_REQUEST_CALLBACK_INVALID"
++        );
++    }
++
++    if (
++        state.phase !== "ACTIVE" ||
++        state.revoked ||
++        !state.context.active
++    ) {
++        return rejectReconciliation(
++            state,
++            "RECONCILE_OWNER_REVOKED"
++        );
++    }
++
++    // Only the strict reconciliation operation frame may
++    // submit requests. Nested request callbacks cannot.
++    if (operationContext.getStore() !== state.context) {
++        return rejectReconciliation(
++            state,
++            "RECONCILE_REQUEST_CONTEXT_INVALID"
++        );
++    }
++
++    // Reject concurrent request admission.
++    if (state.pending) {
++        return rejectReconciliation(
++            state,
++            "RECONCILE_CONCURRENT_REQUEST_FORBIDDEN"
++        );
++    }
++
++    state.pending = true;
++
++    let task;
++
++    try {
++        task = scheduleTallyRequest(async () => {
++            // Recheck ownership immediately before dispatch.
++            if (state.revoked || !state.context.active) {
++                throw new Error("RECONCILE_OWNER_REVOKED");
++            }
++
++            return operation();
++        });
++    } catch (error) {
++        state.pending = false;
++        rememberReconciliationFailure(state, error);
++        return Promise.reject(error);
++    }
++
++    const result = task.then(
++        value => {
++            state.pending = false;
++            return value;
++        },
++        error => {
++            state.pending = false;
++            rememberReconciliationFailure(state, error);
++            throw error;
++        }
++    );
++
++    // Track settlement even if caller does not await the request.
++    state.drain = result.then(
++        () => undefined,
++        () => undefined
++    );
++
++    return result;
++}
++
++function scheduleTallyRequest(operation) {
+     if (typeof operation !== "function") {
+         throw new TypeError("operation must be a function");
+     }
+@@ -469,6 +676,16 @@ function withTallyOperationQueue(operation) {
+ 
+     const context = operationContext.getStore();
+ 
++        // Strict reconciliation must never enter the legacy operation API.
++    // Also reject stale inherited reconciliation contexts.
++    const reconciliation = reconciliationContext.getStore();
++
++    if (reconciliation !== undefined) {
++        return rejectReconciliation(
++            reconciliation,
++            "RECONCILE_LEGACY_OPERATION_FORBIDDEN"
++        );
++    }
+     // Already inside a queued operation.
+     // Reuse its exclusive ownership.
+     if (
+@@ -536,6 +753,7 @@ function withTallyOperationQueue(operation) {
+ }
+ 
+ module.exports = {
++    runReconciliationTallyOperation,
+     withTallyRequestQueue,
+     withTallyOperationQueue,
+     getTallyQueueStatus,

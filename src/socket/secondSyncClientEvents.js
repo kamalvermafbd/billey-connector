@@ -14,6 +14,10 @@ const {
 } = require("../tally/tallyOperationQueue");
 
 const {
+    fetchLedgerOpeningBalance
+} = require("../reconciliations/reconcileNow");
+
+const {
     getTallyQueueStatus,
     setTallyQueueStatusListener,
     admitTallyRequest,
@@ -3329,7 +3333,55 @@ syncSocket.on("getTrialBalance", async (data) => {
 
 });
 
+// ==============================================
+// RECONCILE NOW — LEDGER OPENING (READ ONLY)
+// ==============================================
 
+syncSocket.on("reconcileLedgerOpening", async (data) => {
+    const requestId = data?.requestId;
+
+    try {
+        if (
+            !data ||
+            typeof requestId !== "string" ||
+            !requestId.trim() ||
+            typeof data.company !== "string" ||
+            !data.company.trim() ||
+            typeof data.ledgerGuid !== "string" ||
+            !data.ledgerGuid.trim() ||
+            typeof data.booksBeginningFrom !== "string" ||
+            !/^\d{8}$/.test(data.booksBeginningFrom)
+        ) {
+            throw new Error("RECONCILE_LEDGER_REQUEST_INVALID");
+        }
+
+        const result = await withTallyOperationQueue(() =>
+            fetchLedgerOpeningBalance({
+                company: data.company,
+                ledgerGuid: data.ledgerGuid,
+                booksBeginningFrom: data.booksBeginningFrom
+            })
+        );
+
+        syncSocket.emit("reconcileLedgerOpeningResult", {
+            requestId,
+            success: true,
+            data: result
+        });
+
+    } catch (err) {
+        console.error(
+            "[RECONCILE NOW] LEDGER OPENING ERROR",
+            err
+        );
+
+        syncSocket.emit("reconcileLedgerOpeningResult", {
+            requestId,
+            success: false,
+            error: err.message
+        });
+    }
+});
 
 
 
