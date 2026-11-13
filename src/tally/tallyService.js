@@ -5,7 +5,10 @@ const { AsyncLocalStorage } = require("async_hooks");
 const tallyMonitorStorage = new AsyncLocalStorage();
 
 const {
-    withTallyRequestQueue
+    withTallyRequestQueue,
+    getTallyTransportUncertainty,
+    markTallyTransportUncertain,
+    markTallyExecutionUnknown
 } = require("./tallyRequestQueue");
 
 function runWithTallyMonitor(monitorContext, callback) {
@@ -176,9 +179,16 @@ function splitQuantity(value) {
 let tallyHttpTail = Promise.resolve();
 
 function withTallyHttpQueue(operation) {
-    const task = tallyHttpTail.then(operation);
+    const task = tallyHttpTail.then(() => {
+        if (getTallyTransportUncertainty() !== null) {
+            throw new Error(
+                "TALLY_TRANSPORT_OUTCOME_UNCERTAIN"
+            );
+        }
 
-    // Failed requests must not block subsequent requests.
+        return operation();
+    });
+
     tallyHttpTail = task.then(
         () => undefined,
         () => undefined
@@ -223,16 +233,41 @@ if (monitor?.onTallyRequestStart) {
   monitor.onTallyRequestStart();
 }
 
-    const response = await axios.post(
-      TALLY_URL,
-      xml,
-     {
-  headers: {
-    "Content-Type": "application/xml"
-  },
-  timeout: 120000
-}
+  
+let response;
+
+try {
+    response = await axios.post(
+        TALLY_URL,
+        xml,
+        {
+            headers: {
+                "Content-Type": "application/xml"
+            },
+            timeout: 120000
+        }
     );
+} catch (transportError) {
+    // Only an error from the HTTP attempt may
+    // activate the transport uncertainty latch.
+    if (!transportError?.response) {
+        markTallyTransportUncertain(
+            "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+        );
+
+        try {
+            markTallyExecutionUnknown(
+                "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+            );
+        } catch (_) {
+            // No active execution identity.
+            // The dispatch latch remains active.
+        }
+    }
+
+    throw transportError;
+}
+
 if (monitor?.isHealthCheck !== true) {
     console.log("========== RAW TALLY RESPONSE ==========");
     console.log(response.data);
@@ -249,7 +284,7 @@ if (monitor?.onTallyRequestEnd) {
     return response.data;
 
   } catch (err) {
-
+ 
 if (monitor?.isHealthCheck !== true) {
     console.log(">>> Tally request failed");
     console.error(err);
@@ -262,10 +297,20 @@ if (monitor?.isHealthCheck !== true) {
  //     "\n"
  //   );
 
- if (monitor?.onTallyRequestError) {
-  monitor.onTallyRequestError(err);
+ 
+if (monitor?.onTallyRequestError) {
+    try {
+        monitor.onTallyRequestError(err);
+    } catch (monitorError) {
+        console.error(
+            "Tally error-monitor callback failed:",
+            monitorError
+        );
+    }
 }
-    throw err;
+
+throw err;
+
 
   }
 

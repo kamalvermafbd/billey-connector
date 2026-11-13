@@ -74,7 +74,8 @@ function normalizeEntry(entry) {
         throw new Error("RECONCILE_NEGATIVE_DEBIT_CREDIT");
     }
 
-    return {
+  
+    const result = {
         companyCode,
         tallyOwner,
         voucherGuid,
@@ -82,6 +83,20 @@ function normalizeEntry(entry) {
         debit,
         credit
     };
+
+    if (entry.id !== undefined && entry.id !== null) {
+        if (
+            !Number.isSafeInteger(entry.id) ||
+            entry.id <= 0
+        ) {
+            throw new Error("RECONCILE_ENTRY_ID_INVALID");
+        }
+
+        result.id = entry.id;
+    }
+
+    return result;
+
 }
 
 function groupEntries(entries) {
@@ -160,6 +175,24 @@ function compareVoucherLedgerEntries(tallyEntries, sqlEntries) {
         const tallyOnly = [];
         const sqlOnly = [];
 
+        // Diagnostic only: never authorize a database UPDATE here.
+        const updateCandidate =
+            tally.length === 1 &&
+            sql.length === 1 &&
+            Number.isSafeInteger(sql[0].id) &&
+            (
+                tally[0].debit !== sql[0].debit ||
+                tally[0].credit !== sql[0].credit
+            )
+                ? {
+                    sqlRowId: sql[0].id,
+                    currentDebit: sql[0].debit,
+                    currentCredit: sql[0].credit,
+                    tallyDebit: tally[0].debit,
+                    tallyCredit: tally[0].credit
+                }
+                : null;
+
         for (const signature of signatures) {
             const tallyCount = tallyCounts.get(signature) || 0;
             const sqlCount = sqlCounts.get(signature) || 0;
@@ -175,13 +208,29 @@ function compareVoucherLedgerEntries(tallyEntries, sqlEntries) {
                 });
             }
 
-            if (sqlCount > tallyCount) {
-                sqlOnly.push({
-                    debit,
-                    credit,
-                    count: sqlCount - tallyCount
-                });
-            }
+            
+if (sqlCount > tallyCount) {
+    const matchingSqlEntries = sql.filter(
+        entry => entrySignature(entry) === signature
+    );
+
+    const unmatchedCount = sqlCount - tallyCount;
+
+    sqlOnly.push({
+        debit,
+        credit,
+        count: unmatchedCount,
+        
+candidateSqlRowIds:
+    tallyCount === 0 &&
+    matchingSqlEntries.length === 1 &&
+    Number.isSafeInteger(matchingSqlEntries[0].id)
+        ? [matchingSqlEntries[0].id]
+        : []
+
+    });
+}
+
         }
 
       if (tallyOnly.length || sqlOnly.length) {
@@ -198,7 +247,8 @@ function compareVoucherLedgerEntries(tallyEntries, sqlEntries) {
         voucherGuid,
         ledgerGuid,
         tallyOnly,
-        sqlOnly
+        sqlOnly,
+        updateCandidate
     });
 }
     }

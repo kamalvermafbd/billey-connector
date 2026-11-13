@@ -17,6 +17,32 @@ let runningOperations = 0;
 
 // Incremented whenever top-level queue state changes.
 let operationGeneration = 0;
+// Fail-closed transport uncertainty latch.
+// Process-local; never cleared automatically.
+let tallyTransportUncertainty = null;
+
+function getTallyTransportUncertainty() {
+    return tallyTransportUncertainty;
+}
+
+function markTallyTransportUncertain(reason) {
+    if (tallyTransportUncertainty !== null) {
+        return tallyTransportUncertainty;
+    }
+
+    tallyTransportUncertainty = Object.freeze({
+        reason: String(
+            reason || "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+        ),
+        detectedAt: new Date().toISOString()
+    });
+
+    operationGeneration++;
+    notifyTallyQueueStatusChanged();
+
+    return tallyTransportUncertainty;
+}
+
 // ============================================
 // Connector execution identity foundation
 // Independent of the existing Tally FIFO.
@@ -290,7 +316,8 @@ function getTallyQueueStatus() {
         runningOperations,
         idle:
             pendingOperations === 0 &&
-            runningOperations === 0,
+            runningOperations === 0 &&
+            tallyTransportUncertainty === null,
         operationGeneration
     };
 }
@@ -759,7 +786,8 @@ module.exports = {
     getTallyQueueStatus,
     setTallyQueueStatusListener,
     waitForTallyQueueIdle,
-
+getTallyTransportUncertainty,
+markTallyTransportUncertain,
     // Execution identity and admission
     admitTallyRequest,
     runWithTallyExecution,
