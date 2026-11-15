@@ -19,6 +19,7 @@ function requireText(value) {
     return value.trim();
 }
 
+
 function normalizeAmount(value) {
     const isNumber = typeof value === "number";
 
@@ -37,16 +38,26 @@ function normalizeAmount(value) {
     }
 
     const text = String(value).trim();
+
     const match =
-        /^\+?(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/.exec(text);
+        /^\+?(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/.exec(text);
 
     if (!match) {
         fail("RECONCILE_PLAN_AMOUNT_INVALID");
     }
 
     const whole = match[1] || "0";
-    const fraction = (match[2] || match[3] || "").padEnd(2, "0");
-    const paise = BigInt(whole) * 100n + BigInt(fraction);
+    const rawFraction = match[2] || match[3] || "";
+
+    // Never round or silently discard nonzero subpaise digits.
+    if (/[1-9]/.test(rawFraction.slice(2))) {
+        fail("RECONCILE_PLAN_SUBPAISE_AMOUNT_UNSUPPORTED");
+    }
+
+    const fraction = rawFraction.slice(0, 2).padEnd(2, "0");
+
+    const paise =
+        BigInt(whole) * 100n + BigInt(fraction);
 
     if (paise > MAX_PAISE) {
         fail("RECONCILE_PLAN_AMOUNT_OUT_OF_RANGE");
@@ -58,6 +69,7 @@ function normalizeAmount(value) {
         paise: paise.toString()
     };
 }
+
 
 function normalizeEntry(entry, sql, seenIds) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {

@@ -13,10 +13,14 @@ const {
     withTallyOperationQueue
 } = require("../tally/tallyOperationQueue");
 
+
 const {
-    fetchLedgerOpeningBalance
+    runWithVerifiedReconciliationCompany
 } = require("../reconciliations/reconcileNow");
 
+const {
+    collectionRows
+} = require("../reconciliations/parseReconciliationVoucherXml");
 const {
     getTallyQueueStatus,
     setTallyQueueStatusListener,
@@ -3337,6 +3341,7 @@ syncSocket.on("getTrialBalance", async (data) => {
 // RECONCILE NOW — LEDGER OPENING (READ ONLY)
 // ==============================================
 
+
 syncSocket.on("reconcileLedgerOpening", async (data) => {
     const requestId = data?.requestId;
 
@@ -3347,6 +3352,8 @@ syncSocket.on("reconcileLedgerOpening", async (data) => {
             !requestId.trim() ||
             typeof data.company !== "string" ||
             !data.company.trim() ||
+            typeof data.expectedCompanyGuid !== "string" ||
+            !data.expectedCompanyGuid.trim() ||
             typeof data.ledgerGuid !== "string" ||
             !data.ledgerGuid.trim() ||
             typeof data.booksBeginningFrom !== "string" ||
@@ -3355,13 +3362,26 @@ syncSocket.on("reconcileLedgerOpening", async (data) => {
             throw new Error("RECONCILE_LEDGER_REQUEST_INVALID");
         }
 
-        const result = await withTallyOperationQueue(() =>
-            fetchLedgerOpeningBalance({
-                company: data.company,
-                ledgerGuid: data.ledgerGuid,
-                booksBeginningFrom: data.booksBeginningFrom
-            })
-        );
+        const result =
+            await runWithVerifiedReconciliationCompany({
+                companyName: data.company,
+                expectedCompanyGuid:
+                    data.expectedCompanyGuid,
+                operation: async context => {
+                    if (
+                        context.booksBeginningFrom !==
+                        data.booksBeginningFrom
+                    ) {
+                        throw new Error(
+                            "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                        );
+                    }
+
+                    return context.fetchOpeningBalance({
+                        ledgerGuid: data.ledgerGuid
+                    });
+                }
+            });
 
         syncSocket.emit("reconcileLedgerOpeningResult", {
             requestId,
@@ -3383,6 +3403,268 @@ syncSocket.on("reconcileLedgerOpening", async (data) => {
     }
 });
 
+
+
+
+
+
+// ==============================================
+// RECONCILE NOW — VOUCHERS (READ ONLY)
+// ==============================================
+
+syncSocket.on("reconcileVouchers", async (data) => {
+    const requestId = data?.requestId;
+
+    try {
+        if (
+            !data ||
+            typeof requestId !== "string" ||
+            !requestId.trim() ||
+            typeof data.company !== "string" ||
+            !data.company.trim() ||
+            typeof data.expectedCompanyGuid !== "string" ||
+            !data.expectedCompanyGuid.trim() ||
+            typeof data.booksBeginningFrom !== "string" ||
+            !/^\d{8}$/.test(data.booksBeginningFrom) ||
+            !Array.isArray(data.voucherGuids) ||
+            !data.voucherGuids.length ||
+            data.voucherGuids.some(
+                guid =>
+                    typeof guid !== "string" ||
+                    !guid.trim()
+            ) ||
+            typeof data.fromDate !== "string" ||
+            !/^\d{8}$/.test(data.fromDate) ||
+            typeof data.toDate !== "string" ||
+            !/^\d{8}$/.test(data.toDate)
+        ) {
+            throw new Error("RECONCILE_VOUCHER_REQUEST_INVALID");
+        }
+
+        const result =
+            await runWithVerifiedReconciliationCompany({
+                companyName: data.company,
+                expectedCompanyGuid:
+                    data.expectedCompanyGuid,
+                operation: async context => {
+                    if (
+                        context.booksBeginningFrom !==
+                        data.booksBeginningFrom
+                    ) {
+                        throw new Error(
+                            "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                        );
+                    }
+
+                    return context.fetchVouchers({
+                        voucherGuids: data.voucherGuids,
+                        fromDate: data.fromDate,
+                        toDate: data.toDate,
+                        companyCode: data.companyCode,
+                        tallyOwner: data.tallyOwner
+                    });
+                }
+            });
+
+        syncSocket.emit("reconcileVouchersResult", {
+            requestId,
+            success: true,
+            data: result
+        });
+
+    } catch (err) {
+        console.error(
+            "[RECONCILE NOW] VOUCHER FETCH ERROR",
+            err
+        );
+
+        syncSocket.emit("reconcileVouchersResult", {
+            requestId,
+            success: false,
+            error: err.message
+        });
+    }
+});
+
+
+    // ==============================================
+    // MANUAL RECONCILIATION — OCCURRENCE DIAGNOSTIC
+    // Explicitly disabled unless locally authorized.
+    // Never exposes raw accounting XML over socket.
+    // ==============================================
+
+   
+syncSocket.on("reconcileOccurrenceDiagnostic", async (data) => {
+    const requestId = data?.requestId;
+
+    try {
+        // Local authorization only. Never enable remotely.
+        const OCCURRENCE_DIAGNOSTIC_ENABLED = false;
+
+        if (!OCCURRENCE_DIAGNOSTIC_ENABLED) {
+            throw new Error(
+                "RECONCILE_OCCURRENCE_DIAGNOSTIC_DISABLED"
+            );
+        }
+
+        if (
+            !data ||
+            typeof requestId !== "string" ||
+            !requestId.trim() ||
+            typeof data.company !== "string" ||
+            !data.company.trim() ||
+            typeof data.expectedCompanyGuid !== "string" ||
+            !data.expectedCompanyGuid.trim() ||
+            typeof data.booksBeginningFrom !== "string" ||
+            !/^\d{8}$/.test(data.booksBeginningFrom) ||
+            !Array.isArray(data.voucherGuids) ||
+            data.voucherGuids.length !== 1 ||
+            typeof data.voucherGuids[0] !== "string" ||
+            !/^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/.test(
+                data.voucherGuids[0]
+            ) ||
+            typeof data.fromDate !== "string" ||
+            !/^\d{8}$/.test(data.fromDate) ||
+            typeof data.toDate !== "string" ||
+            !/^\d{8}$/.test(data.toDate)
+        ) {
+            throw new Error(
+                "RECONCILE_OCCURRENCE_DIAGNOSTIC_REQUEST_INVALID"
+            );
+        }
+
+        const result =
+            await runWithVerifiedReconciliationCompany({
+                companyName: data.company,
+                expectedCompanyGuid:
+                    data.expectedCompanyGuid,
+
+                operation: async context => {
+                    if (
+                        context.booksBeginningFrom !==
+                        data.booksBeginningFrom
+                    ) {
+                        throw new Error(
+                            "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                        );
+                    }
+
+                    const diagnostic =
+                        await context.fetchOccurrenceDiagnostic({
+                            voucherGuids: data.voucherGuids,
+                            fromDate: data.fromDate,
+                            toDate: data.toDate
+                        });
+
+                    if (
+                        diagnostic?.status !==
+                            "UNVERIFIED_RAW_RESPONSE" ||
+                        typeof diagnostic.responseXml !== "string" ||
+                        diagnostic.responseXml.length >
+                            8 * 1024 * 1024
+                    ) {
+                        throw new Error(
+                            "RECONCILE_OCCURRENCE_RESPONSE_INVALID"
+                        );
+                    }
+
+                    const rows = collectionRows(
+                        diagnostic.responseXml,
+                        "VOUCHER"
+                    );
+
+                    if (
+                        rows.length !== 1 ||
+                        rows[0].GUID !== data.voucherGuids[0]
+                    ) {
+                        throw new Error(
+                            "RECONCILE_OCCURRENCE_MEMBERSHIP_INVALID"
+                        );
+                    }
+
+                    const row = rows[0];
+
+                    const rawCount =
+                        row.BILLEYLEDGEROCCURRENCECOUNT;
+
+                    if (
+                        typeof rawCount !== "string" ||
+                        !/^(0|[1-9]\d*)$/.test(rawCount) ||
+                        rawCount.length > 16 ||
+                        BigInt(rawCount) >
+                            BigInt(Number.MAX_SAFE_INTEGER)
+                    ) {
+                        throw new Error(
+                            "RECONCILE_OCCURRENCE_COUNT_INVALID"
+                        );
+                    }
+
+                    for (const field of [
+                        "MASTERID",
+                        "ALTERID"
+                    ]) {
+                        if (
+                            typeof row[field] !== "string" ||
+                            !/^(0|[1-9]\d*)$/.test(row[field])
+                        ) {
+                            throw new Error(
+                                "RECONCILE_OCCURRENCE_VERSION_INVALID"
+                            );
+                        }
+                    }
+
+                    if (
+                        typeof row.DATE !== "string" ||
+                        !/^\d{8}$/.test(row.DATE) ||
+                        row.DATE < data.fromDate ||
+                        row.DATE > data.toDate
+                    ) {
+                        throw new Error(
+                            "RECONCILE_OCCURRENCE_DATE_INVALID"
+                        );
+                    }
+
+                    return {
+                        status: "COUNT_OBSERVED_UNVERIFIED",
+                        voucherGuid: row.GUID,
+                        masterId: row.MASTERID,
+                        alterId: row.ALTERID,
+                        voucherDate: row.DATE,
+                        reportedLedgerOccurrenceCount:
+                            Number(rawCount),
+                        runtimeSemanticsVerified: false,
+                        atomicSnapshotVerified: false,
+                        settlementEligible: false
+                    };
+                }
+            });
+
+        // Only bounded, validated diagnostic fields.
+        // Never transmit raw Tally XML.
+        syncSocket.emit(
+            "reconcileOccurrenceDiagnosticResult",
+            {
+                requestId,
+                success: true,
+                data: result
+            }
+        );
+
+    } catch (err) {
+        syncSocket.emit(
+            "reconcileOccurrenceDiagnosticResult",
+            {
+                requestId,
+                success: false,
+                error:
+                    typeof err?.message === "string" &&
+                    err.message.startsWith("RECONCILE_")
+                        ? err.message
+                        : "RECONCILE_OCCURRENCE_DIAGNOSTIC_FAILED"
+            }
+        );
+    }
+});
 
 
 }

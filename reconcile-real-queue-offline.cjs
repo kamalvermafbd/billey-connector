@@ -14,6 +14,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+
 const CASES = [
     "sequential",
     "concurrent",
@@ -24,8 +25,12 @@ const CASES = [
     "network-error",
     "draining",
     "ownership",
-    "revocation"
+    "revocation",
+    "selection-rejection",
+    "verified-context",
+    "opening-balance"
 ];
+
 
 const root = path.resolve(".");
 const scenario = process.argv[2];
@@ -42,7 +47,7 @@ if (!scenario) {
 
         const child = spawnSync(
             process.execPath,
-            [__filename, root, name],
+            [__filename,  name],
             {
                 env,
                 encoding: "utf8",
@@ -500,6 +505,175 @@ async function run() {
 
             assertVerified(await fetchCompany());
             assertHealthyIdle();
+
+            break;
+        }
+
+        case "opening-balance": {
+            const openingResponse = ({
+                guid = GUID,
+                balance = "-1250.50"
+            } = {}) => `
+<ENVELOPE>
+  <BODY>
+    <DATA>
+      <COLLECTION>
+        <LEDGER>
+          <GUID>${xmlText(guid)}</GUID>
+          <OPENINGBALANCE>${balance}</OPENINGBALANCE>
+        </LEDGER>
+      </COLLECTION>
+    </DATA>
+  </BODY>
+</ENVELOPE>`;
+
+            let openingReply = openingResponse();
+            let openingError = null;
+            let openingRequests = 0;
+
+            transport = async xml => {
+                if (isSelection(xml) || isCompany(xml)) {
+                    return ok(xml);
+                }
+
+                openingRequests++;
+
+                if (openingError) {
+                    throw openingError;
+                }
+
+                return {
+                    status: 200,
+                    data: openingReply
+                };
+            };
+
+            async function fetchOpening(ledgerGuid = GUID) {
+                return reconcile.runWithVerifiedReconciliationCompany({
+                    companyName: COMPANY,
+                    expectedCompanyGuid: GUID,
+                    operation: async context =>
+                        context.fetchOpeningBalance({ ledgerGuid })
+                });
+            }
+
+            // Successful opening-balance fetch.
+            const result = await fetchOpening();
+
+            assert.deepEqual(result, {
+                guid: GUID,
+                openingBalance: "1250.50",
+                openingBalanceType: "DR"
+            });
+
+            assert.equal(openingRequests, 1);
+            assertHealthyIdle();
+
+            // Empty ledger GUID must not dispatch opening request.
+            const beforeInvalidGuid = openingRequests;
+
+            await assert.rejects(
+                fetchOpening(""),
+                /RECONCILE_LEDGER_GUID_REQUIRED/
+            );
+
+            assert.equal(openingRequests, beforeInvalidGuid);
+            assertHealthyIdle();
+
+            // Malformed XML must fail closed.
+            openingReply = "<ENVELOPE><BODY>";
+
+            await assert.rejects(
+                fetchOpening(),
+                /RECONCILE_OPENING_XML_INVALID/
+            );
+
+            assertHealthyIdle();
+
+            // Wrong ledger GUID must be rejected.
+            openingReply = openingResponse({
+                guid: OTHER_GUID
+            });
+
+            await assert.rejects(
+                fetchOpening(),
+                /RECONCILE_LEDGER_GUID_MISMATCH/
+            );
+
+            assertHealthyIdle();
+
+            // Missing opening balance must be rejected.
+            openingReply = `
+<ENVELOPE>
+  <BODY><DATA><COLLECTION>
+    <LEDGER>
+      <GUID>${GUID}</GUID>
+    </LEDGER>
+  </COLLECTION></DATA></BODY>
+</ENVELOPE>`;
+
+            await assert.rejects(
+                fetchOpening(),
+                /RECONCILE_OPENING_BALANCE_MISSING/
+            );
+
+            assertHealthyIdle();
+
+            // Transport failure must not produce a valid result.
+                    
+            openingError = new Error(
+                "OFFLINE_OPENING_HTTP_FAILURE"
+            );
+
+            openingError.response = {
+                status: 503,
+                data: "offline opening fixture"
+            };
+
+
+            await assert.rejects(
+                fetchOpening(),
+                /OFFLINE_OPENING_HTTP_FAILURE/
+            );
+
+            assertHealthyIdle();
+
+            // A subsequent verified operation must recover.
+            openingError = null;
+            openingReply = openingResponse({
+                balance: "0"
+            });
+
+            const recovered = await fetchOpening();
+
+            assert.deepEqual(recovered, {
+                guid: GUID,
+                openingBalance: "0",
+                openingBalanceType: ""
+            });
+
+            assertHealthyIdle();
+
+            // Verify all opening requests stayed inside
+            // independently verified company sessions.
+            let openingCount = 0;
+            let selectionCount = 0;
+            let companyCount = 0;
+
+            for (const xml of calls) {
+                if (isSelection(xml)) {
+                    selectionCount++;
+                } else if (isCompany(xml)) {
+                    companyCount++;
+                } else {
+                    openingCount++;
+                }
+            }
+
+            assert.equal(openingCount, openingRequests);
+            assert.equal(selectionCount, companyCount);
+            assert.equal(companyCount, 7);
+            assert.equal(maximumActiveHttp, 1);
 
             break;
         }

@@ -1,43 +1,79 @@
+
 "use strict";
 
-// Validate rupee amounts without rounding or losing decimal-string precision.
+const AMOUNT_SCALE = 1000000n;
+const MAX_AMOUNT_UNITS = BigInt(Number.MAX_SAFE_INTEGER);
+
+// Validate rupee amounts without rounding or losing
+// decimal-string precision.
 function validateTallyAmount(value) {
     if (value === null || value === undefined) {
         throw new Error("RECONCILE_LEDGER_AMOUNT_MISSING");
     }
 
-    const isNumber = typeof value === "number";
-
-    if (
-        (!isNumber && typeof value !== "string") ||
-        (isNumber && !Number.isFinite(value))
-    ) {
+    // Reconciliation amounts must be exact strings.
+    // Floating-point numbers cannot prove XML precision.
+    if (typeof value !== "string") {
         throw new Error("RECONCILE_LEDGER_AMOUNT_INVALID");
     }
 
-    const text = String(value).trim();
-
-    if (text.startsWith("-") || Object.is(value, -0)) {
-        throw new Error("RECONCILE_LEDGER_AMOUNT_INVALID");
-    }
+    const text = value.trim();
 
     const match =
-        /^\+?(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/.exec(text);
+        /^\+?(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/
+            .exec(text);
 
-    if (!match || (isNumber && value >= 2 ** 46)) {
+    if (!match) {
         throw new Error("RECONCILE_LEDGER_AMOUNT_INVALID");
     }
 
     const whole = match[1] || "0";
-    const fraction = (match[2] || match[3] || "").padEnd(2, "0");
+    const fraction =
+        (match[2] || match[3] || "").padEnd(6, "0");
 
-    const paise = BigInt(whole) * 100n + BigInt(fraction);
+    const units =
+        BigInt(whole) * AMOUNT_SCALE + BigInt(fraction);
 
-    if (paise > BigInt(Number.MAX_SAFE_INTEGER)) {
+    if (units > MAX_AMOUNT_UNITS) {
         throw new Error("RECONCILE_LEDGER_AMOUNT_INVALID");
     }
 
-    return isNumber ? value : text;
+    return `${units / AMOUNT_SCALE}.${String(
+        units % AMOUNT_SCALE
+    ).padStart(6, "0")}`;
+}
+
+// Preserve independently signed Tally XML AMOUNT.
+// Never derive its sign from debit or credit.
+function validateSignedTallyAmount(value) {
+    if (
+        typeof value !== "string" ||
+        value !== value.trim() ||
+        !/^-?(?:0|[1-9]\d*)\.\d{6}$/.test(value)
+    ) {
+        throw new Error(
+            "RECONCILE_LEDGER_SIGNED_AMOUNT_INVALID"
+        );
+    }
+
+    const negative = value.startsWith("-");
+    const unsigned = negative ? value.slice(1) : value;
+    const [whole, fraction] = unsigned.split(".");
+
+    const units =
+        BigInt(whole) * AMOUNT_SCALE + BigInt(fraction);
+
+    if (units > MAX_AMOUNT_UNITS) {
+        throw new Error(
+            "RECONCILE_LEDGER_SIGNED_AMOUNT_OUT_OF_RANGE"
+        );
+    }
+
+    if (units === 0n) {
+        return "0.000000";
+    }
+
+    return value;
 }
 
 function normalizeTallyVoucherEntries(
@@ -82,16 +118,48 @@ function normalizeTallyVoucherEntries(
                 throw new Error("RECONCILE_LEDGER_GUID_MISSING");
             }
 
-                       const debit = validateTallyAmount(ledger.debit);
-            const credit = validateTallyAmount(ledger.credit);
+            const amount =
+                validateSignedTallyAmount(ledger.amount);
+
+            const debit =
+                validateTallyAmount(ledger.debit);
+
+            const credit =
+                validateTallyAmount(ledger.credit);
+
+            if (
+                !ledger.raw ||
+                typeof ledger.raw !== "object" ||
+                Array.isArray(ledger.raw) ||
+                !Array.isArray(ledger.billAllocations) ||
+                !Array.isArray(ledger.costCentreAllocations)
+            ) {
+                throw new Error(
+                    "RECONCILE_LEDGER_STRUCTURAL_EVIDENCE_MISSING"
+                );
+            }
+
+            const requiresStructuralReview =
+                ledger.billAllocations.length > 0 ||
+                ledger.costCentreAllocations.length > 0 ||
+                Object.prototype.hasOwnProperty.call(
+                    ledger.raw,
+                    "BILLALLOCATIONS.LIST"
+                ) ||
+                Object.prototype.hasOwnProperty.call(
+                    ledger.raw,
+                    "CATEGORYALLOCATIONS.LIST"
+                );
 
             entries.push({
                 companyCode,
                 tallyOwner,
                 voucherGuid,
                 ledgerGuid,
+                amount,
                 debit,
-                credit
+                credit,
+                requiresStructuralReview
             });
         }
     }

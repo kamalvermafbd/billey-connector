@@ -1,6 +1,8 @@
 "use strict";
 
-const MAX_PAISE = BigInt(Number.MAX_SAFE_INTEGER);
+
+const SCALE = 1000000n;
+const MAX_UNITS = BigInt(Number.MAX_SAFE_INTEGER);
 
 function fail(code) {
     throw new Error(code);
@@ -33,31 +35,32 @@ function requireRawText(value, field) {
     return value.trim();
 }
 
-function decimalParts(text, signed) {
+function decimalParts(value, signed) {
     const pattern = signed
-        ? /^([+-]?)(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/
-        : /^(\+?)(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/;
+        ? /^([+-]?)(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/
+        : /^(\+?)(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/;
 
-    const match = pattern.exec(text);
+    const match = pattern.exec(value);
 
     if (!match) {
         fail("RECONCILE_RAW_AMOUNT_INVALID");
     }
 
     const whole = match[2] || "0";
-    const fraction = (match[3] || match[4] || "").padEnd(2, "0");
+    const fraction =
+        (match[3] || match[4] || "").padEnd(6, "0");
 
     const magnitude =
-        BigInt(whole) * 100n + BigInt(fraction);
+        BigInt(whole) * SCALE + BigInt(fraction);
 
-    if (magnitude > MAX_PAISE) {
+    if (magnitude > MAX_UNITS) {
         fail("RECONCILE_RAW_AMOUNT_OUT_OF_RANGE");
     }
 
     return { magnitude };
 }
 
-function parsedPaise(value) {
+function parsedUnits(value) {
     const isNumber = typeof value === "number";
 
     if (
@@ -67,22 +70,23 @@ function parsedPaise(value) {
         fail("RECONCILE_PARSED_AMOUNT_INVALID");
     }
 
-    const text = String(value).trim();
+    const normalized = String(value).trim();
 
     if (
-        text.startsWith("-") ||
+        normalized.startsWith("-") ||
         Object.is(value, -0) ||
         (isNumber && value >= 2 ** 46)
     ) {
         fail("RECONCILE_PARSED_AMOUNT_INVALID");
     }
 
-    return decimalParts(text, false).magnitude;
+    return decimalParts(normalized, false).magnitude;
 }
 
-function rupees(paise) {
-    return `${paise / 100n}.${String(paise % 100n).padStart(2, "0")}`;
+function rupees(units) {
+    return `${units / SCALE}.${String(units % SCALE).padStart(6, "0")}`;
 }
+
 
 function validateLedger(ledger) {
     if (
@@ -127,10 +131,16 @@ function validateLedger(ledger) {
         fail("RECONCILE_RAW_DIRECTION_INVALID");
     }
 
+  
     const { magnitude } = decimalParts(
         amountText,
         true
     );
+
+    const signedAmount =
+        amountText.startsWith("-") && magnitude !== 0n
+            ? `-${rupees(magnitude)}`
+            : rupees(magnitude);
 
     const expectedDebit =
         direction === "Yes" ? magnitude : 0n;
@@ -139,20 +149,23 @@ function validateLedger(ledger) {
         direction === "No" ? magnitude : 0n;
 
     if (
-        parsedPaise(ledger.debit) !== expectedDebit ||
-        parsedPaise(ledger.credit) !== expectedCredit
+        parsedUnits(ledger.debit) !== expectedDebit ||
+        parsedUnits(ledger.credit) !== expectedCredit
     ) {
         fail("RECONCILE_RAW_PARSED_AMOUNT_MISMATCH");
     }
 
-    // Preserve identity, raw evidence and occurrence order.
-    // Amounts remain exact decimal strings in rupees.
+    // Preserve identity, raw evidence, occurrence order
+    // and the independently signed Tally XML AMOUNT.
     return {
         ...ledger,
+        amount: signedAmount,
         debit: rupees(expectedDebit),
         credit: rupees(expectedCredit)
     };
 }
+
+
 
 function validateRawTallyVoucherLedgerAmounts(vouchers) {
     if (!Array.isArray(vouchers)) {

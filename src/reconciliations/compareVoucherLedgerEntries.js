@@ -1,7 +1,10 @@
 "use strict";
 
+
 // Inputs are rupee amounts; normalized amounts are integer paise.
-// Decimal strings must contain at most two fractional digits. Never round.
+// Accept up to six decimals only when exactly representable in paise.
+// Never round or discard a nonzero subpaise digit.
+
 function normalizeAmount(value) {
     const isNumber = typeof value === "number";
 
@@ -18,8 +21,9 @@ function normalizeAmount(value) {
         throw new Error("RECONCILE_NEGATIVE_DEBIT_CREDIT");
     }
 
-    const match =
-        /^\+?(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/.exec(text);
+const match =
+    /^\+?(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/.exec(text);
+
 
     if (!match) {
         throw new Error("RECONCILE_INVALID_AMOUNT");
@@ -29,10 +33,18 @@ function normalizeAmount(value) {
         throw new Error("RECONCILE_AMOUNT_OUT_OF_RANGE");
     }
 
-    const whole = match[1] || "0";
-    const fraction = (match[2] || match[3] || "").padEnd(2, "0");
 
-    const paise = BigInt(whole) * 100n + BigInt(fraction);
+const whole = match[1] || "0";
+const rawFraction = match[2] || match[3] || "";
+
+if (/[1-9]/.test(rawFraction.slice(2))) {
+    throw new Error("RECONCILE_SUBPAISE_AMOUNT_UNSUPPORTED");
+}
+
+const fraction = rawFraction.slice(0, 2).padEnd(2, "0");
+
+const paise = BigInt(whole) * 100n + BigInt(fraction);
+
 
     if (paise > BigInt(Number.MAX_SAFE_INTEGER)) {
         throw new Error("RECONCILE_AMOUNT_OUT_OF_RANGE");

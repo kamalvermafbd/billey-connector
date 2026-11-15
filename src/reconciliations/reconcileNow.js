@@ -14,10 +14,16 @@ const {
 
 
 const {
+    fetchReconciliationOccurrenceDiagnostic
+} = require("./fetchReconciliationOccurrenceDiagnostic");
+
+const {
     parseReconciliationVoucherXml,
     buildReconciliationLedgerLookups,
-    collectionRows
+    collectionRows,
+    verifyReconciliationVoucherOccurrences
 } = require("./parseReconciliationVoucherXml");
+
 
 const {
     sendToTally,
@@ -117,6 +123,64 @@ function validateLedgerOpeningBalance(ledger, expectedGuid) {
                 : "CR"
     };
 }
+
+function parseVerifiedLedgerOpeningBalanceResponse(
+    response,
+    ledgerGuid
+) {
+    if (
+        typeof response !== "string" ||
+        !response.trim()
+    ) {
+        throw new Error(
+            "RECONCILE_TALLY_RESPONSE_EMPTY"
+        );
+    }
+
+    if (
+        XMLValidator.validate(response) !== true ||
+        /<!\s*(?:DOCTYPE|ENTITY)\b/i.test(response)
+    ) {
+        throw new Error(
+            "RECONCILE_OPENING_XML_INVALID"
+        );
+    }
+
+    const parsed = reconcileXmlParser.parse(response);
+
+    const collection =
+        parsed?.ENVELOPE?.BODY?.DATA?.COLLECTION;
+
+    if (
+        !collection ||
+        typeof collection !== "object" ||
+        Array.isArray(collection)
+    ) {
+        throw new Error(
+            "RECONCILE_LEDGER_COLLECTION_MISSING"
+        );
+    }
+
+    const rawLedgers = collection.LEDGER;
+
+    const ledgers = Array.isArray(rawLedgers)
+        ? rawLedgers
+        : rawLedgers
+            ? [rawLedgers]
+            : [];
+
+    if (ledgers.length !== 1) {
+        throw new Error(
+            "RECONCILE_LEDGER_RESULT_COUNT_INVALID"
+        );
+    }
+
+    return validateLedgerOpeningBalance(
+        ledgers[0],
+        ledgerGuid
+    );
+}
+
 async function fetchLedgerOpeningBalance({
     company,
     ledgerGuid,
@@ -149,35 +213,12 @@ async function fetchLedgerOpeningBalance({
 
     const response = await sendToTally(xml);
 
-    if (typeof response !== "string" || !response.trim()) {
-        throw new Error("RECONCILE_TALLY_RESPONSE_EMPTY");
-    }
+    return parseVerifiedLedgerOpeningBalanceResponse(
+    response,
+    guid
+);
 
-    const parsed = reconcileXmlParser.parse(response);
-
-    const collection =
-        parsed?.ENVELOPE?.BODY?.DATA?.COLLECTION;
-
-    if (!collection || typeof collection !== "object") {
-        throw new Error("RECONCILE_LEDGER_COLLECTION_MISSING");
-    }
-
-    const rawLedgers = collection.LEDGER;
-
-    const ledgers = Array.isArray(rawLedgers)
-        ? rawLedgers
-        : rawLedgers
-            ? [rawLedgers]
-            : [];
-
-    if (ledgers.length !== 1) {
-        throw new Error("RECONCILE_LEDGER_RESULT_COUNT_INVALID");
-    }
-
-    return validateLedgerOpeningBalance(
-        ledgers[0],
-        guid
-    );
+  
 }
 
 
@@ -217,18 +258,23 @@ function validateReconciliationVoucherRequest({
             );
         }
 
-        return value.toLowerCase();
+        return value;
     });
 
+    const guidCaseIndex = new Map();
 
-    if (
-        new Set(
-            normalizedGuids.map(guid => guid.toLowerCase())
-        ).size !== normalizedGuids.length
-    ) {
-        throw new Error(
-            "RECONCILE_VOUCHER_GUID_DUPLICATE"
-        );
+    for (const value of normalizedGuids) {
+        const folded = value.toLowerCase();
+
+        if (guidCaseIndex.has(folded)) {
+            throw new Error(
+                guidCaseIndex.get(folded) === value
+                    ? "RECONCILE_VOUCHER_GUID_DUPLICATE"
+                    : "RECONCILE_VOUCHER_GUID_CASE_COLLISION"
+            );
+        }
+
+        guidCaseIndex.set(folded, value);
     }
 
     
@@ -974,6 +1020,54 @@ async function runWithVerifiedReconciliationCompany({
                 });
             },
 
+buildOpeningRequest({ ledgerGuid }) {
+    control.assertActive();
+
+    const guid = String(ledgerGuid || "").trim();
+
+    if (!guid) {
+        throw new Error(
+            "RECONCILE_LEDGER_GUID_REQUIRED"
+        );
+    }
+
+    return buildLedgerBulkGuidRequest({
+        company: verifiedCompany.companyName,
+        ledgerGuids: [guid],
+        booksBeginningFrom:
+            verifiedCompany.booksBeginningFrom
+    });
+},
+
+
+async fetchOpeningBalance({ ledgerGuid }) {
+    control.assertActive();
+
+    const guid = String(ledgerGuid || "").trim();
+
+    const xml = verifiedContext.buildOpeningRequest({
+        ledgerGuid: guid
+    });
+
+    control.assertActive();
+
+    const response = await sendToTally(xml);
+
+    control.assertActive();
+
+    
+const openingBalance =
+    parseVerifiedLedgerOpeningBalanceResponse(
+        response,
+        guid
+    );
+
+control.assertActive();
+
+return openingBalance;
+
+},
+
 buildVoucherRequest({ voucherGuids, fromDate, toDate }) {
     control.assertActive();
 
@@ -996,7 +1090,213 @@ buildVoucherRequest({ voucherGuids, fromDate, toDate }) {
         fromDate,
         toDate
     });
+
+},
+
+// Manual Reconciliation diagnostic only.
+// Never establishes settlement completeness.
+// Explicit invocation required.
+async fetchOccurrenceDiagnostic({
+    voucherGuids,
+    fromDate,
+    toDate
+}) {
+    control.assertActive();
+
+    const request = verifiedContext.buildVoucherRequest({
+        voucherGuids,
+        fromDate,
+        toDate
+    });
+
+    control.assertActive();
+
+    const diagnostic =
+        await fetchReconciliationOccurrenceDiagnostic({
+            control,
+            verifiedCompany,
+            request,
+            sendToTally
+        });
+
+    control.assertActive();
+
+    return diagnostic;
+},
+
+async fetchVouchers({
+    voucherGuids,
+    fromDate,
+    toDate,
+    companyCode,
+    tallyOwner
+}) {
+    control.assertActive();
+
+    if (
+        typeof companyCode !== "string" ||
+        !companyCode.trim() ||
+        !["USER", "CA"].includes(tallyOwner)
+    ) {
+        throw new Error(
+            "RECONCILE_VOUCHER_CONTEXT_INVALID"
+        );
+    }
+
+   // Manual Reconciliation only.
+//
+// Independent occurrence semantics are not yet verified.
+// Explicit local opt-in is required for diagnostic requests.
+//
+// This does NOT authorize voucher completeness or settlement.
+const ENABLE_OCCURRENCE_PROBE =
+    process.env.BILLEY_RECONCILE_OCCURRENCE_PROBE === "true";
+
+    // Fresh ledger identities from verified company.
+    const ledgerRequest =
+        verifiedContext.buildLedgerRequest();
+
+    control.assertActive();
+
+    const ledgerResponseXml =
+        await sendToTally(ledgerRequest);
+
+    control.assertActive();
+
+    const lookups =
+        parseFreshReconciliationLedgerLookups(
+            ledgerResponseXml
+        );
+
+    control.assertActive();
+
+    const request =
+        verifiedContext.buildVoucherRequest({
+            voucherGuids,
+            fromDate,
+            toDate
+        });
+
+    control.assertActive();
+
+    let beforeXml = null;
+    let afterXml = null;
+
+    if (ENABLE_OCCURRENCE_PROBE) {
+        const before =
+            await fetchReconciliationOccurrenceDiagnostic({
+                control,
+                verifiedCompany,
+                request,
+                sendToTally
+            });
+
+        control.assertActive();
+
+        if (
+            before?.status !== "UNVERIFIED_RAW_RESPONSE" ||
+            typeof before.responseXml !== "string"
+        ) {
+            throw new Error(
+                "RECONCILE_OCCURRENCE_BEFORE_INVALID"
+            );
+        }
+
+        beforeXml = before.responseXml;
+    }
+
+    control.assertActive();
+
+    const responseXml =
+        await sendToTally(request.xml);
+
+    control.assertActive();
+
+    const result =
+        parseValidatedReconciliationVouchers({
+            responseXml,
+            request,
+            lookups,
+            companyCode,
+            tallyOwner
+        });
+
+    control.assertActive();
+
+    let occurrenceVerification = null;
+
+    if (ENABLE_OCCURRENCE_PROBE) {
+        const after =
+            await fetchReconciliationOccurrenceDiagnostic({
+                control,
+                verifiedCompany,
+                request,
+                sendToTally
+            });
+
+        control.assertActive();
+
+        if (
+            after?.status !== "UNVERIFIED_RAW_RESPONSE" ||
+            typeof after.responseXml !== "string"
+        ) {
+            throw new Error(
+                "RECONCILE_OCCURRENCE_AFTER_INVALID"
+            );
+        }
+
+        afterXml = after.responseXml;
+
+        occurrenceVerification =
+            verifyReconciliationVoucherOccurrences({
+                beforeXml,
+                afterXml,
+                request,
+                snapshot: result
+            });
+
+        control.assertActive();
+
+        if (
+            occurrenceVerification?.settlementEligible !== false ||
+            occurrenceVerification?.runtimeSemanticsVerified !== false ||
+            occurrenceVerification?.atomicSnapshotVerified !== false
+        ) {
+            throw new Error(
+                "RECONCILE_OCCURRENCE_UNSAFE_VERDICT"
+            );
+        }
+    }
+
+    control.assertActive();
+
+   
+    // Preserve the existing result and explicitly report
+    // that independent occurrence verification is not proven.
+    // Never promote vouchers to complete coverage.
+
+    return {
+        ...result,
+        snapshotCoverage: {
+            ...result.snapshotCoverage,
+            tallyCompleteVoucherGuids: [],
+            tallyUnverifiedMissingGuids: [
+                ...result.missingGuids
+            ]
+        },
+        occurrenceVerification:
+            occurrenceVerification || {
+                schemaVersion: 1,
+                status: "NOT_RUN",
+                runtimeSemanticsVerified: false,
+                atomicSnapshotVerified: false,
+                settlementEligible: false
+            },
+        settlementEligible: false
+    };
+
 }
+
 
         });
 

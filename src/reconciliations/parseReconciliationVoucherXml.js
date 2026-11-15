@@ -3,7 +3,9 @@
 const { XMLParser, XMLValidator } = require("fast-xml-parser");
 const { parseVoucherHeader } = require("../tally/voucherHeader");
 const { parseVoucherLedgers } = require("../tally/voucherLedgers");
-
+const {
+    buildReconciliationVoucherOccurrenceRequest
+} = require("./reconciliationVoucherOccurrenceRequest");
 const {
     validateRawTallyVoucherLedgerAmounts
 } = require("./validateRawTallyVoucherLedgerAmounts");
@@ -73,8 +75,9 @@ function exactReconciliationDebitCredit(rawRow) {
         fail("RECONCILE_RAW_DIRECTION_INVALID");
     }
 
+    
     const match =
-        /^([+-]?)(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/
+        /^([+-]?)(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/
             .exec(amountText);
 
     if (!match) {
@@ -84,22 +87,23 @@ function exactReconciliationDebitCredit(rawRow) {
     const whole = match[2] || "0";
 
     const fraction =
-        (match[3] || match[4] || "").padEnd(2, "0");
+        (match[3] || match[4] || "").padEnd(6, "0");
 
-    const paise =
-        BigInt(whole) * 100n + BigInt(fraction);
+    const units =
+        BigInt(whole) * 1000000n + BigInt(fraction);
 
-    if (paise > BigInt(Number.MAX_SAFE_INTEGER)) {
+    if (units > BigInt(Number.MAX_SAFE_INTEGER)) {
         fail("RECONCILE_RAW_AMOUNT_OUT_OF_RANGE");
     }
 
     const magnitude =
-        `${paise / 100n}.${String(paise % 100n).padStart(2, "0")}`;
+        `${units / 1000000n}.${String(units % 1000000n).padStart(6, "0")}`;
 
     return direction === "Yes"
-        ? { debit: magnitude, credit: "0.00" }
-        : { debit: "0.00", credit: magnitude };
+        ? { debit: magnitude, credit: "0.000000" }
+        : { debit: "0.000000", credit: magnitude };
 }
+
 function guid(value) {
     const result = text(value);
 
@@ -107,7 +111,34 @@ function guid(value) {
         fail("RECONCILE_GUID_INVALID");
     }
 
-    return result.toLowerCase();
+    return result;
+}
+
+function rememberGuid(index, value, duplicateCode, collisionCode) {
+    const folded = value.toLowerCase();
+
+    if (index.has(folded)) {
+        fail(
+            index.get(folded) === value
+                ? duplicateCode
+                : collisionCode
+        );
+    }
+
+    index.set(folded, value);
+}
+
+function requireExactGuid(actual, expected, mismatchCode, conflictCode) {
+    const actualGuid = guid(actual);
+    const expectedGuid = guid(expected);
+
+    if (actualGuid !== expectedGuid) {
+        fail(
+            actualGuid.toLowerCase() === expectedGuid.toLowerCase()
+                ? conflictCode
+                : mismatchCode
+        );
+    }
 }
 
 function rejectErrors(value) {
@@ -201,18 +232,23 @@ function buildReconciliationLedgerLookups(ledgers) {
     }
 
     const ledgerLookup = new Map();
-    const seenGuids = new Set();
+    const ledgerCaseIndex = new Map();
 
     for (const ledger of ledgers) {
         const name = text(ledger.NAME);
         const ledgerGuid = guid(ledger.GUID);
         const key = name.toUpperCase();
 
-        if (ledgerLookup.has(key) || seenGuids.has(ledgerGuid)) {
+        if (ledgerLookup.has(key)) {
             fail("RECONCILE_LEDGER_LOOKUP_AMBIGUOUS");
         }
 
-        seenGuids.add(ledgerGuid);
+        rememberGuid(
+            ledgerCaseIndex,
+            ledgerGuid,
+            "RECONCILE_LEDGER_GUID_DUPLICATE",
+            "RECONCILE_LEDGER_GUID_CASE_COLLISION"
+        );
 
         ledgerLookup.set(key, {
             name,
@@ -244,24 +280,38 @@ function parseReconciliationVoucherXml({
     }
 
     const requested = requestedGuids.map(guid);
-    const expected = new Set(requested);
+    const requestedCaseIndex = new Map();
 
-    if (expected.size !== requested.length) {
-        fail("RECONCILE_REQUEST_GUID_DUPLICATE");
+    for (const value of requested) {
+        rememberGuid(
+            requestedCaseIndex,
+            value,
+            "RECONCILE_REQUEST_GUID_DUPLICATE",
+            "RECONCILE_REQUEST_GUID_CASE_COLLISION"
+        );
     }
 
+    const expected = new Set(requested);
     const rawVouchers = collectionRows(responseXml, "VOUCHER");
     const seen = new Set();
+    const responseCaseIndex = new Map();
 
     const vouchers = rawVouchers.map(rawVoucher => {
         const voucherGuid = guid(rawVoucher.GUID);
 
-        if (!expected.has(voucherGuid)) {
-            fail("RECONCILE_UNEXPECTED_VOUCHER_GUID");
-        }
+        rememberGuid(
+            responseCaseIndex,
+            voucherGuid,
+            "RECONCILE_RESPONSE_GUID_DUPLICATE",
+            "RECONCILE_RESPONSE_GUID_CASE_COLLISION"
+        );
 
-        if (seen.has(voucherGuid)) {
-            fail("RECONCILE_RESPONSE_GUID_DUPLICATE");
+        if (!expected.has(voucherGuid)) {
+            if (requestedCaseIndex.has(voucherGuid.toLowerCase())) {
+                fail("RECONCILE_RESPONSE_GUID_CASE_CONFLICT");
+            }
+
+            fail("RECONCILE_UNEXPECTED_VOUCHER_GUID");
         }
 
         seen.add(voucherGuid);
@@ -320,20 +370,30 @@ function parseReconciliationVoucherXml({
 
             if (
                 ledger.raw !== rawRow ||
-                ledger.ledgerName !== expectedLedger.name ||
-                guid(ledger.ledgerGuid) !== guid(expectedLedger.guid)
+                ledger.ledgerName !== expectedLedger.name
             ) {
                 fail("RECONCILE_LEDGER_OCCURRENCE_IDENTITY_MISMATCH");
             }
+
+            requireExactGuid(
+                ledger.ledgerGuid,
+                expectedLedger.guid,
+                "RECONCILE_LEDGER_OCCURRENCE_IDENTITY_MISMATCH",
+                "RECONCILE_LEDGER_OCCURRENCE_GUID_CASE_CONFLICT"
+            );
 
             if (
                 Object.prototype.hasOwnProperty.call(
                     rawRow,
                     "LEDGERGUID"
-                ) &&
-                guid(rawRow.LEDGERGUID) !== guid(expectedLedger.guid)
+                )
             ) {
-                fail("RECONCILE_SOURCE_LEDGER_GUID_MISMATCH");
+                requireExactGuid(
+                    rawRow.LEDGERGUID,
+                    expectedLedger.guid,
+                    "RECONCILE_SOURCE_LEDGER_GUID_MISMATCH",
+                    "RECONCILE_SOURCE_LEDGER_GUID_CASE_CONFLICT"
+                );
             }
 
                       if (
@@ -352,21 +412,26 @@ function parseReconciliationVoucherXml({
             };
         });
 
-            return {
+          return {
             header: {
                 ...parseVoucherHeader(rawVoucher),
                 guid: voucherGuid
             },
+            ledgerOccurrenceSource: hasAll
+                ? "ALLLEDGERENTRIES.LIST"
+                : "LEDGERENTRIES.LIST",
             ledgers: exactLedgers
         };
     });
 
-    if (
-        seen.size !== expected.size ||
-        requested.some(value => !seen.has(value))
-    ) {
-        fail("RECONCILE_MISSING_VOUCHER_GUID");
-    }
+    
+    const presentGuids = requested.filter(
+        value => seen.has(value)
+    );
+
+    const missingGuids = requested.filter(
+        value => !seen.has(value)
+    );
 
     const validatedVouchers =
         validateRawTallyVoucherLedgerAmounts(vouchers);
@@ -376,15 +441,306 @@ function parseReconciliationVoucherXml({
         { companyCode, tallyOwner }
     );
 
+    // Classification only. A missing GUID is NOT
+    // verified absent without independent Tally evidence.
     return {
         vouchers: validatedVouchers,
-        entries
+        entries,
+        presentGuids,
+        missingGuids,
+        snapshotCoverage: {
+            // Presence does not prove complete ledger occurrence coverage.
+            tallyCompleteVoucherGuids: [],
+            tallyUnverifiedMissingGuids: missingGuids
+        }
     };
 }
+
+function verifyReconciliationVoucherOccurrences({
+    beforeXml,
+    afterXml,
+    request,
+    snapshot
+}) {
+    function occurrenceFail(reason) {
+        fail(`RECONCILE_OCCURRENCE_${reason}`);
+    }
+
+    if (!request || !record(snapshot)) {
+        occurrenceFail("CONTEXT_INVALID");
+    }
+
+    // Reuse strict request validation without sending to Tally.
+    buildReconciliationVoucherOccurrenceRequest({
+        company: request.company,
+        voucherGuids: request.voucherGuids,
+        fromDate: request.fromDate,
+        toDate: request.toDate
+    });
+
+    const requested = [...request.voucherGuids];
+    const expected = new Set(requested);
+
+    function exactMembership(values, reason) {
+        if (!Array.isArray(values)) {
+            occurrenceFail(reason);
+        }
+
+        const index = new Map();
+
+        for (const value of values) {
+            const actual = guid(value);
+
+            if (actual !== value) {
+                occurrenceFail(reason);
+            }
+
+            rememberGuid(
+                index,
+                actual,
+                "RECONCILE_OCCURRENCE_GUID_DUPLICATE",
+                "RECONCILE_OCCURRENCE_GUID_CASE_COLLISION"
+            );
+        }
+
+        if (
+            values.length !== requested.length ||
+            values.some(value => !expected.has(value))
+        ) {
+            occurrenceFail(reason);
+        }
+    }
+
+    function requiredScalar(value, reason) {
+        if (
+            typeof value !== "string" ||
+            !value ||
+            value !== value.trim()
+        ) {
+            occurrenceFail(reason);
+        }
+
+        return value;
+    }
+
+    function version(value) {
+        const result = requiredScalar(
+            value,
+            "VERSION_INVALID"
+        );
+
+        if (!/^(0|[1-9]\d*)$/.test(result)) {
+            occurrenceFail("VERSION_INVALID");
+        }
+
+        return result;
+    }
+
+    function voucherDate(value, voucherGuid) {
+        const result = requiredScalar(
+            value,
+            "DATE_INVALID"
+        );
+
+        buildReconciliationVoucherOccurrenceRequest({
+            company: request.company,
+            voucherGuids: [voucherGuid],
+            fromDate: result,
+            toDate: result
+        });
+
+        if (
+            result < request.fromDate ||
+            result > request.toDate
+        ) {
+            occurrenceFail("DATE_OUT_OF_SCOPE");
+        }
+
+        return result;
+    }
+
+    function count(value) {
+        if (
+            typeof value !== "string" ||
+            value.length > 16 ||
+            !/^(0|[1-9]\d*)$/.test(value) ||
+            BigInt(value) > BigInt(Number.MAX_SAFE_INTEGER)
+        ) {
+            occurrenceFail("COUNT_INVALID");
+        }
+
+        const result = Number(value);
+
+        // A present voucher with zero entries is not absent.
+        // Current parser requires nonempty ledger occurrences.
+        if (result === 0) {
+            occurrenceFail("ZERO_COUNT_UNSUPPORTED");
+        }
+
+        return result;
+    }
+
+    function independentRows(xml) {
+        if (
+            typeof xml !== "string" ||
+            xml.length > 8 * 1024 * 1024
+        ) {
+            occurrenceFail("RESPONSE_INVALID");
+        }
+
+        // Candidate Tally response shape.
+        const rows = collectionRows(xml, "VOUCHER");
+
+        exactMembership(
+            rows.map(row => row.GUID),
+            "RESPONSE_MEMBERSHIP_INVALID"
+        );
+
+        return new Map(rows.map(row => {
+            if (
+                !Object.prototype.hasOwnProperty.call(
+                    row,
+                    "BILLEYLEDGEROCCURRENCECOUNT"
+                )
+            ) {
+                occurrenceFail("COUNT_MISSING");
+            }
+
+            return [
+                row.GUID,
+                {
+                    masterId: version(row.MASTERID),
+                    alterId: version(row.ALTERID),
+                    date: voucherDate(row.DATE, row.GUID),
+                    count: count(
+                        row.BILLEYLEDGEROCCURRENCECOUNT
+                    )
+                }
+            ];
+        }));
+    }
+
+    if (
+        !Array.isArray(snapshot.vouchers) ||
+        !Array.isArray(snapshot.entries) ||
+        !Array.isArray(snapshot.missingGuids) ||
+        snapshot.missingGuids.length !== 0
+    ) {
+        occurrenceFail("SNAPSHOT_INCOMPLETE");
+    }
+
+    exactMembership(
+        snapshot.presentGuids,
+        "SNAPSHOT_MEMBERSHIP_INVALID"
+    );
+
+    exactMembership(
+        snapshot.vouchers.map(
+            voucher => voucher?.header?.guid
+        ),
+        "SNAPSHOT_MEMBERSHIP_INVALID"
+    );
+
+    const normalizedCounts = new Map();
+
+    for (const entry of snapshot.entries) {
+        if (
+            !record(entry) ||
+            !expected.has(entry.voucherGuid)
+        ) {
+            occurrenceFail("NORMALIZED_MEMBERSHIP_INVALID");
+        }
+
+        normalizedCounts.set(
+            entry.voucherGuid,
+            (normalizedCounts.get(entry.voucherGuid) || 0) + 1
+        );
+    }
+
+    const before = independentRows(beforeXml);
+    const after = independentRows(afterXml);
+
+    const vouchers = new Map(
+        snapshot.vouchers.map(voucher => [
+            voucher.header.guid,
+            voucher
+        ])
+    );
+
+    const counts = requested.map(voucherGuid => {
+        const voucher = vouchers.get(voucherGuid);
+
+        if (
+            voucher.ledgerOccurrenceSource !==
+                "ALLLEDGERENTRIES.LIST" ||
+            !Array.isArray(voucher.ledgers) ||
+            voucher.ledgers.length === 0
+        ) {
+            occurrenceFail("SEMANTICS_UNSUPPORTED");
+        }
+
+        const header = voucher.header;
+
+        const masterId = version(header.masterid);
+        const alterId = version(header.alterid);
+
+        const date = voucherDate(
+            header.voucherDate,
+            voucherGuid
+        );
+
+        const parsedCount = voucher.ledgers.length;
+
+        const normalizedCount =
+            normalizedCounts.get(voucherGuid) || 0;
+
+        for (const evidence of [
+            before.get(voucherGuid),
+            after.get(voucherGuid)
+        ]) {
+            if (
+                evidence.masterId !== masterId ||
+                evidence.alterId !== alterId ||
+                evidence.date !== date
+            ) {
+                occurrenceFail("VERSION_MISMATCH");
+            }
+
+            if (
+                evidence.count !== parsedCount ||
+                normalizedCount !== parsedCount
+            ) {
+                occurrenceFail("COUNT_MISMATCH");
+            }
+        }
+
+        return {
+            voucherGuid,
+            parsedCount,
+            normalizedCount,
+            independentBeforeCount:
+                before.get(voucherGuid).count,
+            independentAfterCount:
+                after.get(voucherGuid).count
+        };
+    });
+
+    return {
+        schemaVersion: 1,
+        status: "COUNT_AGREEMENT_UNVERIFIED",
+        semanticProfile: "CANDIDATE_ALLLEDGERENTRIES_V1",
+        counts,
+        runtimeSemanticsVerified: false,
+        atomicSnapshotVerified: false,
+        settlementEligible: false
+    };
+}
+
 
 module.exports = {
     parseReconciliationEnvelope,
     collectionRows,
     buildReconciliationLedgerLookups,
-    parseReconciliationVoucherXml
+    parseReconciliationVoucherXml,
+    verifyReconciliationVoucherOccurrences
 };
