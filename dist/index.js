@@ -32589,10 +32589,29 @@ var require_tallyRequestQueue = __commonJS({
     "use strict";
     var { AsyncLocalStorage } = require("async_hooks");
     var operationContext = new AsyncLocalStorage();
+    var reconciliationContext = new AsyncLocalStorage();
     var tail = Promise.resolve();
     var pendingOperations = 0;
     var runningOperations = 0;
     var operationGeneration = 0;
+    var tallyTransportUncertainty = null;
+    function getTallyTransportUncertainty() {
+      return tallyTransportUncertainty;
+    }
+    function markTallyTransportUncertain(reason) {
+      if (tallyTransportUncertainty !== null) {
+        return tallyTransportUncertainty;
+      }
+      tallyTransportUncertainty = Object.freeze({
+        reason: String(
+          reason || "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+        ),
+        detectedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      operationGeneration++;
+      notifyTallyQueueStatusChanged();
+      return tallyTransportUncertainty;
+    }
     var { randomUUID } = require("crypto");
     var connectorEpoch = randomUUID();
     var tallyExecutionContext = new AsyncLocalStorage();
@@ -32771,7 +32790,7 @@ var require_tallyRequestQueue = __commonJS({
       return {
         pendingOperations,
         runningOperations,
-        idle: pendingOperations === 0 && runningOperations === 0,
+        idle: pendingOperations === 0 && runningOperations === 0 && tallyTransportUncertainty === null,
         operationGeneration
       };
     }
@@ -32806,6 +32825,90 @@ var require_tallyRequestQueue = __commonJS({
         ...status,
         verifiedIdle: status.idle && status.operationGeneration === observedGeneration
       };
+    }
+    function rememberReconciliationFailure(state, error) {
+      if (!state.failed) {
+        state.failed = true;
+        state.error = error;
+      }
+      state.revoked = true;
+    }
+    function rejectReconciliation(state, code) {
+      const error = new Error(code);
+      if (state) {
+        rememberReconciliationFailure(state, error);
+      }
+      return Promise.reject(error);
+    }
+    function runReconciliationTallyOperation(callback) {
+      const inherited = reconciliationContext.getStore();
+      if (inherited !== void 0 || operationContext.getStore() !== void 0 || tallyExecutionContext.getStore() !== void 0) {
+        return rejectReconciliation(
+          inherited,
+          "RECONCILE_TOP_LEVEL_REQUIRED"
+        );
+      }
+      if (typeof callback !== "function") {
+        return Promise.reject(
+          new TypeError("Reconciliation callback must be a function")
+        );
+      }
+      return enqueue(() => {
+        const context = {
+          exclusive: true,
+          active: true,
+          requestTail: Promise.resolve()
+        };
+        const state = {
+          context,
+          phase: "ACTIVE",
+          pending: false,
+          revoked: false,
+          failed: false,
+          error: void 0,
+          drain: Promise.resolve()
+        };
+        const control = Object.freeze({
+          assertActive() {
+            if (state.phase !== "ACTIVE" || state.revoked || !context.active) {
+              throw new Error("RECONCILE_OWNER_REVOKED");
+            }
+          },
+          revoke(reason) {
+            if (state.phase === "CLOSED") {
+              return;
+            }
+            rememberReconciliationFailure(
+              state,
+              reason instanceof Error ? reason : new Error("RECONCILE_OWNER_REVOKED")
+            );
+          }
+        });
+        return operationContext.run(
+          context,
+          () => reconciliationContext.run(state, async () => {
+            let value;
+            try {
+              value = await callback(control);
+            } catch (error) {
+              rememberReconciliationFailure(state, error);
+            }
+            state.phase = "DRAINING";
+            try {
+              await state.drain;
+              await context.requestTail;
+            } finally {
+              context.active = false;
+              state.revoked = true;
+              state.phase = "CLOSED";
+            }
+            if (state.failed) {
+              throw state.error;
+            }
+            return value;
+          })
+        );
+      });
     }
     function enqueue(operation) {
       pendingOperations++;
@@ -32849,6 +32952,66 @@ var require_tallyRequestQueue = __commonJS({
       return task;
     }
     function withTallyRequestQueue(operation) {
+      const state = reconciliationContext.getStore();
+      if (state === void 0) {
+        return scheduleTallyRequest(operation);
+      }
+      if (typeof operation !== "function") {
+        return rejectReconciliation(
+          state,
+          "RECONCILE_REQUEST_CALLBACK_INVALID"
+        );
+      }
+      if (state.phase !== "ACTIVE" || state.revoked || !state.context.active) {
+        return rejectReconciliation(
+          state,
+          "RECONCILE_OWNER_REVOKED"
+        );
+      }
+      if (operationContext.getStore() !== state.context) {
+        return rejectReconciliation(
+          state,
+          "RECONCILE_REQUEST_CONTEXT_INVALID"
+        );
+      }
+      if (state.pending) {
+        return rejectReconciliation(
+          state,
+          "RECONCILE_CONCURRENT_REQUEST_FORBIDDEN"
+        );
+      }
+      state.pending = true;
+      let task;
+      try {
+        task = scheduleTallyRequest(async () => {
+          if (state.revoked || !state.context.active) {
+            throw new Error("RECONCILE_OWNER_REVOKED");
+          }
+          return operation();
+        });
+      } catch (error) {
+        state.pending = false;
+        rememberReconciliationFailure(state, error);
+        return Promise.reject(error);
+      }
+      const result = task.then(
+        (value) => {
+          state.pending = false;
+          return value;
+        },
+        (error) => {
+          state.pending = false;
+          rememberReconciliationFailure(state, error);
+          throw error;
+        }
+      );
+      state.drain = result.then(
+        () => void 0,
+        () => void 0
+      );
+      return result;
+    }
+    function scheduleTallyRequest(operation) {
       if (typeof operation !== "function") {
         throw new TypeError("operation must be a function");
       }
@@ -32903,6 +33066,13 @@ var require_tallyRequestQueue = __commonJS({
         throw new TypeError("operation must be a function");
       }
       const context = operationContext.getStore();
+      const reconciliation = reconciliationContext.getStore();
+      if (reconciliation !== void 0) {
+        return rejectReconciliation(
+          reconciliation,
+          "RECONCILE_LEGACY_OPERATION_FORBIDDEN"
+        );
+      }
       if (context?.exclusive === true && context.active === true) {
         return operationContext.run(
           context,
@@ -32954,11 +33124,14 @@ var require_tallyRequestQueue = __commonJS({
       });
     }
     module2.exports = {
+      runReconciliationTallyOperation,
       withTallyRequestQueue,
       withTallyOperationQueue,
       getTallyQueueStatus,
       setTallyQueueStatusListener,
       waitForTallyQueueIdle,
+      getTallyTransportUncertainty,
+      markTallyTransportUncertain,
       // Execution identity and admission
       admitTallyRequest,
       runWithTallyExecution,
@@ -32979,6 +33152,3104 @@ var require_tallyOperationQueue = __commonJS({
     } = require_tallyRequestQueue();
     module2.exports = {
       withTallyOperationQueue
+    };
+  }
+});
+
+// src/tally/ledgerBulkGuidRequest.js
+var require_ledgerBulkGuidRequest = __commonJS({
+  "src/tally/ledgerBulkGuidRequest.js"(exports2, module2) {
+    function buildLedgerBulkGuidRequest({
+      company,
+      ledgerGuids,
+      booksBeginningFrom
+    }) {
+      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
+        throw new Error(
+          "LEDGER_BULK_GUID_XML_DATE_INVALID"
+        );
+      }
+      console.log("[LEDGER_BULK_GUID_XML] DATE VERIFIED", {
+        company,
+        SVFROMDATE: booksBeginningFrom,
+        SVTODATE: booksBeginningFrom,
+        ledgerCount: ledgerGuids.length
+      });
+      const filter = ledgerGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
+      return `
+<ENVELOPE>
+
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+        <ID>BilleyLedgerCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+          <STATICVARIABLES>
+
+    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+
+    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+
+    <SVFROMDATE TYPE="Date">
+        ${booksBeginningFrom}
+    </SVFROMDATE>
+
+    <SVTODATE TYPE="Date">
+        ${booksBeginningFrom}
+    </SVTODATE>
+
+</STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyLedgerCollection">
+
+                    <TYPE>Ledger</TYPE>
+
+                    <FILTER>LedgerGuidFilter</FILTER>
+
+                <COMPUTE>LEDGERGUID : $GUID</COMPUTE>
+                <COMPUTE>LEDGERMASTERID : $MASTERID</COMPUTE>
+                <COMPUTE>LEDGERALTERID : $ALTERID</COMPUTE>
+
+                         <FETCH>
+
+                        NAME,
+                        GUID,
+                        MASTERID,
+                        ALTERID,
+
+                        PARENT,
+                        RESERVEDNAME,
+
+                        GSTAPPLICABLE,
+                        GSTREGISTRATIONTYPE,
+                        GSTIN,
+
+                        MAILINGNAME,
+                        ADDRESS,
+                        STATENAME,
+                        COUNTRY,
+                        PINCODE,
+
+                        LEDGERMOBILE,
+                        EMAIL,
+                        CONTACTPERSON,
+
+                        OPENINGBALANCE,
+                        OPENINGBALANCEON,
+
+                        ISBILLWISEON,
+                        CREDITLIMIT,
+                        BILLCREDITPERIOD,
+                        BILLALLOCATIONS.LIST,
+                        BILLALLOCATIONS.LIST.NAME,
+                        BILLALLOCATIONS.LIST.BILLDATE,
+                        BILLALLOCATIONS.LIST.BILLCREDITPERIOD,
+                        BILLALLOCATIONS.LIST.OPENINGBALANCE,
+                        ISREVENUE,
+                        ISDEEMEDPOSITIVE,
+                        LEDGSTREGDETAILS.LIST,
+                        LEDMAILINGDETAILS.LIST,
+                        CONTACTDETAILS.LIST,
+                        TYPEOFDUTYTAX,
+                        TAXTYPE,
+                        RATEOFTAXCALCULATION,
+                        GSTRATE,
+                        GSTDUTYHEAD,
+                        PARENTGUID,
+                        PARENTMASTERID,
+                        PARENTALTERID
+
+                    </FETCH>
+
+                    </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="LedgerGuidFilter">
+                        ${filter}
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildLedgerBulkGuidRequest
+    };
+  }
+});
+
+// src/tally/ledgerRequest.js
+var require_ledgerRequest = __commonJS({
+  "src/tally/ledgerRequest.js"(exports2, module2) {
+    function buildLedgerRequest({
+      company,
+      booksBeginningFrom,
+      lastLedgerAlterId = null,
+      masterIds = []
+    }) {
+      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
+        throw new Error(
+          "LEDGER_XML_BOOKS_BEGINNING_DATE_INVALID"
+        );
+      }
+      console.log("[LEDGER_XML] DATE VERIFIED", {
+        company,
+        SVFROMDATE: booksBeginningFrom,
+        SVTODATE: booksBeginningFrom,
+        masterIdsCount: masterIds.length,
+        lastLedgerAlterId
+      });
+      const xml = `
+<ENVELOPE>
+
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Collection</TYPE>
+        <ID>Billey Ledger Collection</ID>
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+                <SVCURRENTCOMPANY>
+                    ${company}
+                </SVCURRENTCOMPANY>
+
+                <SVEXPORTFORMAT>
+                    $$SysName:XML
+                </SVEXPORTFORMAT>
+
+                <SVFROMDATE TYPE="Date">
+                    ${booksBeginningFrom}
+                </SVFROMDATE>
+                
+
+                <SVTODATE TYPE="Date">
+                    ${booksBeginningFrom}
+                </SVTODATE>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="Billey Ledger Collection">
+
+                        <TYPE>Ledger</TYPE>
+
+                        ${masterIds.length ? `<FILTER>LedgerMasterIdFilter</FILTER>` : lastLedgerAlterId !== null ? `<FILTER>LedgerAlterIdFilter</FILTER>` : ""}
+
+                        <FETCH>
+
+                            NAME,
+                            GUID,
+                            MASTERID,
+                            ALTERID,
+
+                            PARENT,
+                            RESERVEDNAME,
+
+                            GSTAPPLICABLE,
+                            GSTREGISTRATIONTYPE,
+                            GSTIN,
+
+                            MAILINGNAME,
+                            ADDRESS,
+                            STATENAME,
+                            COUNTRY,
+                            PINCODE,
+
+                            LEDGERMOBILE,
+                            EMAIL,
+                            CONTACTPERSON,
+
+                            OPENINGBALANCE,
+                            OPENINGBALANCEON,
+                            ISBILLWISEON,
+
+                            CREDITLIMIT,
+                            BILLCREDITPERIOD,
+
+                            BILLALLOCATIONS.LIST,
+                            BILLALLOCATIONS.LIST.NAME,
+                            BILLALLOCATIONS.LIST.BILLDATE,
+                            BILLALLOCATIONS.LIST.BILLCREDITPERIOD,
+                            BILLALLOCATIONS.LIST.OPENINGBALANCE,
+
+                            ISREVENUE,
+                            ISDEEMEDPOSITIVE,
+
+                            LEDGSTREGDETAILS.LIST,
+                            LEDMAILINGDETAILS.LIST,
+                            CONTACTDETAILS.LIST,
+
+                            TYPEOFDUTYTAX,
+                            TAXTYPE,
+                            GSTDUTYHEAD,
+                            RATEOFTAXCALCULATION,
+                            GSTRATE,
+
+                            PARENTGUID,
+                            PARENTMASTERID,
+                            PARENTALTERID
+
+                        </FETCH>
+
+                       
+
+                    </COLLECTION>
+
+                    ${masterIds.length ? `
+                        <SYSTEM TYPE="Formulae" NAME="LedgerMasterIdFilter">
+                            ${masterIds.map((id) => `$MASTERID = ${id}`).join(" OR ")}
+                        </SYSTEM>
+                        ` : lastLedgerAlterId !== null ? `
+                            <SYSTEM TYPE="Formulae" NAME="LedgerAlterIdFilter">
+                                $ALTERID > ${lastLedgerAlterId}
+                            </SYSTEM>
+                            ` : ""}
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+      console.log(
+        "================================"
+      );
+      console.log(
+        "booksBeginningFrom:",
+        booksBeginningFrom
+      );
+      console.log(
+        "================================"
+      );
+      return xml;
+    }
+    module2.exports = {
+      buildLedgerRequest
+    };
+  }
+});
+
+// src/tally/voucherBulkGuidRequest.js
+var require_voucherBulkGuidRequest = __commonJS({
+  "src/tally/voucherBulkGuidRequest.js"(exports2, module2) {
+    function buildVoucherBulkGuidRequest({
+      company,
+      voucherGuids,
+      fromDate = "20160401",
+      toDate = "20991231"
+    }) {
+      const filter = voucherGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
+      return `
+<ENVELOPE>
+ 
+    <HEADER>
+
+        <VERSION>1</VERSION>
+
+        <TALLYREQUEST>Export</TALLYREQUEST>
+
+        <TYPE>Collection</TYPE>
+
+         
+
+        <ID>BilleyVoucherCollection</ID>
+
+    </HEADER>
+
+    <BODY>
+
+        <DESC>
+
+            <STATICVARIABLES>
+
+          <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
+<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+<SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+<SVTODATE TYPE="Date">${toDate}</SVTODATE>
+
+            </STATICVARIABLES>
+
+            <TDL>
+
+                <TDLMESSAGE>
+
+                    <COLLECTION NAME="BilleyVoucherCollection">
+
+                      <FILTER>VoucherGuidFilter</FILTER>
+
+                        <TYPE>Voucher</TYPE>
+
+                        <FETCH>
+
+                            GUID,
+
+                            MASTERID,
+
+                            ALTERID,
+
+                            DATE,
+
+                            EFFECTIVEDATE,
+
+                            VOUCHERTYPENAME,
+
+                            VOUCHERNUMBER,
+
+                            REFERENCE,
+
+                            REFERENCEDATE,
+
+                            PARTYLEDGERNAME,
+
+                            NARRATION,
+
+                            PARTYGSTIN,
+
+                            PLACEOFSUPPLY,
+
+                            BASICBUYERNAME,
+
+                            BASICBUYERADDRESS,
+
+                            GSTREGISTRATIONTYPE,
+
+                            PERSISTEDVIEW,
+
+                            ISINVOICE,
+
+                            ISOPTIONAL,
+
+                            ISCANCELLED,
+
+                            ALLLEDGERENTRIES,
+
+                            ALLINVENTORYENTRIES,
+
+                            INVENTORYENTRIESIN,
+
+                            INVENTORYENTRIESOUT
+
+                        </FETCH>
+
+                    </COLLECTION>
+
+                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
+                        ${filter}
+                    </SYSTEM>
+
+                </TDLMESSAGE>
+
+            </TDL>
+
+        </DESC>
+
+    </BODY>
+
+</ENVELOPE>
+`;
+    }
+    module2.exports = {
+      buildVoucherBulkGuidRequest
+    };
+  }
+});
+
+// src/reconciliations/reconciliationVoucherOccurrenceRequest.js
+var require_reconciliationVoucherOccurrenceRequest = __commonJS({
+  "src/reconciliations/reconciliationVoucherOccurrenceRequest.js"(exports2, module2) {
+    "use strict";
+    function buildReconciliationVoucherOccurrenceRequest({
+      company,
+      voucherGuids,
+      fromDate,
+      toDate
+    }) {
+      if (typeof company !== "string" || !company.trim() || /[<>&"'\u0000-\u001F\u007F]/.test(company)) {
+        throw new Error("RECONCILE_OCCURRENCE_COMPANY_INVALID");
+      }
+      if (!Array.isArray(voucherGuids) || voucherGuids.length === 0) {
+        throw new Error("RECONCILE_OCCURRENCE_GUIDS_INVALID");
+      }
+      const seen = /* @__PURE__ */ new Set();
+      for (const guid of voucherGuids) {
+        if (typeof guid !== "string" || !/^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/.test(guid)) {
+          throw new Error("RECONCILE_OCCURRENCE_GUID_INVALID");
+        }
+        const folded = guid.toLowerCase();
+        if (seen.has(folded)) {
+          throw new Error("RECONCILE_OCCURRENCE_GUID_DUPLICATE");
+        }
+        seen.add(folded);
+      }
+      function validDate(value) {
+        if (typeof value !== "string" || !/^\d{8}$/.test(value)) {
+          return false;
+        }
+        const year = Number(value.slice(0, 4));
+        const month = Number(value.slice(4, 6));
+        const day = Number(value.slice(6, 8));
+        if (year < 1 || month < 1 || month > 12 || day < 1) {
+          return false;
+        }
+        const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+        const days = [
+          31,
+          leap ? 29 : 28,
+          31,
+          30,
+          31,
+          30,
+          31,
+          31,
+          30,
+          31,
+          30,
+          31
+        ];
+        return day <= days[month - 1];
+      }
+      if (!validDate(fromDate) || !validDate(toDate) || fromDate > toDate) {
+        throw new Error("RECONCILE_OCCURRENCE_DATES_INVALID");
+      }
+      const filter = voucherGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
+      return `<ENVELOPE>
+<HEADER>
+<VERSION>1</VERSION>
+<TALLYREQUEST>Export</TALLYREQUEST>
+<TYPE>Collection</TYPE>
+<ID>BilleyReconcileOccurrenceCollection</ID>
+</HEADER>
+<BODY>
+<DESC>
+<STATICVARIABLES>
+<SVCURRENTCOMPANY>${company.trim()}</SVCURRENTCOMPANY>
+<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+<SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+<SVTODATE TYPE="Date">${toDate}</SVTODATE>
+</STATICVARIABLES>
+<TDL>
+<TDLMESSAGE>
+<COLLECTION NAME="BilleyReconcileOccurrenceCollection">
+<TYPE>Voucher</TYPE>
+<FILTER>BilleyReconcileOccurrenceGuidFilter</FILTER>
+<FETCH>GUID,MASTERID,ALTERID,DATE</FETCH>
+<COMPUTE>BILLEYLEDGEROCCURRENCECOUNT:$$NumItems:AllLedgerEntries</COMPUTE>
+</COLLECTION>
+<SYSTEM TYPE="Formulae" NAME="BilleyReconcileOccurrenceGuidFilter">${filter}</SYSTEM>
+</TDLMESSAGE>
+</TDL>
+</DESC>
+</BODY>
+</ENVELOPE>`;
+    }
+    module2.exports = {
+      buildReconciliationVoucherOccurrenceRequest
+    };
+  }
+});
+
+// src/reconciliations/fetchReconciliationOccurrenceDiagnostic.js
+var require_fetchReconciliationOccurrenceDiagnostic = __commonJS({
+  "src/reconciliations/fetchReconciliationOccurrenceDiagnostic.js"(exports2, module2) {
+    "use strict";
+    var {
+      buildReconciliationVoucherOccurrenceRequest
+    } = require_reconciliationVoucherOccurrenceRequest();
+    async function fetchReconciliationOccurrenceDiagnostic({
+      control,
+      verifiedCompany,
+      request,
+      sendToTally
+    }) {
+      if (!control || typeof control.assertActive !== "function" || typeof sendToTally !== "function" || !verifiedCompany || typeof verifiedCompany.companyName !== "string" || !verifiedCompany.companyName.trim() || !request || request.company !== verifiedCompany.companyName || typeof verifiedCompany.companyGuid !== "string" || !verifiedCompany.companyGuid.trim() || typeof verifiedCompany.booksBeginningFrom !== "string" || !/^\d{8}$/.test(verifiedCompany.booksBeginningFrom) || typeof request.fromDate !== "string" || !/^\d{8}$/.test(request.fromDate) || request.fromDate < verifiedCompany.booksBeginningFrom) {
+        throw new Error(
+          "RECONCILE_OCCURRENCE_CONTEXT_INVALID"
+        );
+      }
+      control.assertActive();
+      const xml = buildReconciliationVoucherOccurrenceRequest({
+        company: verifiedCompany.companyName,
+        voucherGuids: request.voucherGuids,
+        fromDate: request.fromDate,
+        toDate: request.toDate
+      });
+      control.assertActive();
+      const responseXml = await sendToTally(xml);
+      control.assertActive();
+      if (typeof responseXml !== "string" || !responseXml.trim()) {
+        throw new Error(
+          "RECONCILE_OCCURRENCE_RESPONSE_EMPTY"
+        );
+      }
+      return Object.freeze({
+        status: "UNVERIFIED_RAW_RESPONSE",
+        requestXml: xml,
+        responseXml
+      });
+    }
+    module2.exports = {
+      fetchReconciliationOccurrenceDiagnostic
+    };
+  }
+});
+
+// node_modules/fast-xml-parser/lib/fxp.cjs
+var require_fxp = __commonJS({
+  "node_modules/fast-xml-parser/lib/fxp.cjs"(exports2, module2) {
+    (() => {
+      "use strict";
+      var t = { d: (e2, i2) => {
+        for (var n2 in i2) t.o(i2, n2) && !t.o(e2, n2) && Object.defineProperty(e2, n2, { enumerable: true, get: i2[n2] });
+      }, o: (t2, e2) => Object.prototype.hasOwnProperty.call(t2, e2), r: (t2) => {
+        "undefined" != typeof Symbol && Symbol.toStringTag && Object.defineProperty(t2, Symbol.toStringTag, { value: "Module" }), Object.defineProperty(t2, "__esModule", { value: true });
+      } }, e = {};
+      t.r(e), t.d(e, { XMLBuilder: () => xe, XMLParser: () => Jt, XMLValidator: () => be });
+      const i = ":A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD", n = new RegExp("^[" + i + "][" + i + "\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$");
+      function r(t2, e2) {
+        const i2 = [];
+        let n2 = e2.exec(t2);
+        for (; n2; ) {
+          const r2 = [];
+          r2.startIndex = e2.lastIndex - n2[0].length;
+          const s2 = n2.length;
+          for (let t3 = 0; t3 < s2; t3++) r2.push(n2[t3]);
+          i2.push(r2), n2 = e2.exec(t2);
+        }
+        return i2;
+      }
+      const s = function(t2) {
+        return !(null == n.exec(t2));
+      }, o = ["hasOwnProperty", "toString", "valueOf", "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__"], a = ["__proto__", "constructor", "prototype"], l = { allowBooleanAttributes: false, unpairedTags: [] };
+      function p(t2, e2) {
+        e2 = Object.assign({}, l, e2);
+        const i2 = [];
+        let n2 = false, r2 = false;
+        "\uFEFF" === t2[0] && (t2 = t2.substr(1));
+        for (let s2 = 0; s2 < t2.length; s2++) if ("<" === t2[s2] && "?" === t2[s2 + 1]) {
+          if (s2 += 2, s2 = h(t2, s2), s2.err) return s2;
+        } else {
+          if ("<" !== t2[s2]) {
+            if (c(t2[s2])) continue;
+            return y("InvalidChar", "char '" + t2[s2] + "' is not expected.", w(t2, s2));
+          }
+          {
+            let o2 = s2;
+            if (s2++, "!" === t2[s2]) {
+              s2 = d(t2, s2);
+              continue;
+            }
+            {
+              let a2 = false;
+              "/" === t2[s2] && (a2 = true, s2++);
+              let l2 = "";
+              for (; s2 < t2.length && ">" !== t2[s2] && " " !== t2[s2] && "	" !== t2[s2] && "\n" !== t2[s2] && "\r" !== t2[s2]; s2++) l2 += t2[s2];
+              if (l2 = l2.trim(), "/" === l2[l2.length - 1] && (l2 = l2.substring(0, l2.length - 1), s2--), !E(l2)) {
+                let e3;
+                return e3 = 0 === l2.trim().length ? "Invalid space after '<'." : "Tag '" + l2 + "' is an invalid name.", y("InvalidTag", e3, w(t2, s2));
+              }
+              const p2 = g(t2, s2);
+              if (false === p2) return y("InvalidAttr", "Attributes for '" + l2 + "' have open quote.", w(t2, s2));
+              let u2 = p2.value;
+              if (s2 = p2.index, "/" === u2[u2.length - 1]) {
+                const i3 = s2 - u2.length;
+                u2 = u2.substring(0, u2.length - 1);
+                const r3 = x(u2, e2);
+                if (true !== r3) return y(r3.err.code, r3.err.msg, w(t2, i3 + r3.err.line));
+                n2 = true;
+              } else if (a2) {
+                if (!p2.tagClosed) return y("InvalidTag", "Closing tag '" + l2 + "' doesn't have proper closing.", w(t2, s2));
+                if (u2.trim().length > 0) return y("InvalidTag", "Closing tag '" + l2 + "' can't have attributes or invalid starting.", w(t2, o2));
+                if (0 === i2.length) return y("InvalidTag", "Closing tag '" + l2 + "' has not been opened.", w(t2, o2));
+                {
+                  const e3 = i2.pop();
+                  if (l2 !== e3.tagName) {
+                    let i3 = w(t2, e3.tagStartPos);
+                    return y("InvalidTag", "Expected closing tag '" + e3.tagName + "' (opened in line " + i3.line + ", col " + i3.col + ") instead of closing tag '" + l2 + "'.", w(t2, o2));
+                  }
+                  0 == i2.length && (r2 = true);
+                }
+              } else {
+                const a3 = x(u2, e2);
+                if (true !== a3) return y(a3.err.code, a3.err.msg, w(t2, s2 - u2.length + a3.err.line));
+                if (true === r2) return y("InvalidXml", "Multiple possible root nodes found.", w(t2, s2));
+                -1 !== e2.unpairedTags.indexOf(l2) || i2.push({ tagName: l2, tagStartPos: o2 }), n2 = true;
+              }
+              for (s2++; s2 < t2.length; s2++) if ("<" === t2[s2]) {
+                if ("!" === t2[s2 + 1]) {
+                  s2++, s2 = d(t2, s2);
+                  continue;
+                }
+                if ("?" !== t2[s2 + 1]) break;
+                if (s2 = h(t2, ++s2), s2.err) return s2;
+              } else if ("&" === t2[s2]) {
+                const e3 = b(t2, s2);
+                if (-1 == e3) return y("InvalidChar", "char '&' is not expected.", w(t2, s2));
+                s2 = e3;
+              } else if (true === r2 && !c(t2[s2])) return y("InvalidXml", "Extra text at the end", w(t2, s2));
+              "<" === t2[s2] && s2--;
+            }
+          }
+        }
+        return n2 ? 1 == i2.length ? y("InvalidTag", "Unclosed tag '" + i2[0].tagName + "'.", w(t2, i2[0].tagStartPos)) : !(i2.length > 0) || y("InvalidXml", "Invalid '" + JSON.stringify(i2.map((t3) => t3.tagName), null, 4).replace(/\r?\n/g, "") + "' found.", { line: 1, col: 1 }) : y("InvalidXml", "Start tag expected.", 1);
+      }
+      function c(t2) {
+        return " " === t2 || "	" === t2 || "\n" === t2 || "\r" === t2;
+      }
+      function h(t2, e2) {
+        const i2 = e2;
+        for (; e2 < t2.length; e2++) if ("?" == t2[e2] || " " == t2[e2]) {
+          const n2 = t2.substr(i2, e2 - i2);
+          if (e2 > 5 && "xml" === n2) return y("InvalidXml", "XML declaration allowed only at the start of the document.", w(t2, e2));
+          if ("?" == t2[e2] && ">" == t2[e2 + 1]) {
+            e2++;
+            break;
+          }
+          continue;
+        }
+        return e2;
+      }
+      function d(t2, e2) {
+        if (t2.length > e2 + 5 && "-" === t2[e2 + 1] && "-" === t2[e2 + 2]) {
+          for (e2 += 3; e2 < t2.length; e2++) if ("-" === t2[e2] && "-" === t2[e2 + 1] && ">" === t2[e2 + 2]) {
+            e2 += 2;
+            break;
+          }
+        } else if (t2.length > e2 + 8 && "D" === t2[e2 + 1] && "O" === t2[e2 + 2] && "C" === t2[e2 + 3] && "T" === t2[e2 + 4] && "Y" === t2[e2 + 5] && "P" === t2[e2 + 6] && "E" === t2[e2 + 7]) {
+          let i2 = 1;
+          for (e2 += 8; e2 < t2.length; e2++) if ("<" === t2[e2]) i2++;
+          else if (">" === t2[e2] && (i2--, 0 === i2)) break;
+        } else if (t2.length > e2 + 9 && "[" === t2[e2 + 1] && "C" === t2[e2 + 2] && "D" === t2[e2 + 3] && "A" === t2[e2 + 4] && "T" === t2[e2 + 5] && "A" === t2[e2 + 6] && "[" === t2[e2 + 7]) {
+          for (e2 += 8; e2 < t2.length; e2++) if ("]" === t2[e2] && "]" === t2[e2 + 1] && ">" === t2[e2 + 2]) {
+            e2 += 2;
+            break;
+          }
+        }
+        return e2;
+      }
+      const u = '"', f = "'";
+      function g(t2, e2) {
+        let i2 = "", n2 = "", r2 = false;
+        for (; e2 < t2.length; e2++) {
+          if (t2[e2] === u || t2[e2] === f) "" === n2 ? n2 = t2[e2] : n2 !== t2[e2] || (n2 = "");
+          else if (">" === t2[e2] && "" === n2) {
+            r2 = true;
+            break;
+          }
+          i2 += t2[e2];
+        }
+        return "" === n2 && { value: i2, index: e2, tagClosed: r2 };
+      }
+      const m = new RegExp(`(\\s*)([^\\s=]+)(\\s*=)?(\\s*(['"])(([\\s\\S])*?)\\5)?`, "g");
+      function x(t2, e2) {
+        const i2 = r(t2, m), n2 = {};
+        for (let t3 = 0; t3 < i2.length; t3++) {
+          if (0 === i2[t3][1].length) return y("InvalidAttr", "Attribute '" + i2[t3][2] + "' has no space in starting.", v(i2[t3]));
+          if (void 0 !== i2[t3][3] && void 0 === i2[t3][4]) return y("InvalidAttr", "Attribute '" + i2[t3][2] + "' is without value.", v(i2[t3]));
+          if (void 0 === i2[t3][3] && !e2.allowBooleanAttributes) return y("InvalidAttr", "boolean attribute '" + i2[t3][2] + "' is not allowed.", v(i2[t3]));
+          const r2 = i2[t3][2];
+          if (!N(r2)) return y("InvalidAttr", "Attribute '" + r2 + "' is an invalid name.", v(i2[t3]));
+          if (Object.prototype.hasOwnProperty.call(n2, r2)) return y("InvalidAttr", "Attribute '" + r2 + "' is repeated.", v(i2[t3]));
+          n2[r2] = 1;
+        }
+        return true;
+      }
+      function b(t2, e2) {
+        if (";" === t2[++e2]) return -1;
+        if ("#" === t2[e2]) return (function(t3, e3) {
+          let i3 = /\d/;
+          for ("x" === t3[e3] && (e3++, i3 = /[\da-fA-F]/); e3 < t3.length; e3++) {
+            if (";" === t3[e3]) return e3;
+            if (!t3[e3].match(i3)) break;
+          }
+          return -1;
+        })(t2, ++e2);
+        let i2 = 0;
+        for (; e2 < t2.length; e2++, i2++) if (!(t2[e2].match(/\w/) && i2 < 20)) {
+          if (";" === t2[e2]) break;
+          return -1;
+        }
+        return e2;
+      }
+      function y(t2, e2, i2) {
+        return { err: { code: t2, msg: e2, line: i2.line || i2, col: i2.col } };
+      }
+      function N(t2) {
+        return s(t2);
+      }
+      function E(t2) {
+        return s(t2);
+      }
+      function w(t2, e2) {
+        const i2 = t2.substring(0, e2).split(/\r?\n/);
+        return { line: i2.length, col: i2[i2.length - 1].length + 1 };
+      }
+      function v(t2) {
+        return t2.startIndex + t2[1].length;
+      }
+      const S = (t2) => o.includes(t2) ? "__" + t2 : t2, A = { preserveOrder: false, attributeNamePrefix: "@_", attributesGroupName: false, textNodeName: "#text", ignoreAttributes: true, removeNSPrefix: false, allowBooleanAttributes: false, parseTagValue: true, parseAttributeValue: false, trimValues: true, cdataPropName: false, numberParseOptions: { hex: true, leadingZeros: true, eNotation: true, unicode: false }, tagValueProcessor: function(t2, e2) {
+        return e2;
+      }, attributeValueProcessor: function(t2, e2) {
+        return e2;
+      }, stopNodes: [], alwaysCreateTextNode: false, isArray: () => false, commentPropName: false, unpairedTags: [], processEntities: true, htmlEntities: false, entityDecoder: null, ignoreDeclaration: false, ignorePiTags: false, transformTagName: false, transformAttributeName: false, updateTag: function(t2, e2, i2) {
+        return t2;
+      }, captureMetaData: false, maxNestedTags: 100, strictReservedNames: true, jPath: true, onDangerousProperty: S };
+      function T(t2, e2) {
+        if ("string" != typeof t2) return;
+        const i2 = t2.toLowerCase();
+        if (o.some((t3) => i2 === t3.toLowerCase())) throw new Error(`[SECURITY] Invalid ${e2}: "${t2}" is a reserved JavaScript keyword that could cause prototype pollution`);
+        if (a.some((t3) => i2 === t3.toLowerCase())) throw new Error(`[SECURITY] Invalid ${e2}: "${t2}" is a reserved JavaScript keyword that could cause prototype pollution`);
+      }
+      function _(t2, e2) {
+        return "boolean" == typeof t2 ? { enabled: t2, maxEntitySize: 1e4, maxExpansionDepth: 1e4, maxTotalExpansions: 1 / 0, maxExpandedLength: 1e5, maxEntityCount: 1e3, allowedTags: null, tagFilter: null, appliesTo: "all" } : "object" == typeof t2 && null !== t2 ? { enabled: false !== t2.enabled, maxEntitySize: Math.max(1, t2.maxEntitySize ?? 1e4), maxExpansionDepth: Math.max(1, t2.maxExpansionDepth ?? 1e4), maxTotalExpansions: Math.max(1, t2.maxTotalExpansions ?? 1 / 0), maxExpandedLength: Math.max(1, t2.maxExpandedLength ?? 1e5), maxEntityCount: Math.max(1, t2.maxEntityCount ?? 1e3), allowedTags: t2.allowedTags ?? null, tagFilter: t2.tagFilter ?? null, appliesTo: t2.appliesTo ?? "all" } : _(true);
+      }
+      const C = function(t2) {
+        const e2 = Object.assign({}, A, t2), i2 = [{ value: e2.attributeNamePrefix, name: "attributeNamePrefix" }, { value: e2.attributesGroupName, name: "attributesGroupName" }, { value: e2.textNodeName, name: "textNodeName" }, { value: e2.cdataPropName, name: "cdataPropName" }, { value: e2.commentPropName, name: "commentPropName" }];
+        for (const { value: t3, name: e3 } of i2) t3 && T(t3, e3);
+        return null === e2.onDangerousProperty && (e2.onDangerousProperty = S), e2.processEntities = _(e2.processEntities, e2.htmlEntities), e2.unpairedTagsSet = new Set(e2.unpairedTags), e2.stopNodes && Array.isArray(e2.stopNodes) && (e2.stopNodes = e2.stopNodes.map((t3) => "string" == typeof t3 && t3.startsWith("*.") ? ".." + t3.substring(2) : t3)), e2;
+      };
+      let $;
+      $ = "function" != typeof Symbol ? "@@xmlMetadata" : /* @__PURE__ */ Symbol("XML Node Metadata");
+      class O {
+        constructor(t2) {
+          this.tagname = t2, this.child = [], this[":@"] = /* @__PURE__ */ Object.create(null);
+        }
+        add(t2, e2) {
+          "__proto__" === t2 && (t2 = "#__proto__"), this.child.push({ [t2]: e2 });
+        }
+        addChild(t2, e2) {
+          "__proto__" === t2.tagname && (t2.tagname = "#__proto__"), t2[":@"] && Object.keys(t2[":@"]).length > 0 ? this.child.push({ [t2.tagname]: t2.child, ":@": t2[":@"] }) : this.child.push({ [t2.tagname]: t2.child }), void 0 !== e2 && (this.child[this.child.length - 1][$] = { startIndex: e2 });
+        }
+        static getMetaDataSymbol() {
+          return $;
+        }
+      }
+      const P = ":A-Za-z_\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u037D\u037F-\u0486\u0488-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD", j = ":A-Za-z_\xC0-\u02FF\u0370-\u037D\u037F-\u0486\u0488-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\u{10000}-\u{EFFFF}", I = j + "\\-\\.\\d\xB7\u0300-\u036F\u0487\u203F-\u2040", k = (t2, e2, i2 = "") => {
+        const n2 = `[${t2.replace(":", "")}][${e2.replace(":", "")}]*`;
+        return { name: new RegExp(`^[${t2}][${e2}]*$`, i2), ncName: new RegExp(`^${n2}$`, i2), qName: new RegExp(`^${n2}(?::${n2})?$`, i2), nmToken: new RegExp(`^[${e2}]+$`, i2), nmTokens: new RegExp(`^[${e2}]+(?:\\s+[${e2}]+)*$`, i2) };
+      }, L = k(P, P + "\\-\\.\\d\xB7\u0300-\u036F\u203F-\u2040"), D = k(j, I, "u"), R = (t2, { xmlVersion: e2 = "1.0" } = {}) => (/* @__PURE__ */ ((t3 = "1.0") => "1.1" === t3 ? D : L)(e2)).qName.test(t2);
+      class M {
+        constructor(t2, e2) {
+          this.suppressValidationErr = !t2, this.options = t2, this.xmlVersion = e2 || 1;
+        }
+        setXmlVersion(t2 = 1) {
+          this.xmlVersion = t2;
+        }
+        readDocType(t2, e2) {
+          const i2 = /* @__PURE__ */ Object.create(null);
+          let n2 = 0;
+          if ("O" !== t2[e2 + 3] || "C" !== t2[e2 + 4] || "T" !== t2[e2 + 5] || "Y" !== t2[e2 + 6] || "P" !== t2[e2 + 7] || "E" !== t2[e2 + 8]) throw new Error("Invalid Tag instead of DOCTYPE");
+          {
+            e2 += 9;
+            let r2 = 1, s2 = false, o2 = false, a2 = "";
+            for (; e2 < t2.length; e2++) if ("<" !== t2[e2] || o2) if (">" === t2[e2]) {
+              if (o2 ? "-" === t2[e2 - 1] && "-" === t2[e2 - 2] && (o2 = false, r2--) : r2--, 0 === r2) break;
+            } else "[" === t2[e2] ? s2 = true : a2 += t2[e2];
+            else {
+              if (s2 && q(t2, "!ENTITY", e2)) {
+                let r3, s3;
+                if (e2 += 7, [r3, s3, e2] = this.readEntityExp(t2, e2 + 1, this.suppressValidationErr), -1 === s3.indexOf("&")) {
+                  if (false !== this.options.enabled && null != this.options.maxEntityCount && n2 >= this.options.maxEntityCount) throw new Error(`Entity count (${n2 + 1}) exceeds maximum allowed (${this.options.maxEntityCount})`);
+                  i2[r3] = s3, n2++;
+                }
+              } else if (s2 && q(t2, "!ELEMENT", e2)) {
+                e2 += 8;
+                const { index: i3 } = this.readElementExp(t2, e2 + 1);
+                e2 = i3;
+              } else if (s2 && q(t2, "!ATTLIST", e2)) e2 += 8;
+              else if (s2 && q(t2, "!NOTATION", e2)) {
+                e2 += 9;
+                const { index: i3 } = this.readNotationExp(t2, e2 + 1, this.suppressValidationErr);
+                e2 = i3;
+              } else {
+                if (!q(t2, "!--", e2)) throw new Error("Invalid DOCTYPE");
+                o2 = true;
+              }
+              r2++, a2 = "";
+            }
+            if (0 !== r2) throw new Error("Unclosed DOCTYPE");
+          }
+          return { entities: i2, i: e2 };
+        }
+        readEntityExp(t2, e2) {
+          const i2 = e2 = V(t2, e2);
+          for (; e2 < t2.length && !/\s/.test(t2[e2]) && '"' !== t2[e2] && "'" !== t2[e2]; ) e2++;
+          let n2 = t2.substring(i2, e2);
+          if (F(n2, { xmlVersion: this.xmlVersion }), e2 = V(t2, e2), !this.suppressValidationErr) {
+            if ("SYSTEM" === t2.substring(e2, e2 + 6).toUpperCase()) throw new Error("External entities are not supported");
+            if ("%" === t2[e2]) throw new Error("Parameter entities are not supported");
+          }
+          let r2 = "";
+          if ([e2, r2] = this.readIdentifierVal(t2, e2, "entity"), false !== this.options.enabled && null != this.options.maxEntitySize && r2.length > this.options.maxEntitySize) throw new Error(`Entity "${n2}" size (${r2.length}) exceeds maximum allowed size (${this.options.maxEntitySize})`);
+          return [n2, r2, --e2];
+        }
+        readNotationExp(t2, e2) {
+          const i2 = e2 = V(t2, e2);
+          for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
+          let n2 = t2.substring(i2, e2);
+          !this.suppressValidationErr && F(n2, { xmlVersion: this.xmlVersion }), e2 = V(t2, e2);
+          const r2 = t2.substring(e2, e2 + 6).toUpperCase();
+          if (!this.suppressValidationErr && "SYSTEM" !== r2 && "PUBLIC" !== r2) throw new Error(`Expected SYSTEM or PUBLIC, found "${r2}"`);
+          e2 += r2.length, e2 = V(t2, e2);
+          let s2 = null, o2 = null;
+          if ("PUBLIC" === r2) [e2, s2] = this.readIdentifierVal(t2, e2, "publicIdentifier"), '"' !== t2[e2 = V(t2, e2)] && "'" !== t2[e2] || ([e2, o2] = this.readIdentifierVal(t2, e2, "systemIdentifier"));
+          else if ("SYSTEM" === r2 && ([e2, o2] = this.readIdentifierVal(t2, e2, "systemIdentifier"), !this.suppressValidationErr && !o2)) throw new Error("Missing mandatory system identifier for SYSTEM notation");
+          return { notationName: n2, publicIdentifier: s2, systemIdentifier: o2, index: --e2 };
+        }
+        readIdentifierVal(t2, e2, i2) {
+          let n2 = "";
+          const r2 = t2[e2];
+          if ('"' !== r2 && "'" !== r2) throw new Error(`Expected quoted string, found "${r2}"`);
+          const s2 = ++e2;
+          for (; e2 < t2.length && t2[e2] !== r2; ) e2++;
+          if (n2 = t2.substring(s2, e2), t2[e2] !== r2) throw new Error(`Unterminated ${i2} value`);
+          return [++e2, n2];
+        }
+        readElementExp(t2, e2) {
+          const i2 = e2 = V(t2, e2);
+          for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
+          let n2 = t2.substring(i2, e2);
+          if (!this.suppressValidationErr && !R(n2, { xmlVersion: this.xmlVersion })) throw new Error(`Invalid element name: "${n2}"`);
+          let r2 = "";
+          if ("E" === t2[e2 = V(t2, e2)] && q(t2, "MPTY", e2)) e2 += 4;
+          else if ("A" === t2[e2] && q(t2, "NY", e2)) e2 += 2;
+          else if ("(" === t2[e2]) {
+            const i3 = ++e2;
+            for (; e2 < t2.length && ")" !== t2[e2]; ) e2++;
+            if (r2 = t2.substring(i3, e2), ")" !== t2[e2]) throw new Error("Unterminated content model");
+          } else if (!this.suppressValidationErr) throw new Error(`Invalid Element Expression, found "${t2[e2]}"`);
+          return { elementName: n2, contentModel: r2.trim(), index: e2 };
+        }
+        readAttlistExp(t2, e2) {
+          let i2 = e2 = V(t2, e2);
+          for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
+          let n2 = t2.substring(i2, e2);
+          for (F(n2, { xmlVersion: this.xmlVersion }), i2 = e2 = V(t2, e2); e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
+          let r2 = t2.substring(i2, e2);
+          if (!F(r2, { xmlVersion: this.xmlVersion })) throw new Error(`Invalid attribute name: "${r2}"`);
+          e2 = V(t2, e2);
+          let s2 = "";
+          if ("NOTATION" === t2.substring(e2, e2 + 8).toUpperCase()) {
+            if (s2 = "NOTATION", "(" !== t2[e2 = V(t2, e2 += 8)]) throw new Error(`Expected '(', found "${t2[e2]}"`);
+            e2++;
+            let i3 = [];
+            for (; e2 < t2.length && ")" !== t2[e2]; ) {
+              const n3 = e2;
+              for (; e2 < t2.length && "|" !== t2[e2] && ")" !== t2[e2]; ) e2++;
+              let r3 = t2.substring(n3, e2);
+              if (r3 = r3.trim(), !F(r3, { xmlVersion: this.xmlVersion })) throw new Error(`Invalid notation name: "${r3}"`);
+              i3.push(r3), "|" === t2[e2] && (e2++, e2 = V(t2, e2));
+            }
+            if (")" !== t2[e2]) throw new Error("Unterminated list of notations");
+            e2++, s2 += " (" + i3.join("|") + ")";
+          } else {
+            const i3 = e2;
+            for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
+            s2 += t2.substring(i3, e2);
+            const n3 = ["CDATA", "ID", "IDREF", "IDREFS", "ENTITY", "ENTITIES", "NMTOKEN", "NMTOKENS"];
+            if (!this.suppressValidationErr && !n3.includes(s2.toUpperCase())) throw new Error(`Invalid attribute type: "${s2}"`);
+          }
+          e2 = V(t2, e2);
+          let o2 = "";
+          return "#REQUIRED" === t2.substring(e2, e2 + 8).toUpperCase() ? (o2 = "#REQUIRED", e2 += 8) : "#IMPLIED" === t2.substring(e2, e2 + 7).toUpperCase() ? (o2 = "#IMPLIED", e2 += 7) : [e2, o2] = this.readIdentifierVal(t2, e2, "ATTLIST"), { elementName: n2, attributeName: r2, attributeType: s2, defaultValue: o2, index: e2 };
+        }
+      }
+      const V = (t2, e2) => {
+        for (; e2 < t2.length && /\s/.test(t2[e2]); ) e2++;
+        return e2;
+      };
+      function q(t2, e2, i2) {
+        for (let n2 = 0; n2 < e2.length; n2++) if (e2[n2] !== t2[i2 + n2 + 1]) return false;
+        return true;
+      }
+      function F(t2, e2) {
+        if (R(t2, { xmlVersion: e2 })) return t2;
+        throw new Error(`Invalid entity name ${t2}`);
+      }
+      const U = [48, 1632, 1776, 2406, 2534, 2662, 2790, 2918, 3046, 3174, 3302, 3430, 3558, 3664, 3792, 3872, 4160, 4240, 6112, 6160, 6470, 6608, 6784, 6800, 6992, 7088, 7232, 7248, 65296, 120782, 120792, 120802, 120812, 120822, 66720, 68912, 69734, 69872, 69942, 70096, 70384, 70736, 70864, 71248, 71360, 71472, 71904, 72016, 72688, 72784, 73040, 73120, 73552, 92768, 92864, 93008, 123200, 123632, 124144, 125264, 130032], G = /* @__PURE__ */ new Map(), B = 1632, W = new Uint8Array(63904).fill(255);
+      for (const t2 of U) for (let e2 = 0; e2 < 10; e2++) {
+        const i2 = t2 + e2;
+        i2 <= 65535 ? W[i2 - B] = e2 : G.set(i2, e2);
+      }
+      const X = /* @__PURE__ */ new Set([8722, 65293, 65123]), Y = /^[-+]?0x[a-fA-F0-9]+$/, z = /^0b[01]+$/, H = /^0o[0-7]+$/, Q = /^([\-\+])?(0*)([0-9]*(\.[0-9]*)?)$/, J = { hex: true, binary: false, octal: false, leadingZeros: true, decimalPoint: ".", eNotation: true, infinity: "original", unicode: false };
+      function Z(t2, e2 = {}) {
+        if (e2 = Object.assign({}, J, e2), !t2 || "string" != typeof t2) return t2;
+        let i2 = t2.trim();
+        if (0 === i2.length) return t2;
+        if (void 0 !== e2.skipLike && e2.skipLike.test(i2)) return t2;
+        if ("0" === i2) return 0;
+        if (e2.unicode && (i2 = (function(t3) {
+          if ("string" != typeof t3) return t3;
+          const e3 = t3.length;
+          if (0 === e3) return t3;
+          let i3 = -1;
+          for (let n4 = 0; n4 < e3; n4++) {
+            const r2 = t3.charCodeAt(n4);
+            if (!(r2 >= 48 && r2 <= 57 || 45 === r2)) {
+              if (r2 < B) {
+                if (X.has(r2)) {
+                  i3 = n4;
+                  break;
+                }
+              } else if (r2 >= 55296 && r2 <= 56319) {
+                if (n4 + 1 < e3) {
+                  const e4 = t3.charCodeAt(n4 + 1);
+                  if (e4 >= 56320 && e4 <= 57343) {
+                    const t4 = 65536 + (r2 - 55296 << 10) + (e4 - 56320);
+                    if (G.has(t4)) {
+                      i3 = n4;
+                      break;
+                    }
+                  }
+                }
+              } else if (255 !== W[r2 - B] || X.has(r2)) {
+                i3 = n4;
+                break;
+              }
+            }
+          }
+          if (-1 === i3) return t3;
+          const n3 = [];
+          i3 > 0 && n3.push(t3.slice(0, i3));
+          for (let r2 = i3; r2 < e3; r2++) {
+            const i4 = t3.charCodeAt(r2);
+            if (i4 >= 48 && i4 <= 57 || 45 === i4) {
+              n3.push(t3[r2]);
+              continue;
+            }
+            if (i4 < B) {
+              n3.push(X.has(i4) ? "-" : t3[r2]);
+              continue;
+            }
+            if (i4 >= 55296 && i4 <= 56319) {
+              if (r2 + 1 < e3) {
+                const e4 = t3.charCodeAt(r2 + 1);
+                if (e4 >= 56320 && e4 <= 57343) {
+                  const t4 = 65536 + (i4 - 55296 << 10) + (e4 - 56320), s3 = G.get(t4);
+                  if (void 0 !== s3) {
+                    n3.push(String.fromCharCode(s3 + 48)), r2++;
+                    continue;
+                  }
+                }
+              }
+              n3.push(t3[r2]);
+              continue;
+            }
+            if (X.has(i4)) {
+              n3.push("-");
+              continue;
+            }
+            const s2 = W[i4 - B];
+            n3.push(255 !== s2 ? String.fromCharCode(s2 + 48) : t3[r2]);
+          }
+          return n3.join("");
+        })(i2), "0" === i2)) return 0;
+        if (e2.hex && Y.test(i2)) return tt(i2, 16);
+        if (e2.binary && z.test(i2)) return tt(i2, 2);
+        if (e2.octal && H.test(i2)) return tt(i2, 8);
+        if (isFinite(i2)) {
+          if (i2.includes("e") || i2.includes("E")) return (function(t3, e3, i3) {
+            if (!i3.eNotation) return t3;
+            const n3 = e3.match(K);
+            if (n3) {
+              let r2 = n3[1] || "";
+              const s2 = -1 === n3[3].indexOf("e") ? "E" : "e", o2 = n3[2], a2 = r2 ? t3[o2.length + 1] === s2 : t3[o2.length] === s2;
+              return o2.length > 1 && a2 ? t3 : (1 !== o2.length || !n3[3].startsWith(`.${s2}`) && n3[3][0] !== s2) && o2.length > 0 ? i3.leadingZeros && !a2 ? (e3 = (n3[1] || "") + n3[3], Number(e3)) : t3 : Number(e3);
+            }
+            return t3;
+          })(t2, i2, e2);
+          {
+            const r2 = Q.exec(i2);
+            if (r2) {
+              const s2 = r2[1] || "", o2 = r2[2];
+              let a2 = (n2 = r2[3]) && -1 !== n2.indexOf(".") ? ("." === (n2 = n2.replace(/0+$/, "")) ? n2 = "0" : "." === n2[0] ? n2 = "0" + n2 : "." === n2[n2.length - 1] && (n2 = n2.substring(0, n2.length - 1)), n2) : n2;
+              const l2 = s2 ? "." === t2[o2.length + 1] : "." === t2[o2.length];
+              if (!e2.leadingZeros && (o2.length > 1 || 1 === o2.length && !l2)) return t2;
+              {
+                const n3 = Number(i2), r3 = String(n3);
+                if (0 === n3) return n3;
+                if (-1 !== r3.search(/[eE]/)) return e2.eNotation ? n3 : t2;
+                if (-1 !== i2.indexOf(".")) return "0" === r3 || r3 === a2 || r3 === `${s2}${a2}` ? n3 : t2;
+                let l3 = o2 ? a2 : i2;
+                return o2 ? l3 === r3 || s2 + l3 === r3 ? n3 : t2 : l3 === r3 || l3 === s2 + r3 ? n3 : t2;
+              }
+            }
+            return t2;
+          }
+        }
+        var n2;
+        return (function(t3, e3, i3) {
+          const n3 = e3 === 1 / 0;
+          switch (i3.infinity.toLowerCase()) {
+            case "null":
+              return null;
+            case "infinity":
+              return e3;
+            case "string":
+              return n3 ? "Infinity" : "-Infinity";
+            default:
+              return t3;
+          }
+        })(t2, Number(i2), e2);
+      }
+      const K = /^([-+])?(0*)(\d*(\.\d*)?[eE][-\+]?\d+)$/;
+      function tt(t2, e2) {
+        const i2 = t2.trim();
+        if (2 !== e2 && 8 !== e2 || (t2 = i2.substring(2)), parseInt) return parseInt(t2, e2);
+        if (Number.parseInt) return Number.parseInt(t2, e2);
+        if (window && window.parseInt) return window.parseInt(t2, e2);
+        throw new Error("parseInt, Number.parseInt, window.parseInt are not supported");
+      }
+      class et {
+        constructor(t2) {
+          this._matcher = t2;
+        }
+        get separator() {
+          return this._matcher.separator;
+        }
+        getCurrentTag() {
+          const t2 = this._matcher.path;
+          return t2.length > 0 ? t2[t2.length - 1].tag : void 0;
+        }
+        getCurrentNamespace() {
+          const t2 = this._matcher.path;
+          return t2.length > 0 ? t2[t2.length - 1].namespace : void 0;
+        }
+        getAttrValue(t2) {
+          const e2 = this._matcher.path;
+          if (0 !== e2.length) return e2[e2.length - 1].values?.[t2];
+        }
+        hasAttr(t2) {
+          const e2 = this._matcher.path;
+          if (0 === e2.length) return false;
+          const i2 = e2[e2.length - 1];
+          return void 0 !== i2.values && t2 in i2.values;
+        }
+        getPosition() {
+          const t2 = this._matcher.path;
+          return 0 === t2.length ? -1 : t2[t2.length - 1].position ?? 0;
+        }
+        getCounter() {
+          const t2 = this._matcher.path;
+          return 0 === t2.length ? -1 : t2[t2.length - 1].counter ?? 0;
+        }
+        getIndex() {
+          return this.getPosition();
+        }
+        getDepth() {
+          return this._matcher.path.length;
+        }
+        toString(t2, e2 = true) {
+          return this._matcher.toString(t2, e2);
+        }
+        toArray() {
+          return this._matcher.path.map((t2) => t2.tag);
+        }
+        matches(t2) {
+          return this._matcher.matches(t2);
+        }
+        matchesAny(t2) {
+          return t2.matchesAny(this._matcher);
+        }
+      }
+      class it {
+        constructor(t2 = {}) {
+          this.separator = t2.separator || ".", this.path = [], this.siblingStacks = [], this._pathStringCache = null, this._view = new et(this);
+        }
+        push(t2, e2 = null, i2 = null) {
+          this._pathStringCache = null, this.path.length > 0 && (this.path[this.path.length - 1].values = void 0);
+          const n2 = this.path.length;
+          this.siblingStacks[n2] || (this.siblingStacks[n2] = /* @__PURE__ */ new Map());
+          const r2 = this.siblingStacks[n2], s2 = i2 ? `${i2}:${t2}` : t2, o2 = r2.get(s2) || 0;
+          let a2 = 0;
+          for (const t3 of r2.values()) a2 += t3;
+          r2.set(s2, o2 + 1);
+          const l2 = { tag: t2, position: a2, counter: o2 };
+          null != i2 && (l2.namespace = i2), null != e2 && (l2.values = e2), this.path.push(l2);
+        }
+        pop() {
+          if (0 === this.path.length) return;
+          this._pathStringCache = null;
+          const t2 = this.path.pop();
+          return this.siblingStacks.length > this.path.length + 1 && (this.siblingStacks.length = this.path.length + 1), t2;
+        }
+        updateCurrent(t2) {
+          if (this.path.length > 0) {
+            const e2 = this.path[this.path.length - 1];
+            null != t2 && (e2.values = t2);
+          }
+        }
+        getCurrentTag() {
+          return this.path.length > 0 ? this.path[this.path.length - 1].tag : void 0;
+        }
+        getCurrentNamespace() {
+          return this.path.length > 0 ? this.path[this.path.length - 1].namespace : void 0;
+        }
+        getAttrValue(t2) {
+          if (0 !== this.path.length) return this.path[this.path.length - 1].values?.[t2];
+        }
+        hasAttr(t2) {
+          if (0 === this.path.length) return false;
+          const e2 = this.path[this.path.length - 1];
+          return void 0 !== e2.values && t2 in e2.values;
+        }
+        getPosition() {
+          return 0 === this.path.length ? -1 : this.path[this.path.length - 1].position ?? 0;
+        }
+        getCounter() {
+          return 0 === this.path.length ? -1 : this.path[this.path.length - 1].counter ?? 0;
+        }
+        getIndex() {
+          return this.getPosition();
+        }
+        getDepth() {
+          return this.path.length;
+        }
+        toString(t2, e2 = true) {
+          const i2 = t2 || this.separator;
+          if (i2 === this.separator && true === e2) {
+            if (null !== this._pathStringCache) return this._pathStringCache;
+            const t3 = this.path.map((t4) => t4.namespace ? `${t4.namespace}:${t4.tag}` : t4.tag).join(i2);
+            return this._pathStringCache = t3, t3;
+          }
+          return this.path.map((t3) => e2 && t3.namespace ? `${t3.namespace}:${t3.tag}` : t3.tag).join(i2);
+        }
+        toArray() {
+          return this.path.map((t2) => t2.tag);
+        }
+        reset() {
+          this._pathStringCache = null, this.path = [], this.siblingStacks = [];
+        }
+        matches(t2) {
+          const e2 = t2.segments;
+          return 0 !== e2.length && (t2.hasDeepWildcard() ? this._matchWithDeepWildcard(e2) : this._matchSimple(e2));
+        }
+        _matchSimple(t2) {
+          if (this.path.length !== t2.length) return false;
+          for (let e2 = 0; e2 < t2.length; e2++) if (!this._matchSegment(t2[e2], this.path[e2], e2 === this.path.length - 1)) return false;
+          return true;
+        }
+        _matchWithDeepWildcard(t2) {
+          let e2 = this.path.length - 1, i2 = t2.length - 1;
+          for (; i2 >= 0 && e2 >= 0; ) {
+            const n2 = t2[i2];
+            if ("deep-wildcard" === n2.type) {
+              if (i2--, i2 < 0) return true;
+              const n3 = t2[i2];
+              let r2 = false;
+              for (let t3 = e2; t3 >= 0; t3--) if (this._matchSegment(n3, this.path[t3], t3 === this.path.length - 1)) {
+                e2 = t3 - 1, i2--, r2 = true;
+                break;
+              }
+              if (!r2) return false;
+            } else {
+              if (!this._matchSegment(n2, this.path[e2], e2 === this.path.length - 1)) return false;
+              e2--, i2--;
+            }
+          }
+          return i2 < 0;
+        }
+        _matchSegment(t2, e2, i2) {
+          if ("*" !== t2.tag && t2.tag !== e2.tag) return false;
+          if (void 0 !== t2.namespace && "*" !== t2.namespace && t2.namespace !== e2.namespace) return false;
+          if (void 0 !== t2.attrName) {
+            if (!i2) return false;
+            if (!e2.values || !(t2.attrName in e2.values)) return false;
+            if (void 0 !== t2.attrValue && String(e2.values[t2.attrName]) !== String(t2.attrValue)) return false;
+          }
+          if (void 0 !== t2.position) {
+            if (!i2) return false;
+            const n2 = e2.counter ?? 0;
+            if ("first" === t2.position && 0 !== n2) return false;
+            if ("odd" === t2.position && n2 % 2 != 1) return false;
+            if ("even" === t2.position && n2 % 2 != 0) return false;
+            if ("nth" === t2.position && n2 !== t2.positionValue) return false;
+          }
+          return true;
+        }
+        matchesAny(t2) {
+          return t2.matchesAny(this);
+        }
+        snapshot() {
+          return { path: this.path.map((t2) => ({ ...t2 })), siblingStacks: this.siblingStacks.map((t2) => new Map(t2)) };
+        }
+        restore(t2) {
+          this._pathStringCache = null, this.path = t2.path.map((t3) => ({ ...t3 })), this.siblingStacks = t2.siblingStacks.map((t3) => new Map(t3));
+        }
+        readOnly() {
+          return this._view;
+        }
+      }
+      class nt {
+        constructor(t2, e2 = {}, i2) {
+          this.pattern = t2, this.separator = e2.separator || ".", this.segments = this._parse(t2), this.data = i2, this._hasDeepWildcard = this.segments.some((t3) => "deep-wildcard" === t3.type), this._hasAttributeCondition = this.segments.some((t3) => void 0 !== t3.attrName), this._hasPositionSelector = this.segments.some((t3) => void 0 !== t3.position);
+        }
+        _parse(t2) {
+          const e2 = [];
+          let i2 = 0, n2 = "";
+          for (; i2 < t2.length; ) t2[i2] === this.separator ? i2 + 1 < t2.length && t2[i2 + 1] === this.separator ? (n2.trim() && (e2.push(this._parseSegment(n2.trim())), n2 = ""), e2.push({ type: "deep-wildcard" }), i2 += 2) : (n2.trim() && e2.push(this._parseSegment(n2.trim())), n2 = "", i2++) : (n2 += t2[i2], i2++);
+          return n2.trim() && e2.push(this._parseSegment(n2.trim())), e2;
+        }
+        _parseSegment(t2) {
+          const e2 = { type: "tag" };
+          let i2 = null, n2 = t2;
+          const r2 = t2.match(/^([^\[]+)(\[[^\]]*\])(.*)$/);
+          if (r2 && (n2 = r2[1] + r2[3], r2[2])) {
+            const t3 = r2[2].slice(1, -1);
+            t3 && (i2 = t3);
+          }
+          let s2, o2, a2 = n2;
+          if (n2.includes("::")) {
+            const e3 = n2.indexOf("::");
+            if (s2 = n2.substring(0, e3).trim(), a2 = n2.substring(e3 + 2).trim(), !s2) throw new Error(`Invalid namespace in pattern: ${t2}`);
+          }
+          let l2 = null;
+          if (a2.includes(":")) {
+            const t3 = a2.lastIndexOf(":"), e3 = a2.substring(0, t3).trim(), i3 = a2.substring(t3 + 1).trim();
+            ["first", "last", "odd", "even"].includes(i3) || /^nth\(\d+\)$/.test(i3) ? (o2 = e3, l2 = i3) : o2 = a2;
+          } else o2 = a2;
+          if (!o2) throw new Error(`Invalid segment pattern: ${t2}`);
+          if (e2.tag = o2, s2 && (e2.namespace = s2), i2) if (i2.includes("=")) {
+            const t3 = i2.indexOf("=");
+            e2.attrName = i2.substring(0, t3).trim(), e2.attrValue = i2.substring(t3 + 1).trim();
+          } else e2.attrName = i2.trim();
+          if (l2) {
+            const t3 = l2.match(/^nth\((\d+)\)$/);
+            t3 ? (e2.position = "nth", e2.positionValue = parseInt(t3[1], 10)) : e2.position = l2;
+          }
+          return e2;
+        }
+        get length() {
+          return this.segments.length;
+        }
+        hasDeepWildcard() {
+          return this._hasDeepWildcard;
+        }
+        hasAttributeCondition() {
+          return this._hasAttributeCondition;
+        }
+        hasPositionSelector() {
+          return this._hasPositionSelector;
+        }
+        toString() {
+          return this.pattern;
+        }
+      }
+      class rt {
+        constructor() {
+          this._byDepthAndTag = /* @__PURE__ */ new Map(), this._wildcardByDepth = /* @__PURE__ */ new Map(), this._deepWildcards = [], this._patterns = /* @__PURE__ */ new Set(), this._sealed = false;
+        }
+        add(t2) {
+          if (this._sealed) throw new TypeError("ExpressionSet is sealed. Create a new ExpressionSet to add more expressions.");
+          if (this._patterns.has(t2.pattern)) return this;
+          if (this._patterns.add(t2.pattern), t2.hasDeepWildcard()) return this._deepWildcards.push(t2), this;
+          const e2 = t2.length, i2 = t2.segments[t2.segments.length - 1], n2 = i2?.tag;
+          if (n2 && "*" !== n2) {
+            const i3 = `${e2}:${n2}`;
+            this._byDepthAndTag.has(i3) || this._byDepthAndTag.set(i3, []), this._byDepthAndTag.get(i3).push(t2);
+          } else this._wildcardByDepth.has(e2) || this._wildcardByDepth.set(e2, []), this._wildcardByDepth.get(e2).push(t2);
+          return this;
+        }
+        addAll(t2) {
+          for (const e2 of t2) this.add(e2);
+          return this;
+        }
+        has(t2) {
+          return this._patterns.has(t2.pattern);
+        }
+        get size() {
+          return this._patterns.size;
+        }
+        seal() {
+          return this._sealed = true, this;
+        }
+        get isSealed() {
+          return this._sealed;
+        }
+        matchesAny(t2) {
+          return null !== this.findMatch(t2);
+        }
+        findMatch(t2) {
+          const e2 = t2.getDepth(), i2 = `${e2}:${t2.getCurrentTag()}`, n2 = this._byDepthAndTag.get(i2);
+          if (n2) {
+            for (let e3 = 0; e3 < n2.length; e3++) if (t2.matches(n2[e3])) return n2[e3];
+          }
+          const r2 = this._wildcardByDepth.get(e2);
+          if (r2) {
+            for (let e3 = 0; e3 < r2.length; e3++) if (t2.matches(r2[e3])) return r2[e3];
+          }
+          for (let e3 = 0; e3 < this._deepWildcards.length; e3++) if (t2.matches(this._deepWildcards[e3])) return this._deepWildcards[e3];
+          return null;
+        }
+      }
+      const st = { cent: "\xA2", pound: "\xA3", curren: "\xA4", yen: "\xA5", euro: "\u20AC", dollar: "$", fnof: "\u0192", inr: "\u20B9", af: "\u060B", birr: "\u1265\u122D", peso: "\u20B1", rub: "\u20BD", won: "\u20A9", yuan: "\xA5", cedil: "\xB8" }, ot = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' }, at = { nbsp: "\xA0", copy: "\xA9", reg: "\xAE", trade: "\u2122", mdash: "\u2014", ndash: "\u2013", hellip: "\u2026", laquo: "\xAB", raquo: "\xBB", lsquo: "\u2018", rsquo: "\u2019", ldquo: "\u201C", rdquo: "\u201D", bull: "\u2022", para: "\xB6", sect: "\xA7", deg: "\xB0", frac12: "\xBD", frac14: "\xBC", frac34: "\xBE" }, lt = Object.freeze({ ALLOW: "allow", BLOCK: "block", THROW: "throw" }), pt = new Set("!?\\\\/[]$%{}^&*()<>|+");
+      function ct(t2) {
+        if ("#" === t2[0]) throw new Error(`[EntityReplacer] Invalid character '#' in entity name: "${t2}"`);
+        for (const e2 of t2) if (pt.has(e2)) throw new Error(`[EntityReplacer] Invalid character '${e2}' in entity name: "${t2}"`);
+        return t2;
+      }
+      function ht(...t2) {
+        const e2 = /* @__PURE__ */ Object.create(null);
+        for (const i2 of t2) if (i2) for (const t3 of Object.keys(i2)) {
+          const n2 = i2[t3];
+          if ("string" == typeof n2) e2[t3] = n2;
+          else if (n2 && "object" == typeof n2 && void 0 !== n2.val) {
+            const i3 = n2.val;
+            "string" == typeof i3 && (e2[t3] = i3);
+          }
+        }
+        return e2;
+      }
+      const dt = "external", ut = "base", ft = "all", gt = Object.freeze({ allow: 0, leave: 1, remove: 2, throw: 3 }), mt = /* @__PURE__ */ new Set([9, 10, 13]);
+      class xt {
+        constructor(t2 = {}) {
+          var e2;
+          this._limit = t2.limit || {}, this._maxTotalExpansions = this._limit.maxTotalExpansions || 0, this._maxExpandedLength = this._limit.maxExpandedLength || 0, this._postCheck = "function" == typeof t2.postCheck ? t2.postCheck : (t3) => t3, this._limitTiers = (e2 = this._limit.applyLimitsTo ?? dt) && e2 !== dt ? e2 === ft ? /* @__PURE__ */ new Set([ft]) : e2 === ut ? /* @__PURE__ */ new Set([ut]) : Array.isArray(e2) ? new Set(e2) : /* @__PURE__ */ new Set([dt]) : /* @__PURE__ */ new Set([dt]), this._numericAllowed = t2.numericAllowed ?? true, this._baseMap = ht(ot, t2.namedEntities || null), this._externalMap = /* @__PURE__ */ Object.create(null), this._inputMap = /* @__PURE__ */ Object.create(null), this._totalExpansions = 0, this._expandedLength = 0, this._removeSet = new Set(t2.remove && Array.isArray(t2.remove) ? t2.remove : []), this._leaveSet = new Set(t2.leave && Array.isArray(t2.leave) ? t2.leave : []);
+          const i2 = (function(t3) {
+            if (!t3) return { xmlVersion: 1, onLevel: gt.allow, nullLevel: gt.remove };
+            const e3 = 1.1 === t3.xmlVersion ? 1.1 : 1, i3 = gt[t3.onNCR] ?? gt.allow, n2 = gt[t3.nullNCR] ?? gt.remove;
+            return { xmlVersion: e3, onLevel: i3, nullLevel: Math.max(n2, gt.remove) };
+          })(t2.ncr);
+          this._ncrXmlVersion = i2.xmlVersion, this._ncrOnLevel = i2.onLevel, this._ncrNullLevel = i2.nullLevel, this._onExternalEntity = "function" == typeof t2.onExternalEntity ? t2.onExternalEntity : null, this._onInputEntity = "function" == typeof t2.onInputEntity ? t2.onInputEntity : null;
+        }
+        _applyRegistrationHook(t2, e2, i2, n2) {
+          if (!t2) return true;
+          const r2 = t2(e2, i2);
+          if (r2 === lt.BLOCK) return false;
+          if (r2 === lt.THROW) throw new Error(`[EntityDecoder] Registration of ${n2} entity "&${e2};" was rejected by hook`);
+          return true;
+        }
+        setExternalEntities(t2) {
+          if (t2) for (const e3 of Object.keys(t2)) ct(e3);
+          if (!this._onExternalEntity) return void (this._externalMap = ht(t2));
+          const e2 = ht(t2), i2 = /* @__PURE__ */ Object.create(null);
+          for (const [t3, n2] of Object.entries(e2)) this._applyRegistrationHook(this._onExternalEntity, t3, n2, "external") && (i2[t3] = n2);
+          this._externalMap = i2;
+        }
+        addExternalEntity(t2, e2) {
+          ct(t2), "string" == typeof e2 && -1 === e2.indexOf("&") && this._applyRegistrationHook(this._onExternalEntity, t2, e2, "external") && (this._externalMap[t2] = e2);
+        }
+        addInputEntities(t2) {
+          if (this._totalExpansions = 0, this._expandedLength = 0, !this._onInputEntity) return void (this._inputMap = ht(t2));
+          const e2 = ht(t2), i2 = /* @__PURE__ */ Object.create(null);
+          for (const [t3, n2] of Object.entries(e2)) this._applyRegistrationHook(this._onInputEntity, t3, n2, "input") && (i2[t3] = n2);
+          this._inputMap = i2;
+        }
+        reset() {
+          return this._inputMap = /* @__PURE__ */ Object.create(null), this._totalExpansions = 0, this._expandedLength = 0, this;
+        }
+        setXmlVersion(t2) {
+          this._ncrXmlVersion = 1.1 === t2 ? 1.1 : 1;
+        }
+        decode(t2) {
+          if ("string" != typeof t2 || 0 === t2.length) return t2;
+          if (-1 === t2.indexOf("&")) return t2;
+          const e2 = t2, i2 = [], n2 = t2.length;
+          let r2 = 0, s2 = 0;
+          const o2 = this._maxTotalExpansions > 0, a2 = this._maxExpandedLength > 0, l2 = o2 || a2;
+          for (; s2 < n2; ) {
+            if (38 !== t2.charCodeAt(s2)) {
+              s2++;
+              continue;
+            }
+            let e3 = s2 + 1;
+            for (; e3 < n2 && 59 !== t2.charCodeAt(e3) && e3 - s2 <= 32; ) e3++;
+            if (e3 >= n2 || 59 !== t2.charCodeAt(e3)) {
+              s2++;
+              continue;
+            }
+            const p3 = t2.slice(s2 + 1, e3);
+            if (0 === p3.length) {
+              s2++;
+              continue;
+            }
+            let c2, h2;
+            if (this._removeSet.has(p3)) c2 = "", void 0 === h2 && (h2 = dt);
+            else {
+              if (this._leaveSet.has(p3)) {
+                s2++;
+                continue;
+              }
+              if (35 === p3.charCodeAt(0)) {
+                const t3 = this._resolveNCR(p3);
+                if (void 0 === t3) {
+                  s2++;
+                  continue;
+                }
+                c2 = t3, h2 = ut;
+              } else {
+                const t3 = this._resolveName(p3);
+                c2 = t3?.value, h2 = t3?.tier;
+              }
+            }
+            if (void 0 !== c2) {
+              if (s2 > r2 && i2.push(t2.slice(r2, s2)), i2.push(c2), r2 = e3 + 1, s2 = r2, l2 && this._tierCounts(h2)) {
+                if (o2 && (this._totalExpansions++, this._totalExpansions > this._maxTotalExpansions)) throw new Error(`[EntityReplacer] Entity expansion count limit exceeded: ${this._totalExpansions} > ${this._maxTotalExpansions}`);
+                if (a2) {
+                  const t3 = c2.length - (p3.length + 2);
+                  if (t3 > 0 && (this._expandedLength += t3, this._expandedLength > this._maxExpandedLength)) throw new Error(`[EntityReplacer] Expanded content length limit exceeded: ${this._expandedLength} > ${this._maxExpandedLength}`);
+                }
+              }
+            } else s2++;
+          }
+          r2 < n2 && i2.push(t2.slice(r2));
+          const p2 = 0 === i2.length ? t2 : i2.join("");
+          return this._postCheck(p2, e2);
+        }
+        _tierCounts(t2) {
+          return !!this._limitTiers.has(ft) || this._limitTiers.has(t2);
+        }
+        _resolveName(t2) {
+          return t2 in this._inputMap ? { value: this._inputMap[t2], tier: dt } : t2 in this._externalMap ? { value: this._externalMap[t2], tier: dt } : t2 in this._baseMap ? { value: this._baseMap[t2], tier: ut } : void 0;
+        }
+        _classifyNCR(t2) {
+          return 0 === t2 ? this._ncrNullLevel : t2 >= 55296 && t2 <= 57343 || 1 === this._ncrXmlVersion && t2 >= 1 && t2 <= 31 && !mt.has(t2) ? gt.remove : -1;
+        }
+        _applyNCRAction(t2, e2, i2) {
+          switch (t2) {
+            case gt.allow:
+              return String.fromCodePoint(i2);
+            case gt.remove:
+              return "";
+            case gt.leave:
+              return;
+            case gt.throw:
+              throw new Error(`[EntityDecoder] Prohibited numeric character reference &${e2}; (U+${i2.toString(16).toUpperCase().padStart(4, "0")})`);
+            default:
+              return String.fromCodePoint(i2);
+          }
+        }
+        _resolveNCR(t2) {
+          const e2 = t2.charCodeAt(1);
+          let i2;
+          if (i2 = 120 === e2 || 88 === e2 ? parseInt(t2.slice(2), 16) : parseInt(t2.slice(1), 10), Number.isNaN(i2) || i2 < 0 || i2 > 1114111) return;
+          const n2 = this._classifyNCR(i2);
+          if (!this._numericAllowed && n2 < gt.remove) return;
+          const r2 = -1 === n2 ? this._ncrOnLevel : Math.max(this._ncrOnLevel, n2);
+          return this._applyNCRAction(r2, t2, i2);
+        }
+      }
+      const bt = [{ id: "sql-block-comment-open", description: "SQL block comment open: /* ... */ \u2014 unusual in legitimate user text", pattern: /\/\*/ }, { id: "sql-union-select", description: "UNION SELECT \u2014 most common SQL injection aggregation attack", pattern: /\bUNION\s{1,20}(?:ALL\s{1,20})?SELECT\b/i }, { id: "sql-drop-table", description: "DROP TABLE \u2014 destructive DDL injection", pattern: /\bDROP\s{1,20}TABLE\b/i }, { id: "sql-drop-database", description: "DROP DATABASE \u2014 destructive DDL injection", pattern: /\bDROP\s{1,20}DATABASE\b/i }, { id: "sql-insert-into", description: "INSERT INTO \u2014 data injection", pattern: /\bINSERT\s{1,20}INTO\b/i }, { id: "sql-delete-from", description: "DELETE FROM \u2014 data deletion injection", pattern: /\bDELETE\s{1,20}FROM\b/i }, { id: "sql-update-set", description: "UPDATE ... SET \u2014 data modification injection", pattern: /\bUPDATE\b[\s\S]{1,60}\bSET\b/i }, { id: "sql-exec-xp", description: "EXEC xp_ \u2014 MSSQL extended stored procedure execution", pattern: /\bEXEC(?:UTE)?\s{1,20}xp_/i }, { id: "sql-tautology-string", description: `Classic string tautology: ' OR '1'='1 or " OR "1"="1"`, pattern: /'\s{0,10}OR\s{0,10}'[^']{0,20}'\s*=\s*'[^']{0,20}/i }, { id: "sql-tautology-numeric", description: "Numeric tautology: OR 1=1", pattern: /\bOR\s{1,10}1\s*=\s*1\b/i }, { id: "sql-always-true-zero", description: "Numeric tautology: OR 0=0", pattern: /\bOR\s{1,10}0\s*=\s*0\b/i }, { id: "sql-sleep-benchmark", description: "Time-based blind injection: SLEEP() or BENCHMARK()", pattern: /\b(?:SLEEP|BENCHMARK)\s*\(/i }, { id: "sql-waitfor-delay", description: "MSSQL time-based blind injection: WAITFOR DELAY", pattern: /\bWAITFOR\s{1,20}DELAY\b/i }, { id: "sql-char-function", description: "CHAR() function \u2014 used to obfuscate injected strings", pattern: /\bCHAR\s*\(\s*\d{1,3}/i }, { id: "sql-information-schema", description: "INFORMATION_SCHEMA \u2014 reconnaissance query for table/column enumeration", pattern: /\bINFORMATION_SCHEMA\b/i }], yt = `["'\\s]*:`, Nt = { HTML: [{ id: "html-script-open", description: "<script opening tag", pattern: /<script[\s>/]/i }, { id: "html-script-close", description: "</script closing tag", pattern: /<\/script[\s>]/i }, { id: "html-javascript-protocol", description: "javascript: URI scheme (with optional whitespace/encoding)", pattern: /j[\t\n\r ]*a[\t\n\r ]*v[\t\n\r ]*a[\t\n\r ]*s[\t\n\r ]*c[\t\n\r ]*r[\t\n\r ]*i[\t\n\r ]*p[\t\n\r ]*t[\t\n\r ]*:/i }, { id: "html-vbscript-protocol", description: "vbscript: URI scheme", pattern: /vbscript[\t\n\r ]*:/i }, { id: "html-data-html", description: "data:text/html URI \u2014 can execute scripts in browsers", pattern: /data[\t\n\r ]*:[\t\n\r ]*text\/html/i }, { id: "html-data-xhtml", description: "data:application/xhtml+xml URI", pattern: /data[\t\n\r ]*:[\t\n\r ]*application\/xhtml/i }, { id: "html-data-svg", description: "data:image/svg+xml URI \u2014 can execute scripts", pattern: /data[\t\n\r ]*:[\t\n\r ]*image\/svg\+xml/i }, { id: "html-inline-event-handler", description: "Inline event handler attributes: onclick=, onerror=, onload=, etc.", pattern: /\bon\w{1,30}\s*=/i }, { id: "html-entity-obfuscated-script", description: "HTML-entity-encoded <script (e.g. &#x3C;script or &lt;script)", pattern: /(?:&#x0*3[Cc];?|&#0*60;?|&lt;)\s*script/i }, { id: "html-entity-obfuscated-javascript", description: 'HTML-entity-encoded javascript: (partial \u2014 catches common &#106; or &#x6a; for "j")', pattern: /(?:&#x0*6[Aa];?|&#0*106;?)\s*(?:&#x0*61;?|a)[\s\S]{0,80}script\s*:/i }, { id: "html-style-expression", description: "CSS expression() \u2014 IE-era code execution in style attributes", pattern: /style[\s\S]{0,20}expression\s*\(/i }, { id: "html-object-embed", description: "<object or <embed tags that can load active content", pattern: /<(?:object|embed)[\s>/]/i }, { id: "html-base-tag", description: "<base href= \u2014 can hijack all relative URLs on a page", pattern: /<base[\s>]/i }, { id: "html-meta-refresh", description: '<meta http-equiv="refresh" \u2014 can redirect users', pattern: /<meta[\s\S]{0,40}http-equiv[\s\S]{0,20}refresh/i }, { id: "html-srcdoc", description: "srcdoc= attribute on iframes \u2014 embeds HTML that can run scripts", pattern: /srcdoc\s*=/i }, { id: "html-iframe", description: "<iframe tag", pattern: /<iframe[\s>/]/i }, { id: "html-form", description: "<form tag \u2014 can be used for phishing / credential harvesting injection", pattern: /<form[\s>/]/i }], XML: [{ id: "xml-cdata-injection", description: "CDATA section injection: <![CDATA[ breaks out of text node context", pattern: /<!\[CDATA\[/i }, { id: "xml-cdata-close", description: "CDATA close sequence: ]]> can terminate an enclosing CDATA section", pattern: /\]\]>/ }, { id: "xml-processing-instruction", description: "XML processing instruction: <?xml-stylesheet or <?php etc.", pattern: /<\?(?:xml[\- ]|php|asp)/i }, { id: "xml-doctype-injection", description: "DOCTYPE declaration embedded in content \u2014 can define entities", pattern: /<!DOCTYPE(?:[\s[]|$)/i }, { id: "xml-entity-system", description: "SYSTEM keyword \u2014 used in external entity declarations (XXE)", pattern: /\bSYSTEM\s+["']/i }, { id: "xml-entity-public", description: "PUBLIC keyword \u2014 used in external entity declarations (XXE)", pattern: /\bPUBLIC\s+["']/i }, { id: "xml-entity-declaration", description: "<!ENTITY declaration \u2014 defines entities, potential XXE or entity expansion", pattern: /<!ENTITY[\s%]/i }, { id: "xml-billion-laughs", description: "Entity reference chaining / billion laughs: repeated &eX; style references", pattern: /(?:&\w{1,20};){3,}/ }, { id: "xml-namespace-confusion", description: "xmlns: attribute injection \u2014 can redefine namespaces to confuse parsers", pattern: /\bxmlns\s*(?::\w{1,40})?\s*=/i }, { id: "xml-comment-injection", description: "<!-- comment injection \u2014 can hide content from some parsers", pattern: /<!--/ }, { id: "xml-comment-close", description: "--> closes an enclosing XML comment", pattern: /-->/ }, { id: "xml-pi-close", description: "?> closes an enclosing processing instruction", pattern: /\?>/ }], SVG: [{ id: "svg-script-element", description: "<script element inside SVG executes JavaScript", pattern: /<script[\s>/]/i }, { id: "svg-xlink-href-javascript", description: "xlink:href with javascript: \u2014 classic SVG XSS via <a> or <use>", pattern: /xlink\s*:\s*href\s*=\s*["']?\s*javascript\s*:/i }, { id: "svg-href-javascript", description: "href= with javascript: in SVG context (<a>, <animate>, etc.)", pattern: /href\s*=\s*["']?\s*javascript\s*:/i }, { id: "svg-foreignobject", description: "<foreignObject embeds HTML inside SVG \u2014 can execute scripts", pattern: /<foreignObject[\s>/]/i }, { id: "svg-use-external", description: "<use xlink:href or href pointing to external resource (non-fragment URL)", pattern: /<use[\s\S]{0,60}(?:xlink\s*:\s*)?href\s*=\s*(?:["'][^#]|[^"'#\s>])/i }, { id: "svg-animate-href", description: '<animate attributeName="href" \u2014 can dynamically change href to javascript:', pattern: /<animate[\s\S]{0,80}attributeName\s*=\s*["'][\s]*href["']/i }, { id: "svg-animate-xlinkhref", description: '<animate attributeName="xlink:href"', pattern: /<animate[\s\S]{0,80}attributeName\s*=\s*["'][\s]*xlink\s*:\s*href["']/i }, { id: "svg-set-javascript", description: '<set to="javascript:..." \u2014 sets an attribute to a javascript: URI', pattern: /<set[\s\S]{0,80}to\s*=\s*["']?\s*javascript\s*:/i }, { id: "svg-event-handler", description: "SVG-specific event handler attributes: onload=, onerror=, onactivate=, etc.", pattern: /\bon(?:load|error|activate|begin|end|repeat|focus|blur|click|mouse\w{1,20}|key\w{1,20})\s*=/i }, { id: "svg-handler-generic", description: "Generic on* handler catch-all for SVG attributes", pattern: /\bon\w{1,30}\s*=/i }, { id: "svg-filter-feimage", description: "<feImage href= \u2014 filter primitive that can load external resources", pattern: /<feImage[\s\S]{0,80}(?:xlink\s*:\s*)?href\s*=/i }, { id: "svg-image-external", description: "<image xlink:href with http/https or javascript protocol", pattern: /<image[\s\S]{0,80}(?:xlink\s*:\s*)?href\s*=\s*["']?\s*(?:https?|javascript)\s*:/i }, { id: "svg-style-javascript", description: "style= attribute containing javascript: (e.g. background:url(javascript:...))", pattern: /style\s*=[\s\S]{0,60}javascript\s*:/i }], SQL: bt, "SQL-STRICT": [...bt, { id: "sql-line-comment", description: "SQL line comment: -- followed by whitespace or end of string", pattern: /--(?:\s|$)/ }, { id: "sql-stacked-query", description: "Stacked queries: semicolon immediately followed by a SQL keyword", pattern: /;\s{0,10}(?:SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC)\b/i }, { id: "sql-hex-encoding", description: "Hex-encoded string injection: 0x41414141 style (MySQL)", pattern: /\b0x[0-9a-f]{4,}/i }], SHELL: [{ id: "shell-path-traversal-unix", description: "Unix path traversal: ../  \u2014 climbing the directory tree", pattern: /\.\.\// }, { id: "shell-path-traversal-windows", description: "Windows path traversal: ..\\ \u2014 climbing the directory tree", pattern: /\.\.\\/ }, { id: "shell-path-traversal-encoded", description: "URL-encoded path traversal: %2e%2e or %2f variants", pattern: /%2e%2e|%2f\.\.|\.\.%2f/i }, { id: "shell-null-byte", description: "Null byte injection: \\x00 or %00 \u2014 truncates strings in C-backed functions", pattern: /\x00|%00/ }, { id: "shell-semicolon", description: "Semicolon command separator: cmd1; cmd2", pattern: /;/ }, { id: "shell-pipe", description: "Pipe operator: cmd1 | cmd2", pattern: /\|/ }, { id: "shell-and-operator", description: "AND operator: cmd1 && cmd2", pattern: /&&/ }, { id: "shell-or-operator", description: "OR operator: cmd1 || cmd2", pattern: /\|\|/ }, { id: "shell-backtick", description: "Backtick command substitution: `cmd`", pattern: /`/ }, { id: "shell-dollar-paren", description: "Dollar-paren command substitution: $(cmd)", pattern: /\$\(/ }, { id: "shell-dollar-brace", description: "Dollar-brace variable expansion: ${var} \u2014 can be abused for injection", pattern: /\$\{/ }, { id: "shell-redirect-out", description: "Output redirection: cmd > file or cmd >> file", pattern: />{1,2}/ }, { id: "shell-redirect-in", description: "Input redirection: cmd < file", pattern: /</ }, { id: "shell-newline-injection", description: "Newline injection: \\n or \\r \u2014 can inject new shell commands", pattern: /[\n\r]/ }, { id: "shell-glob-star", description: "Glob expansion: * or ? \u2014 can expand to unintended files", pattern: /[/\\][*?]/ }, { id: "shell-absolute-root", description: "Absolute root path injection: string starting with / or \\ (Windows UNC)", pattern: /^(?:\/|\\\\)/ }, { id: "shell-windows-drive", description: "Windows drive letter path injection: C:\\ or D:/", pattern: /^[a-zA-Z]:[/\\]/ }, { id: "shell-curl-wget", description: "curl/wget with URL or flags \u2014 can exfiltrate data or download payloads", pattern: /\b(?:curl|wget)\s+(?:https?:\/\/|ftp:\/\/|-)/i }], REDOS: [{ id: "redos-nested-quantifier-plus", description: "Nested + quantifier inside a group with outer quantifier: (a+)+, (.+b)*, etc.", pattern: /\([^)]*\+[^)]*\)[+*]/ }, { id: "redos-nested-quantifier-star", description: "Nested * quantifier: (a*)* or (a*)+ \u2014 catastrophic backtracking", pattern: /\([^)]*\*[^)]*\)[*+]/ }, { id: "redos-nested-groups", description: "Doubly nested quantified groups: ((a+)+) \u2014 guaranteed catastrophic", pattern: /\(\([^)]{0,40}\)[+*]\)[+*]/ }, { id: "redos-alternation-overlap", description: "Overlapping alternation under quantifier: (a|a)+ \u2014 ambiguous NFA paths", pattern: /\(([^|()]{1,20})\|(?:\1)(?:\|[^|()]{1,20}){0,5}\)[+*?]{1,2}/ }, { id: "redos-star-plus-concat", description: "(x*x)+ pattern \u2014 triggers super-linear backtracking", pattern: /\([^)]{0,10}\*[^)]{0,10}\)[+*]/ }, { id: "redos-dot-star-greedy", description: "(.*){n,} or (.+){n,} \u2014 repeated greedy dot quantifiers", pattern: /\(\.[*+]\)\{?\d/ }, { id: "redos-large-repetition", description: "Very large fixed or range repetition count {1000,} or {1000,n} \u2014 denial of service via backtracking", pattern: /\{\d{4,}(?:,\d*)?\}/ }, { id: "redos-catastrophic-alternation", description: "Long alternation with many similar branches \u2014 polynomial backtracking risk", pattern: /\([^)]{0,200}(?:\|[^|)]{0,50}){9,}\)/ }], NOSQL: [{ id: "nosql-where-operator", description: "$where \u2014 executes arbitrary JavaScript server-side in MongoDB", pattern: new RegExp(`\\$where${yt}`, "i") }, { id: "nosql-ne-operator", description: '$ne \u2014 "not equal" operator used to bypass equality checks', pattern: new RegExp(`\\$ne${yt}`, "i") }, { id: "nosql-gt-operator", description: '$gt \u2014 "greater than" used to bypass password/value checks', pattern: new RegExp(`\\$gte?${yt}`, "i") }, { id: "nosql-lt-operator", description: '$lt / $lte \u2014 "less than" bypass variants', pattern: new RegExp(`\\$lte?${yt}`, "i") }, { id: "nosql-regex-operator", description: "$regex \u2014 can be used to extract data character by character (blind injection)", pattern: new RegExp(`\\$regex${yt}`, "i") }, { id: "nosql-or-operator", description: "$or \u2014 logical OR; used to create always-true conditions", pattern: new RegExp(`\\$or${yt}\\s*\\[`, "i") }, { id: "nosql-and-operator", description: "$and \u2014 logical AND operator injection", pattern: new RegExp(`\\$and${yt}\\s*\\[`, "i") }, { id: "nosql-nor-operator", description: "$nor \u2014 logical NOR operator injection", pattern: new RegExp(`\\$nor${yt}\\s*\\[`, "i") }, { id: "nosql-exists-operator", description: "$exists \u2014 can enumerate fields to determine schema", pattern: new RegExp(`\\$exists${yt}`, "i") }, { id: "nosql-in-operator", description: "$in \u2014 matches any value in a list; can enumerate values", pattern: new RegExp(`\\$in${yt}\\s*\\[`, "i") }, { id: "nosql-expr-operator", description: "$expr \u2014 allows aggregation expressions in queries (MongoDB 3.6+)", pattern: new RegExp(`\\$expr${yt}`, "i") }, { id: "nosql-function-operator", description: "$function \u2014 executes arbitrary JavaScript in MongoDB 4.4+", pattern: new RegExp(`\\$function${yt}`, "i") }, { id: "nosql-accumulator-operator", description: "$accumulator \u2014 custom aggregation with arbitrary JS execution", pattern: new RegExp(`\\$accumulator${yt}`, "i") }, { id: "nosql-proto-pollution", description: "__proto__ \u2014 prototype pollution via object key injection", pattern: /__proto__/ }, { id: "nosql-constructor-prototype", description: "constructor.prototype \u2014 alternative prototype pollution vector (dot notation or JSON key)", pattern: /constructor[\s"':.,{\[]*prototype/i }, { id: "nosql-proto-bracket", description: '["__proto__"] \u2014 bracket-notation prototype pollution', pattern: /\[["']__proto__["']\]/ }], LOG: [{ id: "log-crlf-injection", description: "CRLF injection: literal \\r or \\n embeds fake log lines", pattern: /[\r\n]/ }, { id: "log-url-encoded-crlf", description: "URL-encoded CRLF: %0d, %0a, %0D, %0A \u2014 decoded by some log parsers", pattern: /%0[dDaA]/ }, { id: "log-unicode-newline", description: "Unicode newline variants: U+2028 (line separator), U+2029 (paragraph separator)", pattern: /[\u2028\u2029]/ }, { id: "log-log4shell-jndi", description: "Log4Shell: ${jndi:...} triggers remote code execution in Apache Log4j", pattern: /\$\{jndi\s*:/i }, { id: "log-log4shell-obfuscated", description: "Obfuscated Log4Shell: ${::-j}... lookup-bypass prefix used to evade WAF detection", pattern: /\$\{::-/ }, { id: "log-log4j-lookup", description: "Log4j lookup syntax: ${env:...}, ${sys:...}, ${ctx:...} \u2014 data exfiltration", pattern: /\$\{(?:env|sys|ctx|main|map|sd|web|docker|k8s|spring)\s*:/i }, { id: "log-ssti-double-brace", description: "SSTI double-brace: {{expression}} \u2014 Jinja2, Twig, Handlebars, etc.", pattern: /\{\{[\s\S]{0,80}\}\}/ }, { id: "log-ssti-hash-brace", description: "SSTI hash-brace: #{expression} \u2014 Thymeleaf, Velocity, Ruby ERB", pattern: /#\{[\s\S]{0,80}\}/ }, { id: "log-ssti-dollar-brace", description: "SSTI/EL injection: ${expression with operators or method calls} \u2014 JSP EL, Freemarker, SpEL", pattern: /\$\{[^}]*(?:\.|\(|\*|\+|\bclass\b|\bruntime\b|\bprocess\b|\bexec\b)[^}]{0,80}\}/i }, { id: "log-ssti-percent-tag", description: "SSTI ERB/ASP tag: <%= expression %> \u2014 Ruby ERB, ASP", pattern: /<%=[\s\S]{0,80}%>/ }, { id: "log-null-byte", description: "Null byte: \\x00 or %00 \u2014 can truncate log entries in C-backed loggers", pattern: /\x00|%00/ }, { id: "log-ansi-escape", description: "ANSI escape sequence: ESC[ \u2014 can manipulate terminal output when logs are tailed", pattern: /\x1b\[/ }] }, Et = Nt, wt = Object.freeze(Object.fromEntries(Object.keys(Nt).map((t2) => [t2, t2])));
+      function vt(t2, e2) {
+        const i2 = Et[e2];
+        for (const n2 of i2) if (n2.pattern.test(t2)) return { context: e2, id: n2.id, description: n2.description, pattern: n2.pattern };
+        return null;
+      }
+      function St(t2, e2) {
+        if ((function(t3) {
+          if ("string" != typeof t3) throw new TypeError("is-unsafe: first argument must be a string, got " + typeof t3);
+        })(t2), (function(t3) {
+          if (!(t3 instanceof RegExp)) {
+            if ("string" != typeof t3) {
+              if (!Array.isArray(t3)) throw new TypeError("is-unsafe: second argument must be a context string, array of context strings, or RegExp. Got: " + typeof t3);
+              if (0 === t3.length) throw new TypeError("is-unsafe: context array must not be empty");
+              for (const e3 of t3) if ("string" != typeof e3 || !Et[e3]) throw new TypeError(`is-unsafe: unknown context "${e3}" in array. Valid contexts: ${Object.keys(wt).join(", ")}`);
+            } else if (!Et[t3]) throw new TypeError(`is-unsafe: unknown context "${t3}". Valid contexts: ${Object.keys(wt).join(", ")}`);
+          }
+        })(e2), e2 instanceof RegExp) return e2.test(t2);
+        if ("string" == typeof e2) return null !== vt(t2, e2);
+        for (const i2 of e2) if (null !== vt(t2, i2)) return true;
+        return false;
+      }
+      function At(t2, e2) {
+        if (!t2) return {};
+        const i2 = e2.attributesGroupName ? t2[e2.attributesGroupName] : t2;
+        if (!i2) return {};
+        const n2 = {};
+        for (const t3 in i2) t3.startsWith(e2.attributeNamePrefix) ? n2[t3.substring(e2.attributeNamePrefix.length)] = i2[t3] : n2[t3] = i2[t3];
+        return n2;
+      }
+      function Tt(t2) {
+        if (!t2 || "string" != typeof t2) return;
+        const e2 = t2.indexOf(":");
+        if (-1 !== e2 && e2 > 0) {
+          const i2 = t2.substring(0, e2);
+          if ("xmlns" !== i2) return i2;
+        }
+      }
+      class _t {
+        constructor(t2, e2) {
+          var i2;
+          this.options = t2, this.currentNode = null, this.tagsNodeStack = [], this.parseXml = jt, this.parseTextData = Ct, this.resolveNameSpace = $t, this.buildAttributesMap = Pt, this.isItStopNode = Dt, this.replaceEntitiesValue = kt, this.readStopNodeData = qt, this.saveTextToParentTag = Lt, this.addChild = It, this.ignoreAttributesFn = "function" == typeof (i2 = this.options.ignoreAttributes) ? i2 : Array.isArray(i2) ? (t3) => {
+            for (const e3 of i2) {
+              if ("string" == typeof e3 && t3 === e3) return true;
+              if (e3 instanceof RegExp && e3.test(t3)) return true;
+            }
+          } : () => false, this.entityExpansionCount = 0, this.currentExpandedLength = 0;
+          let n2 = { ...ot };
+          this.options.entityDecoder ? this.entityDecoder = this.options.entityDecoder : ("object" == typeof this.options.htmlEntities ? n2 = this.options.htmlEntities : true === this.options.htmlEntities && (n2 = { ...at, ...st }), this.entityDecoder = new xt({ namedEntities: { ...n2, ...e2 }, numericAllowed: this.options.htmlEntities, limit: { maxTotalExpansions: this.options.processEntities.maxTotalExpansions, maxExpandedLength: this.options.processEntities.maxExpandedLength, applyLimitsTo: this.options.processEntities.appliesTo }, onInputEntity: (t3, e3) => St(e3, [wt.HTML, wt.XML]) ? lt.BLOCK : lt.ALLOW })), this.matcher = new it(), this.readonlyMatcher = this.matcher.readOnly(), this.isCurrentNodeStopNode = false, this.stopNodeExpressionsSet = new rt();
+          const r2 = this.options.stopNodes;
+          if (r2 && r2.length > 0) {
+            for (let t3 = 0; t3 < r2.length; t3++) {
+              const e3 = r2[t3];
+              "string" == typeof e3 ? this.stopNodeExpressionsSet.add(new nt(e3)) : e3 instanceof nt && this.stopNodeExpressionsSet.add(e3);
+            }
+            this.stopNodeExpressionsSet.seal();
+          }
+        }
+      }
+      function Ct(t2, e2, i2, n2, r2, s2, o2) {
+        const a2 = this.options;
+        if (void 0 !== t2 && (a2.trimValues && !n2 && (t2 = t2.trim()), t2.length > 0)) {
+          o2 || (t2 = this.replaceEntitiesValue(t2, e2, i2));
+          const n3 = a2.jPath ? i2.toString() : i2, l2 = a2.tagValueProcessor(e2, t2, n3, r2, s2);
+          return null == l2 ? t2 : typeof l2 != typeof t2 || l2 !== t2 ? l2 : a2.trimValues || t2.trim() === t2 ? Ft(t2, a2.parseTagValue, a2.numberParseOptions) : t2;
+        }
+      }
+      function $t(t2) {
+        if (this.options.removeNSPrefix) {
+          const e2 = t2.split(":"), i2 = "/" === t2.charAt(0) ? "/" : "";
+          if ("xmlns" === e2[0]) return "";
+          2 === e2.length && (t2 = i2 + e2[1]);
+        }
+        return t2;
+      }
+      const Ot = new RegExp(`([^\\s=]+)\\s*(=\\s*(['"])([\\s\\S]*?)\\3)?`, "gm");
+      function Pt(t2, e2, i2, n2 = false) {
+        const s2 = this.options;
+        if (true === n2 || true !== s2.ignoreAttributes && "string" == typeof t2) {
+          const n3 = r(t2, Ot), o2 = n3.length, a2 = {}, l2 = new Array(o2);
+          let p2 = false;
+          const c2 = {};
+          for (let t3 = 0; t3 < o2; t3++) {
+            const e3 = this.resolveNameSpace(n3[t3][1]), r2 = n3[t3][4];
+            if (e3.length && void 0 !== r2) {
+              let n4 = r2;
+              s2.trimValues && (n4 = n4.trim()), n4 = this.replaceEntitiesValue(n4, i2, this.readonlyMatcher), l2[t3] = n4, c2[e3] = n4, p2 = true;
+            }
+          }
+          p2 && "object" == typeof e2 && e2.updateCurrent && e2.updateCurrent(c2);
+          const h2 = s2.jPath ? e2.toString() : this.readonlyMatcher;
+          let d2 = false;
+          for (let t3 = 0; t3 < o2; t3++) {
+            const e3 = this.resolveNameSpace(n3[t3][1]);
+            if (this.ignoreAttributesFn(e3, h2)) continue;
+            let i3 = s2.attributeNamePrefix + e3;
+            if (e3.length) if (s2.transformAttributeName && (i3 = s2.transformAttributeName(i3)), i3 = Gt(i3, s2), void 0 !== n3[t3][4]) {
+              const n4 = l2[t3], r2 = s2.attributeValueProcessor(e3, n4, h2);
+              a2[i3] = null == r2 ? n4 : typeof r2 != typeof n4 || r2 !== n4 ? r2 : Ft(n4, s2.parseAttributeValue, s2.numberParseOptions), d2 = true;
+            } else s2.allowBooleanAttributes && (a2[i3] = true, d2 = true);
+          }
+          if (!d2) return;
+          if (s2.attributesGroupName && !s2.preserveOrder) {
+            const t3 = {};
+            return t3[s2.attributesGroupName] = a2, t3;
+          }
+          return a2;
+        }
+      }
+      const jt = function(t2) {
+        t2 = t2.replace(/\r\n?/g, "\n");
+        const e2 = new O("!xml");
+        let i2 = e2, n2 = "";
+        this.matcher.reset(), this.entityDecoder.reset(), this.entityExpansionCount = 0, this.currentExpandedLength = 0;
+        const r2 = this.options, s2 = new M(r2.processEntities), o2 = t2.length;
+        for (let a2 = 0; a2 < o2; a2++) if ("<" === t2[a2]) {
+          const l2 = t2.charCodeAt(a2 + 1);
+          if (47 === l2) {
+            const e3 = Rt(t2, ">", a2, "Closing Tag is not closed.");
+            let s3 = t2.substring(a2 + 2, e3).trim();
+            if (r2.removeNSPrefix) {
+              const t3 = s3.indexOf(":");
+              -1 !== t3 && (s3 = s3.substr(t3 + 1));
+            }
+            s3 = Ut(r2.transformTagName, s3, "", r2).tagName, i2 && (n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher));
+            const o3 = this.matcher.getCurrentTag();
+            if (s3 && r2.unpairedTagsSet.has(s3)) throw new Error(`Unpaired tag can not be used as closing tag: </${s3}>`);
+            o3 && r2.unpairedTagsSet.has(o3) && (this.matcher.pop(), this.tagsNodeStack.pop()), this.matcher.pop(), this.isCurrentNodeStopNode = false, i2 = this.tagsNodeStack.pop(), n2 = "", a2 = e3;
+          } else if (63 === l2) {
+            let e3 = Vt(t2, a2, false, "?>");
+            if (!e3) throw new Error("Pi Tag is not closed.");
+            n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher);
+            const o3 = this.buildAttributesMap(e3.tagExp, this.matcher, e3.tagName, true);
+            if (o3) {
+              const t3 = o3[this.options.attributeNamePrefix + "version"];
+              this.entityDecoder.setXmlVersion(Number(t3) || 1), s2.setXmlVersion(Number(t3) || 1);
+            }
+            if (r2.ignoreDeclaration && "?xml" === e3.tagName || r2.ignorePiTags) ;
+            else {
+              const t3 = new O(e3.tagName);
+              t3.add(r2.textNodeName, ""), e3.tagName !== e3.tagExp && e3.attrExpPresent && true !== r2.ignoreAttributes && (t3[":@"] = o3), this.addChild(i2, t3, this.readonlyMatcher, a2);
+            }
+            a2 = e3.closeIndex + 1;
+          } else if (33 === l2 && 45 === t2.charCodeAt(a2 + 2) && 45 === t2.charCodeAt(a2 + 3)) {
+            const e3 = Rt(t2, "-->", a2 + 4, "Comment is not closed.");
+            if (r2.commentPropName) {
+              const s3 = t2.substring(a2 + 4, e3 - 2);
+              n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher), i2.add(r2.commentPropName, [{ [r2.textNodeName]: s3 }]);
+            }
+            a2 = e3;
+          } else if (33 === l2 && 68 === t2.charCodeAt(a2 + 2)) {
+            const e3 = s2.readDocType(t2, a2);
+            this.entityDecoder.addInputEntities(e3.entities), a2 = e3.i;
+          } else if (33 === l2 && 91 === t2.charCodeAt(a2 + 2)) {
+            const e3 = Rt(t2, "]]>", a2, "CDATA is not closed.") - 2, s3 = t2.substring(a2 + 9, e3);
+            n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher);
+            let o3 = this.parseTextData(s3, i2.tagname, this.readonlyMatcher, true, false, true, true);
+            null == o3 && (o3 = ""), r2.cdataPropName ? i2.add(r2.cdataPropName, [{ [r2.textNodeName]: s3 }]) : i2.add(r2.textNodeName, o3), a2 = e3 + 2;
+          } else {
+            let s3 = Vt(t2, a2, r2.removeNSPrefix);
+            if (!s3) {
+              const e3 = t2.substring(Math.max(0, a2 - 50), Math.min(o2, a2 + 50));
+              throw new Error(`readTagExp returned undefined at position ${a2}. Context: "${e3}"`);
+            }
+            let l3 = s3.tagName;
+            const p2 = s3.rawTagName;
+            let c2 = s3.tagExp, h2 = s3.attrExpPresent, d2 = s3.closeIndex;
+            if ({ tagName: l3, tagExp: c2 } = Ut(r2.transformTagName, l3, c2, r2), r2.strictReservedNames && (l3 === r2.commentPropName || l3 === r2.cdataPropName || l3 === r2.textNodeName || l3 === r2.attributesGroupName)) throw new Error(`Invalid tag name: ${l3}`);
+            i2 && n2 && "!xml" !== i2.tagname && (n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher, false));
+            const u2 = i2;
+            u2 && r2.unpairedTagsSet.has(u2.tagname) && (i2 = this.tagsNodeStack.pop(), this.matcher.pop());
+            let f2 = false;
+            c2.length > 0 && c2.lastIndexOf("/") === c2.length - 1 && (f2 = true, "/" === l3[l3.length - 1] ? (l3 = l3.substr(0, l3.length - 1), c2 = l3) : c2 = c2.substr(0, c2.length - 1), h2 = l3 !== c2);
+            let g2, m2 = null, x2 = {};
+            g2 = Tt(p2), l3 !== e2.tagname && this.matcher.push(l3, {}, g2), l3 !== c2 && h2 && (m2 = this.buildAttributesMap(c2, this.matcher, l3), m2 && (x2 = At(m2, r2))), l3 !== e2.tagname && (this.isCurrentNodeStopNode = this.isItStopNode());
+            const b2 = a2;
+            if (this.isCurrentNodeStopNode) {
+              let e3 = "";
+              if (f2) a2 = s3.closeIndex;
+              else if (r2.unpairedTagsSet.has(l3)) a2 = s3.closeIndex;
+              else {
+                const i3 = this.readStopNodeData(t2, p2, d2 + 1);
+                if (!i3) throw new Error(`Unexpected end of ${p2}`);
+                a2 = i3.i, e3 = i3.tagContent;
+              }
+              const n3 = new O(l3);
+              m2 && (n3[":@"] = m2), n3.add(r2.textNodeName, e3), this.matcher.pop(), this.isCurrentNodeStopNode = false, this.addChild(i2, n3, this.readonlyMatcher, b2);
+            } else {
+              if (f2) {
+                ({ tagName: l3, tagExp: c2 } = Ut(r2.transformTagName, l3, c2, r2));
+                const t3 = new O(l3);
+                m2 && (t3[":@"] = m2), this.addChild(i2, t3, this.readonlyMatcher, b2), this.matcher.pop(), this.isCurrentNodeStopNode = false;
+              } else {
+                if (r2.unpairedTagsSet.has(l3)) {
+                  const t3 = new O(l3);
+                  m2 && (t3[":@"] = m2), this.addChild(i2, t3, this.readonlyMatcher, b2), this.matcher.pop(), this.isCurrentNodeStopNode = false, a2 = s3.closeIndex;
+                  continue;
+                }
+                {
+                  const t3 = new O(l3);
+                  if (this.tagsNodeStack.length > r2.maxNestedTags) throw new Error("Maximum nested tags exceeded");
+                  this.tagsNodeStack.push(i2), m2 && (t3[":@"] = m2), this.addChild(i2, t3, this.readonlyMatcher, b2), i2 = t3;
+                }
+              }
+              n2 = "", a2 = d2;
+            }
+          }
+        } else n2 += t2[a2];
+        return e2.child;
+      };
+      function It(t2, e2, i2, n2) {
+        this.options.captureMetaData || (n2 = void 0);
+        const r2 = this.options.jPath ? i2.toString() : i2, s2 = this.options.updateTag(e2.tagname, r2, e2[":@"]);
+        false === s2 || ("string" == typeof s2 ? (e2.tagname = s2, t2.addChild(e2, n2)) : t2.addChild(e2, n2));
+      }
+      function kt(t2, e2, i2) {
+        const n2 = this.options.processEntities;
+        if (!n2 || !n2.enabled) return t2;
+        if (n2.allowedTags) {
+          const r2 = this.options.jPath ? i2.toString() : i2;
+          if (!(Array.isArray(n2.allowedTags) ? n2.allowedTags.includes(e2) : n2.allowedTags(e2, r2))) return t2;
+        }
+        if (n2.tagFilter) {
+          const r2 = this.options.jPath ? i2.toString() : i2;
+          if (!n2.tagFilter(e2, r2)) return t2;
+        }
+        return this.entityDecoder.decode(t2);
+      }
+      function Lt(t2, e2, i2, n2) {
+        return t2 && (void 0 === n2 && (n2 = 0 === e2.child.length), void 0 !== (t2 = this.parseTextData(t2, e2.tagname, i2, false, !!e2[":@"] && 0 !== Object.keys(e2[":@"]).length, n2)) && "" !== t2 && e2.add(this.options.textNodeName, t2), t2 = ""), t2;
+      }
+      function Dt() {
+        return 0 !== this.stopNodeExpressionsSet.size && this.matcher.matchesAny(this.stopNodeExpressionsSet);
+      }
+      function Rt(t2, e2, i2, n2) {
+        const r2 = t2.indexOf(e2, i2);
+        if (-1 === r2) throw new Error(n2);
+        return r2 + e2.length - 1;
+      }
+      function Mt(t2, e2, i2, n2) {
+        const r2 = t2.indexOf(e2, i2);
+        if (-1 === r2) throw new Error(n2);
+        return r2;
+      }
+      function Vt(t2, e2, i2, n2 = ">") {
+        const r2 = (function(t3, e3, i3 = ">") {
+          let n3 = 0;
+          const r3 = t3.length, s3 = i3.charCodeAt(0), o3 = i3.length > 1 ? i3.charCodeAt(1) : -1;
+          let a3 = "", l3 = e3;
+          for (let i4 = e3; i4 < r3; i4++) {
+            const e4 = t3.charCodeAt(i4);
+            if (n3) e4 === n3 && (n3 = 0);
+            else if (34 === e4 || 39 === e4) n3 = e4;
+            else if (e4 === s3) {
+              if (-1 === o3) return a3 += t3.substring(l3, i4), { data: a3, index: i4 };
+              if (t3.charCodeAt(i4 + 1) === o3) return a3 += t3.substring(l3, i4), { data: a3, index: i4 };
+            } else 9 !== e4 || n3 || (a3 += t3.substring(l3, i4) + " ", l3 = i4 + 1);
+          }
+        })(t2, e2 + 1, n2);
+        if (!r2) return;
+        let s2 = r2.data;
+        const o2 = r2.index, a2 = s2.search(/\s/);
+        let l2 = s2, p2 = true;
+        -1 !== a2 && (l2 = s2.substring(0, a2), s2 = s2.substring(a2 + 1).trimStart());
+        const c2 = l2;
+        if (i2) {
+          const t3 = l2.indexOf(":");
+          -1 !== t3 && (l2 = l2.substr(t3 + 1), p2 = l2 !== r2.data.substr(t3 + 1));
+        }
+        return { tagName: l2, tagExp: s2, closeIndex: o2, attrExpPresent: p2, rawTagName: c2 };
+      }
+      function qt(t2, e2, i2) {
+        const n2 = i2;
+        let r2 = 1;
+        const s2 = t2.length;
+        for (; i2 < s2; i2++) if ("<" === t2[i2]) {
+          const s3 = t2.charCodeAt(i2 + 1);
+          if (47 === s3) {
+            const s4 = Mt(t2, ">", i2, `${e2} is not closed`);
+            if (t2.substring(i2 + 2, s4).trim() === e2 && (r2--, 0 === r2)) return { tagContent: t2.substring(n2, i2), i: s4 };
+            i2 = s4;
+          } else if (63 === s3) i2 = Rt(t2, "?>", i2 + 1, "StopNode is not closed.");
+          else if (33 === s3 && 45 === t2.charCodeAt(i2 + 2) && 45 === t2.charCodeAt(i2 + 3)) i2 = Rt(t2, "-->", i2 + 3, "StopNode is not closed.");
+          else if (33 === s3 && 91 === t2.charCodeAt(i2 + 2)) i2 = Rt(t2, "]]>", i2, "StopNode is not closed.") - 2;
+          else {
+            const n3 = Vt(t2, i2, false);
+            n3 && ((n3 && n3.tagName) === e2 && "/" !== n3.tagExp[n3.tagExp.length - 1] && r2++, i2 = n3.closeIndex);
+          }
+        }
+      }
+      function Ft(t2, e2, i2) {
+        if (e2 && "string" == typeof t2) {
+          const e3 = t2.trim();
+          return "true" === e3 || "false" !== e3 && Z(t2, i2);
+        }
+        return void 0 !== t2 ? t2 : "";
+      }
+      function Ut(t2, e2, i2, n2) {
+        if (t2) {
+          const n3 = t2(e2);
+          i2 === e2 && (i2 = n3), e2 = n3;
+        }
+        return { tagName: e2 = Gt(e2, n2), tagExp: i2 };
+      }
+      function Gt(t2, e2) {
+        if (a.includes(t2)) throw new Error(`[SECURITY] Invalid name: "${t2}" is a reserved JavaScript keyword that could cause prototype pollution`);
+        return o.includes(t2) ? e2.onDangerousProperty(t2) : t2;
+      }
+      const Bt = O.getMetaDataSymbol();
+      function Wt(t2, e2) {
+        if (!t2 || "object" != typeof t2) return {};
+        if (!e2) return t2;
+        const i2 = {};
+        for (const n2 in t2) n2.startsWith(e2) ? i2[n2.substring(e2.length)] = t2[n2] : i2[n2] = t2[n2];
+        return i2;
+      }
+      function Xt(t2, e2, i2, n2) {
+        return Yt(t2, e2, i2, n2);
+      }
+      function Yt(t2, e2, i2, n2) {
+        let r2;
+        const s2 = {};
+        for (let o2 = 0; o2 < t2.length; o2++) {
+          const a2 = t2[o2], l2 = zt(a2);
+          if (void 0 !== l2 && l2 !== e2.textNodeName) {
+            const t3 = Wt(a2[":@"] || {}, e2.attributeNamePrefix);
+            i2.push(l2, t3);
+          }
+          if (l2 === e2.textNodeName) void 0 === r2 ? r2 = a2[l2] : r2 += "" + a2[l2];
+          else {
+            if (void 0 === l2) continue;
+            if (a2[l2]) {
+              let t3 = Yt(a2[l2], e2, i2, n2);
+              const r3 = Qt(t3, e2);
+              if (0 === Object.keys(t3).length && e2.alwaysCreateTextNode && (t3[e2.textNodeName] = ""), a2[":@"] ? Ht(t3, a2[":@"], n2, e2) : 1 !== Object.keys(t3).length || void 0 === t3[e2.textNodeName] || e2.alwaysCreateTextNode ? 0 === Object.keys(t3).length && (e2.alwaysCreateTextNode ? t3[e2.textNodeName] = "" : t3 = "") : t3 = t3[e2.textNodeName], void 0 !== a2[Bt] && "object" == typeof t3 && null !== t3 && (t3[Bt] = a2[Bt]), void 0 !== s2[l2] && Object.prototype.hasOwnProperty.call(s2, l2)) Array.isArray(s2[l2]) || (s2[l2] = [s2[l2]]), s2[l2].push(t3);
+              else {
+                const i3 = e2.jPath ? n2.toString() : n2;
+                e2.isArray(l2, i3, r3) ? s2[l2] = [t3] : s2[l2] = t3;
+              }
+              void 0 !== l2 && l2 !== e2.textNodeName && i2.pop();
+            }
+          }
+        }
+        return "string" == typeof r2 ? r2.length > 0 && (s2[e2.textNodeName] = r2) : void 0 !== r2 && (s2[e2.textNodeName] = r2), s2;
+      }
+      function zt(t2) {
+        const e2 = Object.keys(t2);
+        for (let t3 = 0; t3 < e2.length; t3++) {
+          const i2 = e2[t3];
+          if (":@" !== i2) return i2;
+        }
+      }
+      function Ht(t2, e2, i2, n2) {
+        if (e2) {
+          const r2 = Object.keys(e2), s2 = r2.length;
+          for (let o2 = 0; o2 < s2; o2++) {
+            const s3 = r2[o2], a2 = s3.startsWith(n2.attributeNamePrefix) ? s3.substring(n2.attributeNamePrefix.length) : s3, l2 = n2.jPath ? i2.toString() + "." + a2 : i2;
+            n2.isArray(s3, l2, true, true) ? t2[s3] = [e2[s3]] : t2[s3] = e2[s3];
+          }
+        }
+      }
+      function Qt(t2, e2) {
+        const { textNodeName: i2 } = e2, n2 = Object.keys(t2).length;
+        return 0 === n2 || !(1 !== n2 || !t2[i2] && "boolean" != typeof t2[i2] && 0 !== t2[i2]);
+      }
+      class Jt {
+        constructor(t2) {
+          this.externalEntities = {}, this.options = C(t2);
+        }
+        parse(t2, e2) {
+          if ("string" != typeof t2 && t2.toString) t2 = t2.toString();
+          else if ("string" != typeof t2) throw new Error("XML data is accepted in String or Bytes[] form.");
+          if (e2) {
+            true === e2 && (e2 = {});
+            const i3 = p(t2, e2);
+            if (true !== i3) throw Error(`${i3.err.msg}:${i3.err.line}:${i3.err.col}`);
+          }
+          const i2 = new _t(this.options, this.externalEntities), n2 = i2.parseXml(t2);
+          return this.options.preserveOrder || void 0 === n2 ? n2 : Xt(n2, this.options, i2.matcher, i2.readonlyMatcher);
+        }
+        addEntity(t2, e2) {
+          if (-1 !== e2.indexOf("&")) throw new Error("Entity value can't have '&'");
+          if (-1 !== t2.indexOf("&") || -1 !== t2.indexOf(";")) throw new Error("An entity must be set without '&' and ';'. Eg. use '#xD' for '&#xD;'");
+          if ("&" === e2) throw new Error("An entity with value '&' is not permitted");
+          this.externalEntities[t2] = e2;
+        }
+        static getMetaDataSymbol() {
+          return O.getMetaDataSymbol();
+        }
+      }
+      function Zt(t2) {
+        return String(t2).replace(/--/g, "- -").replace(/--/g, "- -").replace(/-$/, "- ");
+      }
+      function Kt(t2) {
+        return String(t2).replace(/\]\]>/g, "]]]]><![CDATA[>");
+      }
+      function te(t2) {
+        return String(t2).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+      }
+      function ee(t2, e2, i2, n2, r2) {
+        return i2.sanitizeName ? R(t2, { xmlVersion: r2 }) ? t2 : i2.sanitizeName(t2, { isAttribute: e2, matcher: n2.readOnly() }) : t2;
+      }
+      function ie(t2, e2) {
+        let i2 = "";
+        e2.format && (i2 = "\n");
+        const n2 = [];
+        if (e2.stopNodes && Array.isArray(e2.stopNodes)) for (let t3 = 0; t3 < e2.stopNodes.length; t3++) {
+          const i3 = e2.stopNodes[t3];
+          "string" == typeof i3 ? n2.push(new nt(i3)) : i3 instanceof nt && n2.push(i3);
+        }
+        const r2 = (function(t3, e3) {
+          if (!Array.isArray(t3) || 0 === t3.length) return "1.0";
+          const i3 = t3[0];
+          if ("?xml" === ae(i3)) {
+            const t4 = i3[":@"];
+            if (t4) {
+              const i4 = e3.attributeNamePrefix + "version";
+              if (t4[i4]) return t4[i4];
+            }
+          }
+          return "1.0";
+        })(t2, e2);
+        return ne(t2, e2, i2, new it(), n2, r2);
+      }
+      function ne(t2, e2, i2, n2, r2, s2) {
+        let o2 = "", a2 = false;
+        if (e2.maxNestedTags && n2.getDepth() > e2.maxNestedTags) throw new Error("Maximum nested tags exceeded");
+        if (!Array.isArray(t2)) {
+          if (null != t2) {
+            let i3 = t2.toString();
+            return i3 = ce(i3, e2), i3;
+          }
+          return "";
+        }
+        for (let l2 = 0; l2 < t2.length; l2++) {
+          const p2 = t2[l2], c2 = ae(p2);
+          if (void 0 === c2) continue;
+          const h2 = c2 === e2.textNodeName || c2 === e2.cdataPropName || c2 === e2.commentPropName || "?" === c2[0] ? c2 : ee(c2, false, e2, n2, s2), d2 = re(p2[":@"], e2);
+          n2.push(h2, d2);
+          const u2 = pe(n2, r2);
+          if (h2 === e2.textNodeName) {
+            let t3 = p2[c2];
+            u2 || (t3 = e2.tagValueProcessor(h2, t3), t3 = ce(t3, e2)), a2 && (o2 += i2), o2 += t3, a2 = false, n2.pop();
+            continue;
+          }
+          if (h2 === e2.cdataPropName) {
+            a2 && (o2 += i2), o2 += `<![CDATA[${Kt(p2[c2][0][e2.textNodeName])}]]>`, a2 = false, n2.pop();
+            continue;
+          }
+          if (h2 === e2.commentPropName) {
+            o2 += i2 + `<!--${Zt(p2[c2][0][e2.textNodeName])}-->`, a2 = true, n2.pop();
+            continue;
+          }
+          if ("?" === h2[0]) {
+            o2 += ("?xml" === h2 ? "" : i2) + `<${h2}${le(p2[":@"], e2, u2, n2, s2)}?>`, a2 = true, n2.pop();
+            continue;
+          }
+          let f2 = i2;
+          "" !== f2 && (f2 += e2.indentBy);
+          const g2 = i2 + `<${h2}${le(p2[":@"], e2, u2, n2, s2)}`;
+          let m2;
+          m2 = u2 ? se(p2[c2], e2) : ne(p2[c2], e2, f2, n2, r2, s2), -1 !== e2.unpairedTags.indexOf(h2) ? e2.suppressUnpairedNode ? o2 += g2 + ">" : o2 += g2 + "/>" : m2 && 0 !== m2.length || !e2.suppressEmptyNode ? m2 && m2.endsWith(">") ? o2 += g2 + `>${m2}${i2}</${h2}>` : (o2 += g2 + ">", m2 && "" !== i2 && (m2.includes("/>") || m2.includes("</")) ? o2 += i2 + e2.indentBy + m2 + i2 : o2 += m2, o2 += `</${h2}>`) : o2 += g2 + "/>", a2 = true, n2.pop();
+        }
+        return o2;
+      }
+      function re(t2, e2) {
+        if (!t2 || e2.ignoreAttributes) return null;
+        const i2 = {};
+        let n2 = false;
+        for (let r2 in t2) Object.prototype.hasOwnProperty.call(t2, r2) && (i2[r2.startsWith(e2.attributeNamePrefix) ? r2.substr(e2.attributeNamePrefix.length) : r2] = te(t2[r2]), n2 = true);
+        return n2 ? i2 : null;
+      }
+      function se(t2, e2) {
+        if (!Array.isArray(t2)) return null != t2 ? t2.toString() : "";
+        let i2 = "";
+        for (let n2 = 0; n2 < t2.length; n2++) {
+          const r2 = t2[n2], s2 = ae(r2);
+          if (s2 === e2.textNodeName) i2 += r2[s2];
+          else if (s2 === e2.cdataPropName) i2 += r2[s2][0][e2.textNodeName];
+          else if (s2 === e2.commentPropName) i2 += r2[s2][0][e2.textNodeName];
+          else {
+            if (s2 && "?" === s2[0]) continue;
+            if (s2) {
+              const t3 = oe(r2[":@"], e2), n3 = se(r2[s2], e2);
+              n3 && 0 !== n3.length ? i2 += `<${s2}${t3}>${n3}</${s2}>` : i2 += `<${s2}${t3}/>`;
+            }
+          }
+        }
+        return i2;
+      }
+      function oe(t2, e2) {
+        let i2 = "";
+        if (t2 && !e2.ignoreAttributes) for (let n2 in t2) {
+          if (!Object.prototype.hasOwnProperty.call(t2, n2)) continue;
+          let r2 = t2[n2];
+          true === r2 && e2.suppressBooleanAttributes ? i2 += ` ${n2.substr(e2.attributeNamePrefix.length)}` : i2 += ` ${n2.substr(e2.attributeNamePrefix.length)}="${te(r2)}"`;
+        }
+        return i2;
+      }
+      function ae(t2) {
+        const e2 = Object.keys(t2);
+        for (let i2 = 0; i2 < e2.length; i2++) {
+          const n2 = e2[i2];
+          if (Object.prototype.hasOwnProperty.call(t2, n2) && ":@" !== n2) return n2;
+        }
+      }
+      function le(t2, e2, i2, n2, r2) {
+        let s2 = "";
+        if (t2 && !e2.ignoreAttributes) for (let o2 in t2) {
+          if (!Object.prototype.hasOwnProperty.call(t2, o2)) continue;
+          const a2 = o2.substr(e2.attributeNamePrefix.length), l2 = i2 ? a2 : ee(a2, true, e2, n2, r2);
+          let p2;
+          i2 ? p2 = t2[o2] : (p2 = e2.attributeValueProcessor(o2, t2[o2]), p2 = ce(p2, e2)), true === p2 && e2.suppressBooleanAttributes ? s2 += ` ${l2}` : s2 += ` ${l2}="${te(p2)}"`;
+        }
+        return s2;
+      }
+      function pe(t2, e2) {
+        if (!e2 || 0 === e2.length) return false;
+        for (let i2 = 0; i2 < e2.length; i2++) if (t2.matches(e2[i2])) return true;
+        return false;
+      }
+      function ce(t2, e2) {
+        if (t2 && t2.length > 0 && e2.processEntities) for (let i2 = 0; i2 < e2.entities.length; i2++) {
+          const n2 = e2.entities[i2];
+          t2 = t2.replace(n2.regex, n2.val);
+        }
+        return t2;
+      }
+      const he = { attributeNamePrefix: "@_", attributesGroupName: false, textNodeName: "#text", ignoreAttributes: true, cdataPropName: false, format: false, indentBy: "  ", suppressEmptyNode: false, suppressUnpairedNode: true, suppressBooleanAttributes: true, tagValueProcessor: function(t2, e2) {
+        return e2;
+      }, attributeValueProcessor: function(t2, e2) {
+        return e2;
+      }, preserveOrder: false, commentPropName: false, unpairedTags: [], entities: [{ regex: new RegExp("&", "g"), val: "&amp;" }, { regex: new RegExp(">", "g"), val: "&gt;" }, { regex: new RegExp("<", "g"), val: "&lt;" }, { regex: new RegExp("'", "g"), val: "&apos;" }, { regex: new RegExp('"', "g"), val: "&quot;" }], processEntities: true, stopNodes: [], oneListGroup: false, maxNestedTags: 100, jPath: true, sanitizeName: false };
+      function de(t2) {
+        if (this.options = Object.assign({}, he, t2), this.options.stopNodes && Array.isArray(this.options.stopNodes) && (this.options.stopNodes = this.options.stopNodes.map((t3) => "string" == typeof t3 && t3.startsWith("*.") ? ".." + t3.substring(2) : t3)), this.stopNodeExpressions = [], this.options.stopNodes && Array.isArray(this.options.stopNodes)) for (let t3 = 0; t3 < this.options.stopNodes.length; t3++) {
+          const e3 = this.options.stopNodes[t3];
+          "string" == typeof e3 ? this.stopNodeExpressions.push(new nt(e3)) : e3 instanceof nt && this.stopNodeExpressions.push(e3);
+        }
+        var e2;
+        true === this.options.ignoreAttributes || this.options.attributesGroupName ? this.isAttribute = function() {
+          return false;
+        } : (this.ignoreAttributesFn = "function" == typeof (e2 = this.options.ignoreAttributes) ? e2 : Array.isArray(e2) ? (t3) => {
+          for (const i2 of e2) {
+            if ("string" == typeof i2 && t3 === i2) return true;
+            if (i2 instanceof RegExp && i2.test(t3)) return true;
+          }
+        } : () => false, this.attrPrefixLen = this.options.attributeNamePrefix.length, this.isAttribute = me), this.processTextOrObjNode = fe, this.options.format ? (this.indentate = ge, this.tagEndChar = ">\n", this.newLine = "\n") : (this.indentate = function() {
+          return "";
+        }, this.tagEndChar = ">", this.newLine = "");
+      }
+      function ue(t2, e2, i2, n2, r2) {
+        return i2.sanitizeName ? R(t2, { xmlVersion: r2 }) ? t2 : i2.sanitizeName(t2, { isAttribute: e2, matcher: n2.readOnly() }) : t2;
+      }
+      function fe(t2, e2, i2, n2, r2) {
+        const s2 = this.extractAttributes(t2);
+        if (n2.push(e2, s2), this.checkStopNode(n2)) {
+          const r3 = this.buildRawContent(t2), s3 = this.buildAttributesForStopNode(t2);
+          return n2.pop(), this.buildObjectNode(r3, e2, s3, i2);
+        }
+        const o2 = this.j2x(t2, i2 + 1, n2, r2);
+        return n2.pop(), "?" === e2[0] ? this.buildTextValNode("", e2, o2.attrStr, i2, n2) : void 0 !== t2[this.options.textNodeName] && 1 === Object.keys(t2).length ? this.buildTextValNode(t2[this.options.textNodeName], e2, o2.attrStr, i2, n2) : this.buildObjectNode(o2.val, e2, o2.attrStr, i2);
+      }
+      function ge(t2) {
+        return this.options.indentBy.repeat(t2);
+      }
+      function me(t2) {
+        return !(!t2.startsWith(this.options.attributeNamePrefix) || t2 === this.options.textNodeName) && t2.substr(this.attrPrefixLen);
+      }
+      de.prototype.build = function(t2) {
+        if (this.options.preserveOrder) return ie(t2, this.options);
+        {
+          Array.isArray(t2) && this.options.arrayNodeName && this.options.arrayNodeName.length > 1 && (t2 = { [this.options.arrayNodeName]: t2 });
+          const e2 = new it(), i2 = (function(t3, e3) {
+            const i3 = t3["?xml"];
+            if (i3 && "object" == typeof i3) {
+              if (e3.attributesGroupName && i3[e3.attributesGroupName]) {
+                const t5 = i3[e3.attributesGroupName][e3.attributeNamePrefix + "version"];
+                if (t5) return t5;
+              }
+              const t4 = i3[e3.attributeNamePrefix + "version"];
+              if (t4) return t4;
+            }
+            return "1.0";
+          })(t2, this.options);
+          return this.j2x(t2, 0, e2, i2).val;
+        }
+      }, de.prototype.j2x = function(t2, e2, i2, n2) {
+        let r2 = "", s2 = "";
+        if (this.options.maxNestedTags && i2.getDepth() >= this.options.maxNestedTags) throw new Error("Maximum nested tags exceeded");
+        const o2 = this.options.jPath ? i2.toString() : i2, a2 = this.checkStopNode(i2);
+        for (let l2 in t2) {
+          if (!Object.prototype.hasOwnProperty.call(t2, l2)) continue;
+          const p2 = l2 === this.options.textNodeName || l2 === this.options.cdataPropName || l2 === this.options.commentPropName || this.options.attributesGroupName && l2 === this.options.attributesGroupName || this.isAttribute(l2) || "?" === l2[0] ? l2 : ue(l2, false, this.options, i2, n2);
+          if (void 0 === t2[l2]) this.isAttribute(l2) && (s2 += "");
+          else if (null === t2[l2]) this.isAttribute(l2) || p2 === this.options.cdataPropName || p2 === this.options.commentPropName ? s2 += "" : "?" === p2[0] ? s2 += this.indentate(e2) + "<" + p2 + "?" + this.tagEndChar : s2 += this.indentate(e2) + "<" + p2 + "/" + this.tagEndChar;
+          else if (t2[l2] instanceof Date) s2 += this.buildTextValNode(t2[l2], p2, "", e2, i2);
+          else if ("object" != typeof t2[l2]) {
+            const c2 = this.isAttribute(l2);
+            if (c2 && !this.ignoreAttributesFn(c2, o2)) {
+              const e3 = ue(c2, true, this.options, i2, n2);
+              r2 += this.buildAttrPairStr(e3, "" + t2[l2], a2);
+            } else if (!c2) if (l2 === this.options.textNodeName) {
+              let e3 = this.options.tagValueProcessor(l2, "" + t2[l2]);
+              s2 += this.replaceEntitiesValue(e3);
+            } else {
+              i2.push(p2);
+              const n3 = this.checkStopNode(i2);
+              if (i2.pop(), n3) {
+                const i3 = "" + t2[l2];
+                s2 += "" === i3 ? this.indentate(e2) + "<" + p2 + this.closeTag(p2) + this.tagEndChar : this.indentate(e2) + "<" + p2 + ">" + i3 + "</" + p2 + this.tagEndChar;
+              } else s2 += this.buildTextValNode(t2[l2], p2, "", e2, i2);
+            }
+          } else if (Array.isArray(t2[l2])) {
+            const r3 = t2[l2].length;
+            let o3 = "", a3 = "";
+            for (let c2 = 0; c2 < r3; c2++) {
+              const r4 = t2[l2][c2];
+              if (void 0 === r4) ;
+              else if (null === r4) "?" === p2[0] ? s2 += this.indentate(e2) + "<" + p2 + "?" + this.tagEndChar : s2 += this.indentate(e2) + "<" + p2 + "/" + this.tagEndChar;
+              else if ("object" == typeof r4) if (this.options.oneListGroup) {
+                i2.push(p2);
+                const t3 = this.j2x(r4, e2 + 1, i2, n2);
+                i2.pop(), o3 += t3.val, this.options.attributesGroupName && r4.hasOwnProperty(this.options.attributesGroupName) && (a3 += t3.attrStr);
+              } else o3 += this.processTextOrObjNode(r4, p2, e2, i2, n2);
+              else if (this.options.oneListGroup) {
+                let t3 = this.options.tagValueProcessor(p2, r4);
+                t3 = this.replaceEntitiesValue(t3), o3 += t3;
+              } else {
+                i2.push(p2);
+                const t3 = this.checkStopNode(i2);
+                if (i2.pop(), t3) {
+                  const t4 = "" + r4;
+                  o3 += "" === t4 ? this.indentate(e2) + "<" + p2 + this.closeTag(p2) + this.tagEndChar : this.indentate(e2) + "<" + p2 + ">" + t4 + "</" + p2 + this.tagEndChar;
+                } else o3 += this.buildTextValNode(r4, p2, "", e2, i2);
+              }
+            }
+            this.options.oneListGroup && (o3 = this.buildObjectNode(o3, p2, a3, e2)), s2 += o3;
+          } else if (this.options.attributesGroupName && l2 === this.options.attributesGroupName) {
+            const e3 = Object.keys(t2[l2]), s3 = e3.length;
+            for (let o3 = 0; o3 < s3; o3++) {
+              const s4 = ue(e3[o3], true, this.options, i2, n2);
+              r2 += this.buildAttrPairStr(s4, "" + t2[l2][e3[o3]], a2);
+            }
+          } else s2 += this.processTextOrObjNode(t2[l2], p2, e2, i2, n2);
+        }
+        return { attrStr: r2, val: s2 };
+      }, de.prototype.buildAttrPairStr = function(t2, e2, i2) {
+        return i2 || (e2 = this.options.attributeValueProcessor(t2, "" + e2), e2 = this.replaceEntitiesValue(e2)), this.options.suppressBooleanAttributes && "true" === e2 ? " " + t2 : " " + t2 + '="' + te(e2) + '"';
+      }, de.prototype.extractAttributes = function(t2) {
+        if (!t2 || "object" != typeof t2) return null;
+        const e2 = {};
+        let i2 = false;
+        if (this.options.attributesGroupName && t2[this.options.attributesGroupName]) {
+          const n2 = t2[this.options.attributesGroupName];
+          for (let t3 in n2) Object.prototype.hasOwnProperty.call(n2, t3) && (e2[t3.startsWith(this.options.attributeNamePrefix) ? t3.substring(this.options.attributeNamePrefix.length) : t3] = te(n2[t3]), i2 = true);
+        } else for (let n2 in t2) {
+          if (!Object.prototype.hasOwnProperty.call(t2, n2)) continue;
+          const r2 = this.isAttribute(n2);
+          r2 && (e2[r2] = te(t2[n2]), i2 = true);
+        }
+        return i2 ? e2 : null;
+      }, de.prototype.buildRawContent = function(t2) {
+        if ("string" == typeof t2) return t2;
+        if ("object" != typeof t2 || null === t2) return String(t2);
+        if (void 0 !== t2[this.options.textNodeName]) return t2[this.options.textNodeName];
+        let e2 = "";
+        for (let i2 in t2) {
+          if (!Object.prototype.hasOwnProperty.call(t2, i2)) continue;
+          if (this.isAttribute(i2)) continue;
+          if (this.options.attributesGroupName && i2 === this.options.attributesGroupName) continue;
+          const n2 = t2[i2];
+          if (i2 === this.options.textNodeName) e2 += n2;
+          else if (Array.isArray(n2)) {
+            for (let t3 of n2) if ("string" == typeof t3 || "number" == typeof t3) e2 += `<${i2}>${t3}</${i2}>`;
+            else if ("object" == typeof t3 && null !== t3) {
+              const n3 = this.buildRawContent(t3), r2 = this.buildAttributesForStopNode(t3);
+              e2 += "" === n3 ? `<${i2}${r2}/>` : `<${i2}${r2}>${n3}</${i2}>`;
+            }
+          } else if ("object" == typeof n2 && null !== n2) {
+            const t3 = this.buildRawContent(n2), r2 = this.buildAttributesForStopNode(n2);
+            e2 += "" === t3 ? `<${i2}${r2}/>` : `<${i2}${r2}>${t3}</${i2}>`;
+          } else e2 += `<${i2}>${n2}</${i2}>`;
+        }
+        return e2;
+      }, de.prototype.buildAttributesForStopNode = function(t2) {
+        if (!t2 || "object" != typeof t2) return "";
+        let e2 = "";
+        if (this.options.attributesGroupName && t2[this.options.attributesGroupName]) {
+          const i2 = t2[this.options.attributesGroupName];
+          for (let t3 in i2) {
+            if (!Object.prototype.hasOwnProperty.call(i2, t3)) continue;
+            const n2 = t3.startsWith(this.options.attributeNamePrefix) ? t3.substring(this.options.attributeNamePrefix.length) : t3, r2 = i2[t3];
+            true === r2 && this.options.suppressBooleanAttributes ? e2 += " " + n2 : e2 += " " + n2 + '="' + r2 + '"';
+          }
+        } else for (let i2 in t2) {
+          if (!Object.prototype.hasOwnProperty.call(t2, i2)) continue;
+          const n2 = this.isAttribute(i2);
+          if (n2) {
+            const r2 = t2[i2];
+            true === r2 && this.options.suppressBooleanAttributes ? e2 += " " + n2 : e2 += " " + n2 + '="' + r2 + '"';
+          }
+        }
+        return e2;
+      }, de.prototype.buildObjectNode = function(t2, e2, i2, n2) {
+        if ("" === t2) return "?" === e2[0] ? this.indentate(n2) + "<" + e2 + i2 + "?" + this.tagEndChar : this.indentate(n2) + "<" + e2 + i2 + this.closeTag(e2) + this.tagEndChar;
+        if ("?" === e2[0]) return this.indentate(n2) + "<" + e2 + i2 + "?" + this.tagEndChar;
+        {
+          let r2 = "</" + e2 + this.tagEndChar, s2 = "";
+          return "?" === e2[0] && (s2 = "?", r2 = ""), !i2 && "" !== i2 || -1 !== t2.indexOf("<") ? false !== this.options.commentPropName && e2 === this.options.commentPropName && 0 === s2.length ? this.indentate(n2) + `<!--${t2}-->` + this.newLine : this.indentate(n2) + "<" + e2 + i2 + s2 + this.tagEndChar + t2 + this.indentate(n2) + r2 : this.indentate(n2) + "<" + e2 + i2 + s2 + ">" + t2 + r2;
+        }
+      }, de.prototype.closeTag = function(t2) {
+        let e2 = "";
+        return -1 !== this.options.unpairedTags.indexOf(t2) ? this.options.suppressUnpairedNode || (e2 = "/") : e2 = this.options.suppressEmptyNode ? "/" : `></${t2}`, e2;
+      }, de.prototype.checkStopNode = function(t2) {
+        if (!this.stopNodeExpressions || 0 === this.stopNodeExpressions.length) return false;
+        for (let e2 = 0; e2 < this.stopNodeExpressions.length; e2++) if (t2.matches(this.stopNodeExpressions[e2])) return true;
+        return false;
+      }, de.prototype.buildTextValNode = function(t2, e2, i2, n2, r2) {
+        if (false !== this.options.cdataPropName && e2 === this.options.cdataPropName) {
+          const e3 = Kt(t2);
+          return this.indentate(n2) + `<![CDATA[${e3}]]>` + this.newLine;
+        }
+        if (false !== this.options.commentPropName && e2 === this.options.commentPropName) {
+          const e3 = Zt(t2);
+          return this.indentate(n2) + `<!--${e3}-->` + this.newLine;
+        }
+        if ("?" === e2[0]) return this.indentate(n2) + "<" + e2 + i2 + "?" + this.tagEndChar;
+        {
+          let r3 = this.options.tagValueProcessor(e2, t2);
+          return r3 = this.replaceEntitiesValue(r3), "" === r3 ? this.indentate(n2) + "<" + e2 + i2 + this.closeTag(e2) + this.tagEndChar : this.indentate(n2) + "<" + e2 + i2 + ">" + r3 + "</" + e2 + this.tagEndChar;
+        }
+      }, de.prototype.replaceEntitiesValue = function(t2) {
+        if (t2 && t2.length > 0 && this.options.processEntities) for (let e2 = 0; e2 < this.options.entities.length; e2++) {
+          const i2 = this.options.entities[e2];
+          t2 = t2.replace(i2.regex, i2.val);
+        }
+        return t2;
+      };
+      const xe = de, be = { validate: p };
+      module2.exports = e;
+    })();
+  }
+});
+
+// src/tally/voucherHeader.js
+var require_voucherHeader = __commonJS({
+  "src/tally/voucherHeader.js"(exports2, module2) {
+    function getValue(v) {
+      if (v == null) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "number") return v;
+      if (typeof v === "object") {
+        if ("#text" in v) return v["#text"];
+        if ("TEXT" in v) return v.TEXT;
+      }
+      return "";
+    }
+    function parseVoucherHeader(v) {
+      return {
+        guid: getValue(v.GUID),
+        masterid: getValue(v.MASTERID),
+        alterid: getValue(v.ALTERID),
+        voucherType: getValue(v.VOUCHERTYPENAME),
+        voucherTypeName: getValue(v.VOUCHERTYPENAME),
+        voucherNumber: getValue(v.VOUCHERNUMBER),
+        voucherDate: getValue(v.DATE),
+        effectiveDate: getValue(v.EFFECTIVEDATE),
+        reference: getValue(v.REFERENCE),
+        referenceDate: getValue(v.REFERENCEDATE),
+        partyLedger: getValue(v.PARTYLEDGERNAME),
+        narration: getValue(v.NARRATION),
+        gstin: getValue(v.PARTYGSTIN),
+        placeOfSupply: getValue(v.PLACEOFSUPPLY),
+        buyerName: getValue(v.BASICBUYERNAME),
+        buyerAddress: getValue(v.BASICBUYERADDRESS),
+        gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
+        persistedView: getValue(v.PERSISTEDVIEW),
+        isInvoice: getValue(v.ISINVOICE),
+        isOptional: getValue(v.ISOPTIONAL),
+        isCancelled: getValue(v.ISCANCELLED)
+      };
+    }
+    module2.exports = {
+      parseVoucherHeader
+    };
+  }
+});
+
+// src/tally/voucherLedgers.js
+var require_voucherLedgers = __commonJS({
+  "src/tally/voucherLedgers.js"(exports2, module2) {
+    var fs = require("fs");
+    function toArray(value) {
+      if (!value) return [];
+      return Array.isArray(value) ? value : [value];
+    }
+    function getValue(v) {
+      if (v == null) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "number") return v;
+      if (typeof v === "object") {
+        if ("#text" in v) return v["#text"];
+        if ("TEXT" in v) return v.TEXT;
+      }
+      return "";
+    }
+    function getNumber(v) {
+      const n = Number(getValue(v));
+      return isNaN(n) ? 0 : n;
+    }
+    function parseBillAllocations(row) {
+      return toArray(row["BILLALLOCATIONS.LIST"]).map((bill) => ({
+        billName: getValue(bill.NAME),
+        billType: getValue(bill.BILLTYPE),
+        amount: getNumber(bill.AMOUNT),
+        dueDate: getValue(bill.DUEDATE),
+        creditPeriod: bill.BILLCREDITPERIOD?.P || getValue(bill.BILLCREDITPERIOD) || null,
+        creditDays: 0
+      }));
+    }
+    function parseCostCentreAllocations(row) {
+      return toArray(row["CATEGORYALLOCATIONS.LIST"]).flatMap(
+        (category) => toArray(category["COSTCENTREALLOCATIONS.LIST"]).map((cc) => ({
+          category: getValue(category.CATEGORY),
+          costCentre: getValue(cc.NAME),
+          amount: getNumber(cc.AMOUNT)
+        }))
+      );
+    }
+    function parseVoucherLedgers(voucher, lookups) {
+      const rows = toArray(voucher["ALLLEDGERENTRIES.LIST"]).length > 0 ? toArray(voucher["ALLLEDGERENTRIES.LIST"]) : toArray(voucher["LEDGERENTRIES.LIST"]);
+      const ledgerLookup = lookups?.ledgerLookup;
+      const groupLookup = lookups?.groupLookup;
+      return rows.map((row) => {
+        const ledger = ledgerLookup?.get(
+          getValue(row.LEDGERNAME).trim().toUpperCase()
+        );
+        const ledgerParent = ledger ? groupLookup?.get(
+          (ledger.parent || "").trim().toUpperCase()
+        ) : null;
+        const amount = getNumber(row.AMOUNT);
+        const isDeemedPositive = getValue(row.ISDEEMEDPOSITIVE);
+        return {
+          ledgerName: ledger?.name || getValue(row.LEDGERNAME),
+          ledgerGuid: ledger?.guid || null,
+          ledgerMasterId: ledger?.masterId || getValue(row.LEDGERMASTERID),
+          ledgerAlterId: ledger?.alterId || null,
+          ledgerParentName: ledgerParent?.name || ledger?.parent || null,
+          ledgerParentGuid: ledgerParent?.guid || null,
+          ledgerParentMasterId: ledgerParent?.masterId || null,
+          ledgerParentAlterId: ledgerParent?.alterId || null,
+          amount,
+          debit: isDeemedPositive === "Yes" ? Math.abs(amount) : 0,
+          credit: isDeemedPositive === "No" ? Math.abs(amount) : 0,
+          isDeemedPositive,
+          isPartyLedger: getValue(row.ISPARTYLEDGER),
+          isLastDeemedPositive: getValue(row.ISLASTDEEMEDPOSITIVE),
+          removeZeroEntries: getValue(row.REMOVEZEROENTRIES),
+          billAllocations: parseBillAllocations(row),
+          costCentreAllocations: parseCostCentreAllocations(row),
+          raw: row
+        };
+      });
+    }
+    module2.exports = {
+      parseVoucherLedgers
+    };
+  }
+});
+
+// src/reconciliations/validateRawTallyVoucherLedgerAmounts.js
+var require_validateRawTallyVoucherLedgerAmounts = __commonJS({
+  "src/reconciliations/validateRawTallyVoucherLedgerAmounts.js"(exports2, module2) {
+    "use strict";
+    var SCALE = 1000000n;
+    var MAX_UNITS = BigInt(Number.MAX_SAFE_INTEGER);
+    function fail(code) {
+      throw new Error(code);
+    }
+    function requireRawText(value, field) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const keys = Object.keys(value);
+        if (keys.length !== 1 || !["#text", "TEXT"].includes(keys[0])) {
+          fail(`RECONCILE_RAW_${field}_INVALID`);
+        }
+        value = value[keys[0]];
+      }
+      if (typeof value !== "string" || !value.trim()) {
+        fail(`RECONCILE_RAW_${field}_TEXT_REQUIRED`);
+      }
+      return value.trim();
+    }
+    function decimalParts(value, signed) {
+      const pattern = signed ? /^([+-]?)(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/ : /^(\+?)(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/;
+      const match = pattern.exec(value);
+      if (!match) {
+        fail("RECONCILE_RAW_AMOUNT_INVALID");
+      }
+      const whole = match[2] || "0";
+      const fraction = (match[3] || match[4] || "").padEnd(6, "0");
+      const magnitude = BigInt(whole) * SCALE + BigInt(fraction);
+      if (magnitude > MAX_UNITS) {
+        fail("RECONCILE_RAW_AMOUNT_OUT_OF_RANGE");
+      }
+      return { magnitude };
+    }
+    function parsedUnits(value) {
+      const isNumber = typeof value === "number";
+      if (!isNumber && typeof value !== "string" || isNumber && !Number.isFinite(value)) {
+        fail("RECONCILE_PARSED_AMOUNT_INVALID");
+      }
+      const normalized = String(value).trim();
+      if (normalized.startsWith("-") || Object.is(value, -0) || isNumber && value >= 2 ** 46) {
+        fail("RECONCILE_PARSED_AMOUNT_INVALID");
+      }
+      return decimalParts(normalized, false).magnitude;
+    }
+    function rupees(units) {
+      return `${units / SCALE}.${String(units % SCALE).padStart(6, "0")}`;
+    }
+    function validateLedger(ledger) {
+      if (!ledger || typeof ledger !== "object" || Array.isArray(ledger)) {
+        fail("RECONCILE_LEDGER_INVALID");
+      }
+      const raw = ledger.raw;
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+        fail("RECONCILE_RAW_LEDGER_REQUIRED");
+      }
+      if (!Object.prototype.hasOwnProperty.call(raw, "AMOUNT") || !Object.prototype.hasOwnProperty.call(
+        raw,
+        "ISDEEMEDPOSITIVE"
+      )) {
+        fail("RECONCILE_RAW_LEDGER_INCOMPLETE");
+      }
+      const amountText = requireRawText(
+        raw.AMOUNT,
+        "AMOUNT"
+      );
+      const direction = requireRawText(
+        raw.ISDEEMEDPOSITIVE,
+        "DIRECTION"
+      );
+      if (direction !== "Yes" && direction !== "No") {
+        fail("RECONCILE_RAW_DIRECTION_INVALID");
+      }
+      const { magnitude } = decimalParts(
+        amountText,
+        true
+      );
+      const signedAmount = amountText.startsWith("-") && magnitude !== 0n ? `-${rupees(magnitude)}` : rupees(magnitude);
+      const expectedDebit = direction === "Yes" ? magnitude : 0n;
+      const expectedCredit = direction === "No" ? magnitude : 0n;
+      if (parsedUnits(ledger.debit) !== expectedDebit || parsedUnits(ledger.credit) !== expectedCredit) {
+        fail("RECONCILE_RAW_PARSED_AMOUNT_MISMATCH");
+      }
+      return {
+        ...ledger,
+        amount: signedAmount,
+        debit: rupees(expectedDebit),
+        credit: rupees(expectedCredit)
+      };
+    }
+    function validateRawTallyVoucherLedgerAmounts(vouchers) {
+      if (!Array.isArray(vouchers)) {
+        fail("RECONCILE_VOUCHERS_INVALID");
+      }
+      return vouchers.map((voucher) => {
+        if (!voucher || typeof voucher !== "object" || !Array.isArray(voucher.ledgers) || voucher.ledgers.length === 0) {
+          fail("RECONCILE_RAW_VOUCHER_LEDGERS_REQUIRED");
+        }
+        return {
+          ...voucher,
+          ledgers: voucher.ledgers.map(validateLedger)
+        };
+      });
+    }
+    module2.exports = {
+      validateRawTallyVoucherLedgerAmounts
+    };
+  }
+});
+
+// src/reconciliations/normalizeTallyVoucherEntries.js
+var require_normalizeTallyVoucherEntries = __commonJS({
+  "src/reconciliations/normalizeTallyVoucherEntries.js"(exports2, module2) {
+    "use strict";
+    var AMOUNT_SCALE = 1000000n;
+    var MAX_AMOUNT_UNITS = BigInt(Number.MAX_SAFE_INTEGER);
+    function validateTallyAmount(value) {
+      if (value === null || value === void 0) {
+        throw new Error("RECONCILE_LEDGER_AMOUNT_MISSING");
+      }
+      if (typeof value !== "string") {
+        throw new Error("RECONCILE_LEDGER_AMOUNT_INVALID");
+      }
+      const text = value.trim();
+      const match = /^\+?(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/.exec(text);
+      if (!match) {
+        throw new Error("RECONCILE_LEDGER_AMOUNT_INVALID");
+      }
+      const whole = match[1] || "0";
+      const fraction = (match[2] || match[3] || "").padEnd(6, "0");
+      const units = BigInt(whole) * AMOUNT_SCALE + BigInt(fraction);
+      if (units > MAX_AMOUNT_UNITS) {
+        throw new Error("RECONCILE_LEDGER_AMOUNT_INVALID");
+      }
+      return `${units / AMOUNT_SCALE}.${String(
+        units % AMOUNT_SCALE
+      ).padStart(6, "0")}`;
+    }
+    function validateSignedTallyAmount(value) {
+      if (typeof value !== "string" || value !== value.trim() || !/^-?(?:0|[1-9]\d*)\.\d{6}$/.test(value)) {
+        throw new Error(
+          "RECONCILE_LEDGER_SIGNED_AMOUNT_INVALID"
+        );
+      }
+      const negative = value.startsWith("-");
+      const unsigned = negative ? value.slice(1) : value;
+      const [whole, fraction] = unsigned.split(".");
+      const units = BigInt(whole) * AMOUNT_SCALE + BigInt(fraction);
+      if (units > MAX_AMOUNT_UNITS) {
+        throw new Error(
+          "RECONCILE_LEDGER_SIGNED_AMOUNT_OUT_OF_RANGE"
+        );
+      }
+      if (units === 0n) {
+        return "0.000000";
+      }
+      return value;
+    }
+    function normalizeTallyVoucherEntries(vouchers, { companyCode, tallyOwner } = {}) {
+      companyCode = String(companyCode || "").trim();
+      tallyOwner = String(tallyOwner || "").trim();
+      if (!companyCode || !["USER", "CA"].includes(tallyOwner)) {
+        throw new Error("RECONCILE_TALLY_SCOPE_INVALID");
+      }
+      if (!Array.isArray(vouchers)) {
+        throw new TypeError("RECONCILE_VOUCHERS_INVALID");
+      }
+      const entries = [];
+      for (const voucher of vouchers) {
+        const voucherGuid = String(
+          voucher?.header?.guid || ""
+        ).trim();
+        if (!voucherGuid) {
+          throw new Error("RECONCILE_VOUCHER_GUID_MISSING");
+        }
+        if (!Array.isArray(voucher.ledgers)) {
+          throw new Error("RECONCILE_VOUCHER_LEDGERS_INVALID");
+        }
+        for (const ledger of voucher.ledgers) {
+          const ledgerGuid = String(
+            ledger?.ledgerGuid || ""
+          ).trim();
+          if (!ledgerGuid) {
+            throw new Error("RECONCILE_LEDGER_GUID_MISSING");
+          }
+          const amount = validateSignedTallyAmount(ledger.amount);
+          const debit = validateTallyAmount(ledger.debit);
+          const credit = validateTallyAmount(ledger.credit);
+          if (!ledger.raw || typeof ledger.raw !== "object" || Array.isArray(ledger.raw) || !Array.isArray(ledger.billAllocations) || !Array.isArray(ledger.costCentreAllocations)) {
+            throw new Error(
+              "RECONCILE_LEDGER_STRUCTURAL_EVIDENCE_MISSING"
+            );
+          }
+          const requiresStructuralReview = ledger.billAllocations.length > 0 || ledger.costCentreAllocations.length > 0 || Object.prototype.hasOwnProperty.call(
+            ledger.raw,
+            "BILLALLOCATIONS.LIST"
+          ) || Object.prototype.hasOwnProperty.call(
+            ledger.raw,
+            "CATEGORYALLOCATIONS.LIST"
+          );
+          entries.push({
+            companyCode,
+            tallyOwner,
+            voucherGuid,
+            ledgerGuid,
+            amount,
+            debit,
+            credit,
+            requiresStructuralReview
+          });
+        }
+      }
+      return entries;
+    }
+    module2.exports = {
+      normalizeTallyVoucherEntries
+    };
+  }
+});
+
+// src/reconciliations/parseReconciliationVoucherXml.js
+var require_parseReconciliationVoucherXml = __commonJS({
+  "src/reconciliations/parseReconciliationVoucherXml.js"(exports2, module2) {
+    "use strict";
+    var { XMLParser, XMLValidator } = require_fxp();
+    var { parseVoucherHeader } = require_voucherHeader();
+    var { parseVoucherLedgers } = require_voucherLedgers();
+    var {
+      buildReconciliationVoucherOccurrenceRequest
+    } = require_reconciliationVoucherOccurrenceRequest();
+    var {
+      validateRawTallyVoucherLedgerAmounts
+    } = require_validateRawTallyVoucherLedgerAmounts();
+    var {
+      normalizeTallyVoucherEntries
+    } = require_normalizeTallyVoucherEntries();
+    var parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "@_",
+      parseTagValue: false,
+      parseAttributeValue: false,
+      trimValues: true
+    });
+    function fail(code) {
+      throw new Error(code);
+    }
+    function record(value) {
+      return value !== null && typeof value === "object" && !Array.isArray(value);
+    }
+    function text(value) {
+      if (typeof value !== "string" || !value.trim()) {
+        fail("RECONCILE_TEXT_REQUIRED");
+      }
+      return value.trim();
+    }
+    function exactReconciliationDebitCredit(rawRow) {
+      function rawText(value, field) {
+        if (record(value)) {
+          const keys = Object.keys(value);
+          if (keys.length !== 1 || !["#text", "TEXT"].includes(keys[0])) {
+            fail(`RECONCILE_RAW_${field}_INVALID`);
+          }
+          value = value[keys[0]];
+        }
+        if (typeof value !== "string" || !value.trim()) {
+          fail(`RECONCILE_RAW_${field}_TEXT_REQUIRED`);
+        }
+        return value.trim();
+      }
+      const amountText = rawText(rawRow.AMOUNT, "AMOUNT");
+      const direction = rawText(
+        rawRow.ISDEEMEDPOSITIVE,
+        "DIRECTION"
+      );
+      if (direction !== "Yes" && direction !== "No") {
+        fail("RECONCILE_RAW_DIRECTION_INVALID");
+      }
+      const match = /^([+-]?)(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/.exec(amountText);
+      if (!match) {
+        fail("RECONCILE_RAW_AMOUNT_INVALID");
+      }
+      const whole = match[2] || "0";
+      const fraction = (match[3] || match[4] || "").padEnd(6, "0");
+      const units = BigInt(whole) * 1000000n + BigInt(fraction);
+      if (units > BigInt(Number.MAX_SAFE_INTEGER)) {
+        fail("RECONCILE_RAW_AMOUNT_OUT_OF_RANGE");
+      }
+      const magnitude = `${units / 1000000n}.${String(units % 1000000n).padStart(6, "0")}`;
+      return direction === "Yes" ? { debit: magnitude, credit: "0.000000" } : { debit: "0.000000", credit: magnitude };
+    }
+    function guid(value) {
+      const result = text(value);
+      if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/.test(result)) {
+        fail("RECONCILE_GUID_INVALID");
+      }
+      return result;
+    }
+    function rememberGuid(index, value, duplicateCode, collisionCode) {
+      const folded = value.toLowerCase();
+      if (index.has(folded)) {
+        fail(
+          index.get(folded) === value ? duplicateCode : collisionCode
+        );
+      }
+      index.set(folded, value);
+    }
+    function requireExactGuid(actual, expected, mismatchCode, conflictCode) {
+      const actualGuid = guid(actual);
+      const expectedGuid = guid(expected);
+      if (actualGuid !== expectedGuid) {
+        fail(
+          actualGuid.toLowerCase() === expectedGuid.toLowerCase() ? conflictCode : mismatchCode
+        );
+      }
+    }
+    function rejectErrors(value) {
+      if (!value || typeof value !== "object") return;
+      for (const [key, child] of Object.entries(value)) {
+        if (/^(LINEERROR|ERROR|ERRORS|EXCEPTION|EXCEPTIONS)$/i.test(key)) {
+          fail("RECONCILE_TALLY_ERROR");
+        }
+        rejectErrors(child);
+      }
+    }
+    function parseReconciliationEnvelope(xml) {
+      if (typeof xml !== "string" || !xml.trim() || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true) {
+        fail("RECONCILE_XML_INVALID");
+      }
+      const document2 = parser.parse(xml);
+      const rootKeys = Object.keys(document2).filter((key) => key !== "?xml");
+      if (rootKeys.length !== 1 || rootKeys[0] !== "ENVELOPE" || !record(document2.ENVELOPE)) {
+        fail("RECONCILE_ENVELOPE_INVALID");
+      }
+      const envelope = document2.ENVELOPE;
+      rejectErrors(envelope);
+      if (!record(envelope.HEADER) || envelope.HEADER.STATUS !== "1" || !record(envelope.BODY) || !record(envelope.BODY.DATA)) {
+        fail("RECONCILE_ENVELOPE_INCOMPLETE");
+      }
+      return envelope.BODY.DATA;
+    }
+    function collectionRows(xml, element) {
+      const data = parseReconciliationEnvelope(xml);
+      if (Object.keys(data).length !== 1 || !record(data.COLLECTION)) {
+        fail("RECONCILE_COLLECTION_INVALID");
+      }
+      const collection = data.COLLECTION;
+      const elementKeys = Object.keys(collection).filter((key) => !key.startsWith("@_"));
+      if (elementKeys.some((key) => key !== element)) {
+        fail("RECONCILE_COLLECTION_AMBIGUOUS");
+      }
+      if (!Object.prototype.hasOwnProperty.call(collection, element)) {
+        return [];
+      }
+      const rows = Array.isArray(collection[element]) ? collection[element] : [collection[element]];
+      if (!rows.every(record)) {
+        fail("RECONCILE_COLLECTION_ROWS_INVALID");
+      }
+      return rows;
+    }
+    function buildReconciliationLedgerLookups(ledgers) {
+      if (!Array.isArray(ledgers) || ledgers.length === 0) {
+        fail("RECONCILE_LEDGER_SNAPSHOT_REQUIRED");
+      }
+      const ledgerLookup = /* @__PURE__ */ new Map();
+      const ledgerCaseIndex = /* @__PURE__ */ new Map();
+      for (const ledger of ledgers) {
+        const name = text(ledger.NAME);
+        const ledgerGuid = guid(ledger.GUID);
+        const key = name.toUpperCase();
+        if (ledgerLookup.has(key)) {
+          fail("RECONCILE_LEDGER_LOOKUP_AMBIGUOUS");
+        }
+        rememberGuid(
+          ledgerCaseIndex,
+          ledgerGuid,
+          "RECONCILE_LEDGER_GUID_DUPLICATE",
+          "RECONCILE_LEDGER_GUID_CASE_COLLISION"
+        );
+        ledgerLookup.set(key, {
+          name,
+          guid: ledgerGuid,
+          masterId: text(ledger.MASTERID),
+          alterId: text(ledger.ALTERID)
+        });
+      }
+      return {
+        ledgerLookup,
+        groupLookup: /* @__PURE__ */ new Map()
+      };
+    }
+    function parseReconciliationVoucherXml({
+      responseXml,
+      requestedGuids,
+      lookups,
+      companyCode,
+      tallyOwner
+    }) {
+      if (!Array.isArray(requestedGuids) || requestedGuids.length === 0 || !(lookups?.ledgerLookup instanceof Map)) {
+        fail("RECONCILE_PARSE_CONTEXT_INVALID");
+      }
+      const requested = requestedGuids.map(guid);
+      const requestedCaseIndex = /* @__PURE__ */ new Map();
+      for (const value of requested) {
+        rememberGuid(
+          requestedCaseIndex,
+          value,
+          "RECONCILE_REQUEST_GUID_DUPLICATE",
+          "RECONCILE_REQUEST_GUID_CASE_COLLISION"
+        );
+      }
+      const expected = new Set(requested);
+      const rawVouchers = collectionRows(responseXml, "VOUCHER");
+      const seen = /* @__PURE__ */ new Set();
+      const responseCaseIndex = /* @__PURE__ */ new Map();
+      const vouchers = rawVouchers.map((rawVoucher) => {
+        const voucherGuid = guid(rawVoucher.GUID);
+        rememberGuid(
+          responseCaseIndex,
+          voucherGuid,
+          "RECONCILE_RESPONSE_GUID_DUPLICATE",
+          "RECONCILE_RESPONSE_GUID_CASE_COLLISION"
+        );
+        if (!expected.has(voucherGuid)) {
+          if (requestedCaseIndex.has(voucherGuid.toLowerCase())) {
+            fail("RECONCILE_RESPONSE_GUID_CASE_CONFLICT");
+          }
+          fail("RECONCILE_UNEXPECTED_VOUCHER_GUID");
+        }
+        seen.add(voucherGuid);
+        const hasAll = Object.prototype.hasOwnProperty.call(
+          rawVoucher,
+          "ALLLEDGERENTRIES.LIST"
+        );
+        const hasLegacy = Object.prototype.hasOwnProperty.call(
+          rawVoucher,
+          "LEDGERENTRIES.LIST"
+        );
+        if (hasAll === hasLegacy) {
+          fail("RECONCILE_LEDGER_LIST_AMBIGUOUS");
+        }
+        const source = rawVoucher[hasAll ? "ALLLEDGERENTRIES.LIST" : "LEDGERENTRIES.LIST"];
+        const rawRows = Array.isArray(source) ? source : [source];
+        if (rawRows.length === 0 || !rawRows.every(record)) {
+          fail("RECONCILE_RAW_LEDGER_ROWS_INVALID");
+        }
+        const ledgers = parseVoucherLedgers(
+          rawVoucher,
+          lookups
+        );
+        if (ledgers.length !== rawRows.length) {
+          fail("RECONCILE_LEDGER_OCCURRENCE_COUNT_MISMATCH");
+        }
+        const exactLedgers = ledgers.map((ledger, index) => {
+          const rawRow = rawRows[index];
+          const name = text(rawRow.LEDGERNAME);
+          const expectedLedger = lookups.ledgerLookup.get(
+            name.toUpperCase()
+          );
+          if (!expectedLedger) {
+            fail("RECONCILE_LEDGER_LOOKUP_MISSING");
+          }
+          if (ledger.raw !== rawRow || ledger.ledgerName !== expectedLedger.name) {
+            fail("RECONCILE_LEDGER_OCCURRENCE_IDENTITY_MISMATCH");
+          }
+          requireExactGuid(
+            ledger.ledgerGuid,
+            expectedLedger.guid,
+            "RECONCILE_LEDGER_OCCURRENCE_IDENTITY_MISMATCH",
+            "RECONCILE_LEDGER_OCCURRENCE_GUID_CASE_CONFLICT"
+          );
+          if (Object.prototype.hasOwnProperty.call(
+            rawRow,
+            "LEDGERGUID"
+          )) {
+            requireExactGuid(
+              rawRow.LEDGERGUID,
+              expectedLedger.guid,
+              "RECONCILE_SOURCE_LEDGER_GUID_MISMATCH",
+              "RECONCILE_SOURCE_LEDGER_GUID_CASE_CONFLICT"
+            );
+          }
+          if (Object.prototype.hasOwnProperty.call(
+            rawRow,
+            "LEDGERMASTERID"
+          ) && text(rawRow.LEDGERMASTERID) !== expectedLedger.masterId) {
+            fail("RECONCILE_SOURCE_LEDGER_MASTERID_MISMATCH");
+          }
+          return {
+            ...ledger,
+            ...exactReconciliationDebitCredit(rawRow)
+          };
+        });
+        return {
+          header: {
+            ...parseVoucherHeader(rawVoucher),
+            guid: voucherGuid
+          },
+          ledgerOccurrenceSource: hasAll ? "ALLLEDGERENTRIES.LIST" : "LEDGERENTRIES.LIST",
+          ledgers: exactLedgers
+        };
+      });
+      const presentGuids = requested.filter(
+        (value) => seen.has(value)
+      );
+      const missingGuids = requested.filter(
+        (value) => !seen.has(value)
+      );
+      const validatedVouchers = validateRawTallyVoucherLedgerAmounts(vouchers);
+      const entries = normalizeTallyVoucherEntries(
+        validatedVouchers,
+        { companyCode, tallyOwner }
+      );
+      return {
+        vouchers: validatedVouchers,
+        entries,
+        presentGuids,
+        missingGuids,
+        snapshotCoverage: {
+          // Presence does not prove complete ledger occurrence coverage.
+          tallyCompleteVoucherGuids: [],
+          tallyUnverifiedMissingGuids: missingGuids
+        }
+      };
+    }
+    function verifyReconciliationVoucherOccurrences({
+      beforeXml,
+      afterXml,
+      request,
+      snapshot
+    }) {
+      function occurrenceFail(reason) {
+        fail(`RECONCILE_OCCURRENCE_${reason}`);
+      }
+      if (!request || !record(snapshot)) {
+        occurrenceFail("CONTEXT_INVALID");
+      }
+      buildReconciliationVoucherOccurrenceRequest({
+        company: request.company,
+        voucherGuids: request.voucherGuids,
+        fromDate: request.fromDate,
+        toDate: request.toDate
+      });
+      const requested = [...request.voucherGuids];
+      const expected = new Set(requested);
+      function exactMembership(values, reason) {
+        if (!Array.isArray(values)) {
+          occurrenceFail(reason);
+        }
+        const index = /* @__PURE__ */ new Map();
+        for (const value of values) {
+          const actual = guid(value);
+          if (actual !== value) {
+            occurrenceFail(reason);
+          }
+          rememberGuid(
+            index,
+            actual,
+            "RECONCILE_OCCURRENCE_GUID_DUPLICATE",
+            "RECONCILE_OCCURRENCE_GUID_CASE_COLLISION"
+          );
+        }
+        if (values.length !== requested.length || values.some((value) => !expected.has(value))) {
+          occurrenceFail(reason);
+        }
+      }
+      function requiredScalar(value, reason) {
+        if (typeof value !== "string" || !value || value !== value.trim()) {
+          occurrenceFail(reason);
+        }
+        return value;
+      }
+      function version(value) {
+        const result = requiredScalar(
+          value,
+          "VERSION_INVALID"
+        );
+        if (!/^(0|[1-9]\d*)$/.test(result)) {
+          occurrenceFail("VERSION_INVALID");
+        }
+        return result;
+      }
+      function voucherDate(value, voucherGuid) {
+        const result = requiredScalar(
+          value,
+          "DATE_INVALID"
+        );
+        buildReconciliationVoucherOccurrenceRequest({
+          company: request.company,
+          voucherGuids: [voucherGuid],
+          fromDate: result,
+          toDate: result
+        });
+        if (result < request.fromDate || result > request.toDate) {
+          occurrenceFail("DATE_OUT_OF_SCOPE");
+        }
+        return result;
+      }
+      function count(value) {
+        if (typeof value !== "string" || value.length > 16 || !/^(0|[1-9]\d*)$/.test(value) || BigInt(value) > BigInt(Number.MAX_SAFE_INTEGER)) {
+          occurrenceFail("COUNT_INVALID");
+        }
+        const result = Number(value);
+        if (result === 0) {
+          occurrenceFail("ZERO_COUNT_UNSUPPORTED");
+        }
+        return result;
+      }
+      function independentRows(xml) {
+        if (typeof xml !== "string" || xml.length > 8 * 1024 * 1024) {
+          occurrenceFail("RESPONSE_INVALID");
+        }
+        const rows = collectionRows(xml, "VOUCHER");
+        exactMembership(
+          rows.map((row) => row.GUID),
+          "RESPONSE_MEMBERSHIP_INVALID"
+        );
+        return new Map(rows.map((row) => {
+          if (!Object.prototype.hasOwnProperty.call(
+            row,
+            "BILLEYLEDGEROCCURRENCECOUNT"
+          )) {
+            occurrenceFail("COUNT_MISSING");
+          }
+          return [
+            row.GUID,
+            {
+              masterId: version(row.MASTERID),
+              alterId: version(row.ALTERID),
+              date: voucherDate(row.DATE, row.GUID),
+              count: count(
+                row.BILLEYLEDGEROCCURRENCECOUNT
+              )
+            }
+          ];
+        }));
+      }
+      if (!Array.isArray(snapshot.vouchers) || !Array.isArray(snapshot.entries) || !Array.isArray(snapshot.missingGuids) || snapshot.missingGuids.length !== 0) {
+        occurrenceFail("SNAPSHOT_INCOMPLETE");
+      }
+      exactMembership(
+        snapshot.presentGuids,
+        "SNAPSHOT_MEMBERSHIP_INVALID"
+      );
+      exactMembership(
+        snapshot.vouchers.map(
+          (voucher) => voucher?.header?.guid
+        ),
+        "SNAPSHOT_MEMBERSHIP_INVALID"
+      );
+      const normalizedCounts = /* @__PURE__ */ new Map();
+      for (const entry of snapshot.entries) {
+        if (!record(entry) || !expected.has(entry.voucherGuid)) {
+          occurrenceFail("NORMALIZED_MEMBERSHIP_INVALID");
+        }
+        normalizedCounts.set(
+          entry.voucherGuid,
+          (normalizedCounts.get(entry.voucherGuid) || 0) + 1
+        );
+      }
+      const before = independentRows(beforeXml);
+      const after = independentRows(afterXml);
+      const vouchers = new Map(
+        snapshot.vouchers.map((voucher) => [
+          voucher.header.guid,
+          voucher
+        ])
+      );
+      const counts = requested.map((voucherGuid) => {
+        const voucher = vouchers.get(voucherGuid);
+        if (voucher.ledgerOccurrenceSource !== "ALLLEDGERENTRIES.LIST" || !Array.isArray(voucher.ledgers) || voucher.ledgers.length === 0) {
+          occurrenceFail("SEMANTICS_UNSUPPORTED");
+        }
+        const header = voucher.header;
+        const masterId = version(header.masterid);
+        const alterId = version(header.alterid);
+        const date = voucherDate(
+          header.voucherDate,
+          voucherGuid
+        );
+        const parsedCount = voucher.ledgers.length;
+        const normalizedCount = normalizedCounts.get(voucherGuid) || 0;
+        for (const evidence of [
+          before.get(voucherGuid),
+          after.get(voucherGuid)
+        ]) {
+          if (evidence.masterId !== masterId || evidence.alterId !== alterId || evidence.date !== date) {
+            occurrenceFail("VERSION_MISMATCH");
+          }
+          if (evidence.count !== parsedCount || normalizedCount !== parsedCount) {
+            occurrenceFail("COUNT_MISMATCH");
+          }
+        }
+        return {
+          voucherGuid,
+          parsedCount,
+          normalizedCount,
+          independentBeforeCount: before.get(voucherGuid).count,
+          independentAfterCount: after.get(voucherGuid).count
+        };
+      });
+      return {
+        schemaVersion: 1,
+        status: "COUNT_AGREEMENT_UNVERIFIED",
+        semanticProfile: "CANDIDATE_ALLLEDGERENTRIES_V1",
+        counts,
+        runtimeSemanticsVerified: false,
+        atomicSnapshotVerified: false,
+        settlementEligible: false
+      };
+    }
+    module2.exports = {
+      parseReconciliationEnvelope,
+      collectionRows,
+      buildReconciliationLedgerLookups,
+      parseReconciliationVoucherXml,
+      verifyReconciliationVoucherOccurrences
     };
   }
 });
@@ -47955,1685 +51226,6 @@ var require_axios = __commonJS({
   }
 });
 
-// node_modules/fast-xml-parser/lib/fxp.cjs
-var require_fxp = __commonJS({
-  "node_modules/fast-xml-parser/lib/fxp.cjs"(exports2, module2) {
-    (() => {
-      "use strict";
-      var t = { d: (e2, i2) => {
-        for (var n2 in i2) t.o(i2, n2) && !t.o(e2, n2) && Object.defineProperty(e2, n2, { enumerable: true, get: i2[n2] });
-      }, o: (t2, e2) => Object.prototype.hasOwnProperty.call(t2, e2), r: (t2) => {
-        "undefined" != typeof Symbol && Symbol.toStringTag && Object.defineProperty(t2, Symbol.toStringTag, { value: "Module" }), Object.defineProperty(t2, "__esModule", { value: true });
-      } }, e = {};
-      t.r(e), t.d(e, { XMLBuilder: () => xe, XMLParser: () => Jt, XMLValidator: () => be });
-      const i = ":A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD", n = new RegExp("^[" + i + "][" + i + "\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$");
-      function r(t2, e2) {
-        const i2 = [];
-        let n2 = e2.exec(t2);
-        for (; n2; ) {
-          const r2 = [];
-          r2.startIndex = e2.lastIndex - n2[0].length;
-          const s2 = n2.length;
-          for (let t3 = 0; t3 < s2; t3++) r2.push(n2[t3]);
-          i2.push(r2), n2 = e2.exec(t2);
-        }
-        return i2;
-      }
-      const s = function(t2) {
-        return !(null == n.exec(t2));
-      }, o = ["hasOwnProperty", "toString", "valueOf", "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__"], a = ["__proto__", "constructor", "prototype"], l = { allowBooleanAttributes: false, unpairedTags: [] };
-      function p(t2, e2) {
-        e2 = Object.assign({}, l, e2);
-        const i2 = [];
-        let n2 = false, r2 = false;
-        "\uFEFF" === t2[0] && (t2 = t2.substr(1));
-        for (let s2 = 0; s2 < t2.length; s2++) if ("<" === t2[s2] && "?" === t2[s2 + 1]) {
-          if (s2 += 2, s2 = h(t2, s2), s2.err) return s2;
-        } else {
-          if ("<" !== t2[s2]) {
-            if (c(t2[s2])) continue;
-            return y("InvalidChar", "char '" + t2[s2] + "' is not expected.", w(t2, s2));
-          }
-          {
-            let o2 = s2;
-            if (s2++, "!" === t2[s2]) {
-              s2 = d(t2, s2);
-              continue;
-            }
-            {
-              let a2 = false;
-              "/" === t2[s2] && (a2 = true, s2++);
-              let l2 = "";
-              for (; s2 < t2.length && ">" !== t2[s2] && " " !== t2[s2] && "	" !== t2[s2] && "\n" !== t2[s2] && "\r" !== t2[s2]; s2++) l2 += t2[s2];
-              if (l2 = l2.trim(), "/" === l2[l2.length - 1] && (l2 = l2.substring(0, l2.length - 1), s2--), !E(l2)) {
-                let e3;
-                return e3 = 0 === l2.trim().length ? "Invalid space after '<'." : "Tag '" + l2 + "' is an invalid name.", y("InvalidTag", e3, w(t2, s2));
-              }
-              const p2 = g(t2, s2);
-              if (false === p2) return y("InvalidAttr", "Attributes for '" + l2 + "' have open quote.", w(t2, s2));
-              let u2 = p2.value;
-              if (s2 = p2.index, "/" === u2[u2.length - 1]) {
-                const i3 = s2 - u2.length;
-                u2 = u2.substring(0, u2.length - 1);
-                const r3 = x(u2, e2);
-                if (true !== r3) return y(r3.err.code, r3.err.msg, w(t2, i3 + r3.err.line));
-                n2 = true;
-              } else if (a2) {
-                if (!p2.tagClosed) return y("InvalidTag", "Closing tag '" + l2 + "' doesn't have proper closing.", w(t2, s2));
-                if (u2.trim().length > 0) return y("InvalidTag", "Closing tag '" + l2 + "' can't have attributes or invalid starting.", w(t2, o2));
-                if (0 === i2.length) return y("InvalidTag", "Closing tag '" + l2 + "' has not been opened.", w(t2, o2));
-                {
-                  const e3 = i2.pop();
-                  if (l2 !== e3.tagName) {
-                    let i3 = w(t2, e3.tagStartPos);
-                    return y("InvalidTag", "Expected closing tag '" + e3.tagName + "' (opened in line " + i3.line + ", col " + i3.col + ") instead of closing tag '" + l2 + "'.", w(t2, o2));
-                  }
-                  0 == i2.length && (r2 = true);
-                }
-              } else {
-                const a3 = x(u2, e2);
-                if (true !== a3) return y(a3.err.code, a3.err.msg, w(t2, s2 - u2.length + a3.err.line));
-                if (true === r2) return y("InvalidXml", "Multiple possible root nodes found.", w(t2, s2));
-                -1 !== e2.unpairedTags.indexOf(l2) || i2.push({ tagName: l2, tagStartPos: o2 }), n2 = true;
-              }
-              for (s2++; s2 < t2.length; s2++) if ("<" === t2[s2]) {
-                if ("!" === t2[s2 + 1]) {
-                  s2++, s2 = d(t2, s2);
-                  continue;
-                }
-                if ("?" !== t2[s2 + 1]) break;
-                if (s2 = h(t2, ++s2), s2.err) return s2;
-              } else if ("&" === t2[s2]) {
-                const e3 = b(t2, s2);
-                if (-1 == e3) return y("InvalidChar", "char '&' is not expected.", w(t2, s2));
-                s2 = e3;
-              } else if (true === r2 && !c(t2[s2])) return y("InvalidXml", "Extra text at the end", w(t2, s2));
-              "<" === t2[s2] && s2--;
-            }
-          }
-        }
-        return n2 ? 1 == i2.length ? y("InvalidTag", "Unclosed tag '" + i2[0].tagName + "'.", w(t2, i2[0].tagStartPos)) : !(i2.length > 0) || y("InvalidXml", "Invalid '" + JSON.stringify(i2.map((t3) => t3.tagName), null, 4).replace(/\r?\n/g, "") + "' found.", { line: 1, col: 1 }) : y("InvalidXml", "Start tag expected.", 1);
-      }
-      function c(t2) {
-        return " " === t2 || "	" === t2 || "\n" === t2 || "\r" === t2;
-      }
-      function h(t2, e2) {
-        const i2 = e2;
-        for (; e2 < t2.length; e2++) if ("?" == t2[e2] || " " == t2[e2]) {
-          const n2 = t2.substr(i2, e2 - i2);
-          if (e2 > 5 && "xml" === n2) return y("InvalidXml", "XML declaration allowed only at the start of the document.", w(t2, e2));
-          if ("?" == t2[e2] && ">" == t2[e2 + 1]) {
-            e2++;
-            break;
-          }
-          continue;
-        }
-        return e2;
-      }
-      function d(t2, e2) {
-        if (t2.length > e2 + 5 && "-" === t2[e2 + 1] && "-" === t2[e2 + 2]) {
-          for (e2 += 3; e2 < t2.length; e2++) if ("-" === t2[e2] && "-" === t2[e2 + 1] && ">" === t2[e2 + 2]) {
-            e2 += 2;
-            break;
-          }
-        } else if (t2.length > e2 + 8 && "D" === t2[e2 + 1] && "O" === t2[e2 + 2] && "C" === t2[e2 + 3] && "T" === t2[e2 + 4] && "Y" === t2[e2 + 5] && "P" === t2[e2 + 6] && "E" === t2[e2 + 7]) {
-          let i2 = 1;
-          for (e2 += 8; e2 < t2.length; e2++) if ("<" === t2[e2]) i2++;
-          else if (">" === t2[e2] && (i2--, 0 === i2)) break;
-        } else if (t2.length > e2 + 9 && "[" === t2[e2 + 1] && "C" === t2[e2 + 2] && "D" === t2[e2 + 3] && "A" === t2[e2 + 4] && "T" === t2[e2 + 5] && "A" === t2[e2 + 6] && "[" === t2[e2 + 7]) {
-          for (e2 += 8; e2 < t2.length; e2++) if ("]" === t2[e2] && "]" === t2[e2 + 1] && ">" === t2[e2 + 2]) {
-            e2 += 2;
-            break;
-          }
-        }
-        return e2;
-      }
-      const u = '"', f = "'";
-      function g(t2, e2) {
-        let i2 = "", n2 = "", r2 = false;
-        for (; e2 < t2.length; e2++) {
-          if (t2[e2] === u || t2[e2] === f) "" === n2 ? n2 = t2[e2] : n2 !== t2[e2] || (n2 = "");
-          else if (">" === t2[e2] && "" === n2) {
-            r2 = true;
-            break;
-          }
-          i2 += t2[e2];
-        }
-        return "" === n2 && { value: i2, index: e2, tagClosed: r2 };
-      }
-      const m = new RegExp(`(\\s*)([^\\s=]+)(\\s*=)?(\\s*(['"])(([\\s\\S])*?)\\5)?`, "g");
-      function x(t2, e2) {
-        const i2 = r(t2, m), n2 = {};
-        for (let t3 = 0; t3 < i2.length; t3++) {
-          if (0 === i2[t3][1].length) return y("InvalidAttr", "Attribute '" + i2[t3][2] + "' has no space in starting.", v(i2[t3]));
-          if (void 0 !== i2[t3][3] && void 0 === i2[t3][4]) return y("InvalidAttr", "Attribute '" + i2[t3][2] + "' is without value.", v(i2[t3]));
-          if (void 0 === i2[t3][3] && !e2.allowBooleanAttributes) return y("InvalidAttr", "boolean attribute '" + i2[t3][2] + "' is not allowed.", v(i2[t3]));
-          const r2 = i2[t3][2];
-          if (!N(r2)) return y("InvalidAttr", "Attribute '" + r2 + "' is an invalid name.", v(i2[t3]));
-          if (Object.prototype.hasOwnProperty.call(n2, r2)) return y("InvalidAttr", "Attribute '" + r2 + "' is repeated.", v(i2[t3]));
-          n2[r2] = 1;
-        }
-        return true;
-      }
-      function b(t2, e2) {
-        if (";" === t2[++e2]) return -1;
-        if ("#" === t2[e2]) return (function(t3, e3) {
-          let i3 = /\d/;
-          for ("x" === t3[e3] && (e3++, i3 = /[\da-fA-F]/); e3 < t3.length; e3++) {
-            if (";" === t3[e3]) return e3;
-            if (!t3[e3].match(i3)) break;
-          }
-          return -1;
-        })(t2, ++e2);
-        let i2 = 0;
-        for (; e2 < t2.length; e2++, i2++) if (!(t2[e2].match(/\w/) && i2 < 20)) {
-          if (";" === t2[e2]) break;
-          return -1;
-        }
-        return e2;
-      }
-      function y(t2, e2, i2) {
-        return { err: { code: t2, msg: e2, line: i2.line || i2, col: i2.col } };
-      }
-      function N(t2) {
-        return s(t2);
-      }
-      function E(t2) {
-        return s(t2);
-      }
-      function w(t2, e2) {
-        const i2 = t2.substring(0, e2).split(/\r?\n/);
-        return { line: i2.length, col: i2[i2.length - 1].length + 1 };
-      }
-      function v(t2) {
-        return t2.startIndex + t2[1].length;
-      }
-      const S = (t2) => o.includes(t2) ? "__" + t2 : t2, A = { preserveOrder: false, attributeNamePrefix: "@_", attributesGroupName: false, textNodeName: "#text", ignoreAttributes: true, removeNSPrefix: false, allowBooleanAttributes: false, parseTagValue: true, parseAttributeValue: false, trimValues: true, cdataPropName: false, numberParseOptions: { hex: true, leadingZeros: true, eNotation: true, unicode: false }, tagValueProcessor: function(t2, e2) {
-        return e2;
-      }, attributeValueProcessor: function(t2, e2) {
-        return e2;
-      }, stopNodes: [], alwaysCreateTextNode: false, isArray: () => false, commentPropName: false, unpairedTags: [], processEntities: true, htmlEntities: false, entityDecoder: null, ignoreDeclaration: false, ignorePiTags: false, transformTagName: false, transformAttributeName: false, updateTag: function(t2, e2, i2) {
-        return t2;
-      }, captureMetaData: false, maxNestedTags: 100, strictReservedNames: true, jPath: true, onDangerousProperty: S };
-      function T(t2, e2) {
-        if ("string" != typeof t2) return;
-        const i2 = t2.toLowerCase();
-        if (o.some((t3) => i2 === t3.toLowerCase())) throw new Error(`[SECURITY] Invalid ${e2}: "${t2}" is a reserved JavaScript keyword that could cause prototype pollution`);
-        if (a.some((t3) => i2 === t3.toLowerCase())) throw new Error(`[SECURITY] Invalid ${e2}: "${t2}" is a reserved JavaScript keyword that could cause prototype pollution`);
-      }
-      function _(t2, e2) {
-        return "boolean" == typeof t2 ? { enabled: t2, maxEntitySize: 1e4, maxExpansionDepth: 1e4, maxTotalExpansions: 1 / 0, maxExpandedLength: 1e5, maxEntityCount: 1e3, allowedTags: null, tagFilter: null, appliesTo: "all" } : "object" == typeof t2 && null !== t2 ? { enabled: false !== t2.enabled, maxEntitySize: Math.max(1, t2.maxEntitySize ?? 1e4), maxExpansionDepth: Math.max(1, t2.maxExpansionDepth ?? 1e4), maxTotalExpansions: Math.max(1, t2.maxTotalExpansions ?? 1 / 0), maxExpandedLength: Math.max(1, t2.maxExpandedLength ?? 1e5), maxEntityCount: Math.max(1, t2.maxEntityCount ?? 1e3), allowedTags: t2.allowedTags ?? null, tagFilter: t2.tagFilter ?? null, appliesTo: t2.appliesTo ?? "all" } : _(true);
-      }
-      const C = function(t2) {
-        const e2 = Object.assign({}, A, t2), i2 = [{ value: e2.attributeNamePrefix, name: "attributeNamePrefix" }, { value: e2.attributesGroupName, name: "attributesGroupName" }, { value: e2.textNodeName, name: "textNodeName" }, { value: e2.cdataPropName, name: "cdataPropName" }, { value: e2.commentPropName, name: "commentPropName" }];
-        for (const { value: t3, name: e3 } of i2) t3 && T(t3, e3);
-        return null === e2.onDangerousProperty && (e2.onDangerousProperty = S), e2.processEntities = _(e2.processEntities, e2.htmlEntities), e2.unpairedTagsSet = new Set(e2.unpairedTags), e2.stopNodes && Array.isArray(e2.stopNodes) && (e2.stopNodes = e2.stopNodes.map((t3) => "string" == typeof t3 && t3.startsWith("*.") ? ".." + t3.substring(2) : t3)), e2;
-      };
-      let $;
-      $ = "function" != typeof Symbol ? "@@xmlMetadata" : /* @__PURE__ */ Symbol("XML Node Metadata");
-      class O {
-        constructor(t2) {
-          this.tagname = t2, this.child = [], this[":@"] = /* @__PURE__ */ Object.create(null);
-        }
-        add(t2, e2) {
-          "__proto__" === t2 && (t2 = "#__proto__"), this.child.push({ [t2]: e2 });
-        }
-        addChild(t2, e2) {
-          "__proto__" === t2.tagname && (t2.tagname = "#__proto__"), t2[":@"] && Object.keys(t2[":@"]).length > 0 ? this.child.push({ [t2.tagname]: t2.child, ":@": t2[":@"] }) : this.child.push({ [t2.tagname]: t2.child }), void 0 !== e2 && (this.child[this.child.length - 1][$] = { startIndex: e2 });
-        }
-        static getMetaDataSymbol() {
-          return $;
-        }
-      }
-      const P = ":A-Za-z_\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u037D\u037F-\u0486\u0488-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD", j = ":A-Za-z_\xC0-\u02FF\u0370-\u037D\u037F-\u0486\u0488-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\u{10000}-\u{EFFFF}", I = j + "\\-\\.\\d\xB7\u0300-\u036F\u0487\u203F-\u2040", k = (t2, e2, i2 = "") => {
-        const n2 = `[${t2.replace(":", "")}][${e2.replace(":", "")}]*`;
-        return { name: new RegExp(`^[${t2}][${e2}]*$`, i2), ncName: new RegExp(`^${n2}$`, i2), qName: new RegExp(`^${n2}(?::${n2})?$`, i2), nmToken: new RegExp(`^[${e2}]+$`, i2), nmTokens: new RegExp(`^[${e2}]+(?:\\s+[${e2}]+)*$`, i2) };
-      }, L = k(P, P + "\\-\\.\\d\xB7\u0300-\u036F\u203F-\u2040"), D = k(j, I, "u"), R = (t2, { xmlVersion: e2 = "1.0" } = {}) => (/* @__PURE__ */ ((t3 = "1.0") => "1.1" === t3 ? D : L)(e2)).qName.test(t2);
-      class M {
-        constructor(t2, e2) {
-          this.suppressValidationErr = !t2, this.options = t2, this.xmlVersion = e2 || 1;
-        }
-        setXmlVersion(t2 = 1) {
-          this.xmlVersion = t2;
-        }
-        readDocType(t2, e2) {
-          const i2 = /* @__PURE__ */ Object.create(null);
-          let n2 = 0;
-          if ("O" !== t2[e2 + 3] || "C" !== t2[e2 + 4] || "T" !== t2[e2 + 5] || "Y" !== t2[e2 + 6] || "P" !== t2[e2 + 7] || "E" !== t2[e2 + 8]) throw new Error("Invalid Tag instead of DOCTYPE");
-          {
-            e2 += 9;
-            let r2 = 1, s2 = false, o2 = false, a2 = "";
-            for (; e2 < t2.length; e2++) if ("<" !== t2[e2] || o2) if (">" === t2[e2]) {
-              if (o2 ? "-" === t2[e2 - 1] && "-" === t2[e2 - 2] && (o2 = false, r2--) : r2--, 0 === r2) break;
-            } else "[" === t2[e2] ? s2 = true : a2 += t2[e2];
-            else {
-              if (s2 && q(t2, "!ENTITY", e2)) {
-                let r3, s3;
-                if (e2 += 7, [r3, s3, e2] = this.readEntityExp(t2, e2 + 1, this.suppressValidationErr), -1 === s3.indexOf("&")) {
-                  if (false !== this.options.enabled && null != this.options.maxEntityCount && n2 >= this.options.maxEntityCount) throw new Error(`Entity count (${n2 + 1}) exceeds maximum allowed (${this.options.maxEntityCount})`);
-                  i2[r3] = s3, n2++;
-                }
-              } else if (s2 && q(t2, "!ELEMENT", e2)) {
-                e2 += 8;
-                const { index: i3 } = this.readElementExp(t2, e2 + 1);
-                e2 = i3;
-              } else if (s2 && q(t2, "!ATTLIST", e2)) e2 += 8;
-              else if (s2 && q(t2, "!NOTATION", e2)) {
-                e2 += 9;
-                const { index: i3 } = this.readNotationExp(t2, e2 + 1, this.suppressValidationErr);
-                e2 = i3;
-              } else {
-                if (!q(t2, "!--", e2)) throw new Error("Invalid DOCTYPE");
-                o2 = true;
-              }
-              r2++, a2 = "";
-            }
-            if (0 !== r2) throw new Error("Unclosed DOCTYPE");
-          }
-          return { entities: i2, i: e2 };
-        }
-        readEntityExp(t2, e2) {
-          const i2 = e2 = V(t2, e2);
-          for (; e2 < t2.length && !/\s/.test(t2[e2]) && '"' !== t2[e2] && "'" !== t2[e2]; ) e2++;
-          let n2 = t2.substring(i2, e2);
-          if (F(n2, { xmlVersion: this.xmlVersion }), e2 = V(t2, e2), !this.suppressValidationErr) {
-            if ("SYSTEM" === t2.substring(e2, e2 + 6).toUpperCase()) throw new Error("External entities are not supported");
-            if ("%" === t2[e2]) throw new Error("Parameter entities are not supported");
-          }
-          let r2 = "";
-          if ([e2, r2] = this.readIdentifierVal(t2, e2, "entity"), false !== this.options.enabled && null != this.options.maxEntitySize && r2.length > this.options.maxEntitySize) throw new Error(`Entity "${n2}" size (${r2.length}) exceeds maximum allowed size (${this.options.maxEntitySize})`);
-          return [n2, r2, --e2];
-        }
-        readNotationExp(t2, e2) {
-          const i2 = e2 = V(t2, e2);
-          for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
-          let n2 = t2.substring(i2, e2);
-          !this.suppressValidationErr && F(n2, { xmlVersion: this.xmlVersion }), e2 = V(t2, e2);
-          const r2 = t2.substring(e2, e2 + 6).toUpperCase();
-          if (!this.suppressValidationErr && "SYSTEM" !== r2 && "PUBLIC" !== r2) throw new Error(`Expected SYSTEM or PUBLIC, found "${r2}"`);
-          e2 += r2.length, e2 = V(t2, e2);
-          let s2 = null, o2 = null;
-          if ("PUBLIC" === r2) [e2, s2] = this.readIdentifierVal(t2, e2, "publicIdentifier"), '"' !== t2[e2 = V(t2, e2)] && "'" !== t2[e2] || ([e2, o2] = this.readIdentifierVal(t2, e2, "systemIdentifier"));
-          else if ("SYSTEM" === r2 && ([e2, o2] = this.readIdentifierVal(t2, e2, "systemIdentifier"), !this.suppressValidationErr && !o2)) throw new Error("Missing mandatory system identifier for SYSTEM notation");
-          return { notationName: n2, publicIdentifier: s2, systemIdentifier: o2, index: --e2 };
-        }
-        readIdentifierVal(t2, e2, i2) {
-          let n2 = "";
-          const r2 = t2[e2];
-          if ('"' !== r2 && "'" !== r2) throw new Error(`Expected quoted string, found "${r2}"`);
-          const s2 = ++e2;
-          for (; e2 < t2.length && t2[e2] !== r2; ) e2++;
-          if (n2 = t2.substring(s2, e2), t2[e2] !== r2) throw new Error(`Unterminated ${i2} value`);
-          return [++e2, n2];
-        }
-        readElementExp(t2, e2) {
-          const i2 = e2 = V(t2, e2);
-          for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
-          let n2 = t2.substring(i2, e2);
-          if (!this.suppressValidationErr && !R(n2, { xmlVersion: this.xmlVersion })) throw new Error(`Invalid element name: "${n2}"`);
-          let r2 = "";
-          if ("E" === t2[e2 = V(t2, e2)] && q(t2, "MPTY", e2)) e2 += 4;
-          else if ("A" === t2[e2] && q(t2, "NY", e2)) e2 += 2;
-          else if ("(" === t2[e2]) {
-            const i3 = ++e2;
-            for (; e2 < t2.length && ")" !== t2[e2]; ) e2++;
-            if (r2 = t2.substring(i3, e2), ")" !== t2[e2]) throw new Error("Unterminated content model");
-          } else if (!this.suppressValidationErr) throw new Error(`Invalid Element Expression, found "${t2[e2]}"`);
-          return { elementName: n2, contentModel: r2.trim(), index: e2 };
-        }
-        readAttlistExp(t2, e2) {
-          let i2 = e2 = V(t2, e2);
-          for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
-          let n2 = t2.substring(i2, e2);
-          for (F(n2, { xmlVersion: this.xmlVersion }), i2 = e2 = V(t2, e2); e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
-          let r2 = t2.substring(i2, e2);
-          if (!F(r2, { xmlVersion: this.xmlVersion })) throw new Error(`Invalid attribute name: "${r2}"`);
-          e2 = V(t2, e2);
-          let s2 = "";
-          if ("NOTATION" === t2.substring(e2, e2 + 8).toUpperCase()) {
-            if (s2 = "NOTATION", "(" !== t2[e2 = V(t2, e2 += 8)]) throw new Error(`Expected '(', found "${t2[e2]}"`);
-            e2++;
-            let i3 = [];
-            for (; e2 < t2.length && ")" !== t2[e2]; ) {
-              const n3 = e2;
-              for (; e2 < t2.length && "|" !== t2[e2] && ")" !== t2[e2]; ) e2++;
-              let r3 = t2.substring(n3, e2);
-              if (r3 = r3.trim(), !F(r3, { xmlVersion: this.xmlVersion })) throw new Error(`Invalid notation name: "${r3}"`);
-              i3.push(r3), "|" === t2[e2] && (e2++, e2 = V(t2, e2));
-            }
-            if (")" !== t2[e2]) throw new Error("Unterminated list of notations");
-            e2++, s2 += " (" + i3.join("|") + ")";
-          } else {
-            const i3 = e2;
-            for (; e2 < t2.length && !/\s/.test(t2[e2]); ) e2++;
-            s2 += t2.substring(i3, e2);
-            const n3 = ["CDATA", "ID", "IDREF", "IDREFS", "ENTITY", "ENTITIES", "NMTOKEN", "NMTOKENS"];
-            if (!this.suppressValidationErr && !n3.includes(s2.toUpperCase())) throw new Error(`Invalid attribute type: "${s2}"`);
-          }
-          e2 = V(t2, e2);
-          let o2 = "";
-          return "#REQUIRED" === t2.substring(e2, e2 + 8).toUpperCase() ? (o2 = "#REQUIRED", e2 += 8) : "#IMPLIED" === t2.substring(e2, e2 + 7).toUpperCase() ? (o2 = "#IMPLIED", e2 += 7) : [e2, o2] = this.readIdentifierVal(t2, e2, "ATTLIST"), { elementName: n2, attributeName: r2, attributeType: s2, defaultValue: o2, index: e2 };
-        }
-      }
-      const V = (t2, e2) => {
-        for (; e2 < t2.length && /\s/.test(t2[e2]); ) e2++;
-        return e2;
-      };
-      function q(t2, e2, i2) {
-        for (let n2 = 0; n2 < e2.length; n2++) if (e2[n2] !== t2[i2 + n2 + 1]) return false;
-        return true;
-      }
-      function F(t2, e2) {
-        if (R(t2, { xmlVersion: e2 })) return t2;
-        throw new Error(`Invalid entity name ${t2}`);
-      }
-      const U = [48, 1632, 1776, 2406, 2534, 2662, 2790, 2918, 3046, 3174, 3302, 3430, 3558, 3664, 3792, 3872, 4160, 4240, 6112, 6160, 6470, 6608, 6784, 6800, 6992, 7088, 7232, 7248, 65296, 120782, 120792, 120802, 120812, 120822, 66720, 68912, 69734, 69872, 69942, 70096, 70384, 70736, 70864, 71248, 71360, 71472, 71904, 72016, 72688, 72784, 73040, 73120, 73552, 92768, 92864, 93008, 123200, 123632, 124144, 125264, 130032], G = /* @__PURE__ */ new Map(), B = 1632, W = new Uint8Array(63904).fill(255);
-      for (const t2 of U) for (let e2 = 0; e2 < 10; e2++) {
-        const i2 = t2 + e2;
-        i2 <= 65535 ? W[i2 - B] = e2 : G.set(i2, e2);
-      }
-      const X = /* @__PURE__ */ new Set([8722, 65293, 65123]), Y = /^[-+]?0x[a-fA-F0-9]+$/, z = /^0b[01]+$/, H = /^0o[0-7]+$/, Q = /^([\-\+])?(0*)([0-9]*(\.[0-9]*)?)$/, J = { hex: true, binary: false, octal: false, leadingZeros: true, decimalPoint: ".", eNotation: true, infinity: "original", unicode: false };
-      function Z(t2, e2 = {}) {
-        if (e2 = Object.assign({}, J, e2), !t2 || "string" != typeof t2) return t2;
-        let i2 = t2.trim();
-        if (0 === i2.length) return t2;
-        if (void 0 !== e2.skipLike && e2.skipLike.test(i2)) return t2;
-        if ("0" === i2) return 0;
-        if (e2.unicode && (i2 = (function(t3) {
-          if ("string" != typeof t3) return t3;
-          const e3 = t3.length;
-          if (0 === e3) return t3;
-          let i3 = -1;
-          for (let n4 = 0; n4 < e3; n4++) {
-            const r2 = t3.charCodeAt(n4);
-            if (!(r2 >= 48 && r2 <= 57 || 45 === r2)) {
-              if (r2 < B) {
-                if (X.has(r2)) {
-                  i3 = n4;
-                  break;
-                }
-              } else if (r2 >= 55296 && r2 <= 56319) {
-                if (n4 + 1 < e3) {
-                  const e4 = t3.charCodeAt(n4 + 1);
-                  if (e4 >= 56320 && e4 <= 57343) {
-                    const t4 = 65536 + (r2 - 55296 << 10) + (e4 - 56320);
-                    if (G.has(t4)) {
-                      i3 = n4;
-                      break;
-                    }
-                  }
-                }
-              } else if (255 !== W[r2 - B] || X.has(r2)) {
-                i3 = n4;
-                break;
-              }
-            }
-          }
-          if (-1 === i3) return t3;
-          const n3 = [];
-          i3 > 0 && n3.push(t3.slice(0, i3));
-          for (let r2 = i3; r2 < e3; r2++) {
-            const i4 = t3.charCodeAt(r2);
-            if (i4 >= 48 && i4 <= 57 || 45 === i4) {
-              n3.push(t3[r2]);
-              continue;
-            }
-            if (i4 < B) {
-              n3.push(X.has(i4) ? "-" : t3[r2]);
-              continue;
-            }
-            if (i4 >= 55296 && i4 <= 56319) {
-              if (r2 + 1 < e3) {
-                const e4 = t3.charCodeAt(r2 + 1);
-                if (e4 >= 56320 && e4 <= 57343) {
-                  const t4 = 65536 + (i4 - 55296 << 10) + (e4 - 56320), s3 = G.get(t4);
-                  if (void 0 !== s3) {
-                    n3.push(String.fromCharCode(s3 + 48)), r2++;
-                    continue;
-                  }
-                }
-              }
-              n3.push(t3[r2]);
-              continue;
-            }
-            if (X.has(i4)) {
-              n3.push("-");
-              continue;
-            }
-            const s2 = W[i4 - B];
-            n3.push(255 !== s2 ? String.fromCharCode(s2 + 48) : t3[r2]);
-          }
-          return n3.join("");
-        })(i2), "0" === i2)) return 0;
-        if (e2.hex && Y.test(i2)) return tt(i2, 16);
-        if (e2.binary && z.test(i2)) return tt(i2, 2);
-        if (e2.octal && H.test(i2)) return tt(i2, 8);
-        if (isFinite(i2)) {
-          if (i2.includes("e") || i2.includes("E")) return (function(t3, e3, i3) {
-            if (!i3.eNotation) return t3;
-            const n3 = e3.match(K);
-            if (n3) {
-              let r2 = n3[1] || "";
-              const s2 = -1 === n3[3].indexOf("e") ? "E" : "e", o2 = n3[2], a2 = r2 ? t3[o2.length + 1] === s2 : t3[o2.length] === s2;
-              return o2.length > 1 && a2 ? t3 : (1 !== o2.length || !n3[3].startsWith(`.${s2}`) && n3[3][0] !== s2) && o2.length > 0 ? i3.leadingZeros && !a2 ? (e3 = (n3[1] || "") + n3[3], Number(e3)) : t3 : Number(e3);
-            }
-            return t3;
-          })(t2, i2, e2);
-          {
-            const r2 = Q.exec(i2);
-            if (r2) {
-              const s2 = r2[1] || "", o2 = r2[2];
-              let a2 = (n2 = r2[3]) && -1 !== n2.indexOf(".") ? ("." === (n2 = n2.replace(/0+$/, "")) ? n2 = "0" : "." === n2[0] ? n2 = "0" + n2 : "." === n2[n2.length - 1] && (n2 = n2.substring(0, n2.length - 1)), n2) : n2;
-              const l2 = s2 ? "." === t2[o2.length + 1] : "." === t2[o2.length];
-              if (!e2.leadingZeros && (o2.length > 1 || 1 === o2.length && !l2)) return t2;
-              {
-                const n3 = Number(i2), r3 = String(n3);
-                if (0 === n3) return n3;
-                if (-1 !== r3.search(/[eE]/)) return e2.eNotation ? n3 : t2;
-                if (-1 !== i2.indexOf(".")) return "0" === r3 || r3 === a2 || r3 === `${s2}${a2}` ? n3 : t2;
-                let l3 = o2 ? a2 : i2;
-                return o2 ? l3 === r3 || s2 + l3 === r3 ? n3 : t2 : l3 === r3 || l3 === s2 + r3 ? n3 : t2;
-              }
-            }
-            return t2;
-          }
-        }
-        var n2;
-        return (function(t3, e3, i3) {
-          const n3 = e3 === 1 / 0;
-          switch (i3.infinity.toLowerCase()) {
-            case "null":
-              return null;
-            case "infinity":
-              return e3;
-            case "string":
-              return n3 ? "Infinity" : "-Infinity";
-            default:
-              return t3;
-          }
-        })(t2, Number(i2), e2);
-      }
-      const K = /^([-+])?(0*)(\d*(\.\d*)?[eE][-\+]?\d+)$/;
-      function tt(t2, e2) {
-        const i2 = t2.trim();
-        if (2 !== e2 && 8 !== e2 || (t2 = i2.substring(2)), parseInt) return parseInt(t2, e2);
-        if (Number.parseInt) return Number.parseInt(t2, e2);
-        if (window && window.parseInt) return window.parseInt(t2, e2);
-        throw new Error("parseInt, Number.parseInt, window.parseInt are not supported");
-      }
-      class et {
-        constructor(t2) {
-          this._matcher = t2;
-        }
-        get separator() {
-          return this._matcher.separator;
-        }
-        getCurrentTag() {
-          const t2 = this._matcher.path;
-          return t2.length > 0 ? t2[t2.length - 1].tag : void 0;
-        }
-        getCurrentNamespace() {
-          const t2 = this._matcher.path;
-          return t2.length > 0 ? t2[t2.length - 1].namespace : void 0;
-        }
-        getAttrValue(t2) {
-          const e2 = this._matcher.path;
-          if (0 !== e2.length) return e2[e2.length - 1].values?.[t2];
-        }
-        hasAttr(t2) {
-          const e2 = this._matcher.path;
-          if (0 === e2.length) return false;
-          const i2 = e2[e2.length - 1];
-          return void 0 !== i2.values && t2 in i2.values;
-        }
-        getPosition() {
-          const t2 = this._matcher.path;
-          return 0 === t2.length ? -1 : t2[t2.length - 1].position ?? 0;
-        }
-        getCounter() {
-          const t2 = this._matcher.path;
-          return 0 === t2.length ? -1 : t2[t2.length - 1].counter ?? 0;
-        }
-        getIndex() {
-          return this.getPosition();
-        }
-        getDepth() {
-          return this._matcher.path.length;
-        }
-        toString(t2, e2 = true) {
-          return this._matcher.toString(t2, e2);
-        }
-        toArray() {
-          return this._matcher.path.map((t2) => t2.tag);
-        }
-        matches(t2) {
-          return this._matcher.matches(t2);
-        }
-        matchesAny(t2) {
-          return t2.matchesAny(this._matcher);
-        }
-      }
-      class it {
-        constructor(t2 = {}) {
-          this.separator = t2.separator || ".", this.path = [], this.siblingStacks = [], this._pathStringCache = null, this._view = new et(this);
-        }
-        push(t2, e2 = null, i2 = null) {
-          this._pathStringCache = null, this.path.length > 0 && (this.path[this.path.length - 1].values = void 0);
-          const n2 = this.path.length;
-          this.siblingStacks[n2] || (this.siblingStacks[n2] = /* @__PURE__ */ new Map());
-          const r2 = this.siblingStacks[n2], s2 = i2 ? `${i2}:${t2}` : t2, o2 = r2.get(s2) || 0;
-          let a2 = 0;
-          for (const t3 of r2.values()) a2 += t3;
-          r2.set(s2, o2 + 1);
-          const l2 = { tag: t2, position: a2, counter: o2 };
-          null != i2 && (l2.namespace = i2), null != e2 && (l2.values = e2), this.path.push(l2);
-        }
-        pop() {
-          if (0 === this.path.length) return;
-          this._pathStringCache = null;
-          const t2 = this.path.pop();
-          return this.siblingStacks.length > this.path.length + 1 && (this.siblingStacks.length = this.path.length + 1), t2;
-        }
-        updateCurrent(t2) {
-          if (this.path.length > 0) {
-            const e2 = this.path[this.path.length - 1];
-            null != t2 && (e2.values = t2);
-          }
-        }
-        getCurrentTag() {
-          return this.path.length > 0 ? this.path[this.path.length - 1].tag : void 0;
-        }
-        getCurrentNamespace() {
-          return this.path.length > 0 ? this.path[this.path.length - 1].namespace : void 0;
-        }
-        getAttrValue(t2) {
-          if (0 !== this.path.length) return this.path[this.path.length - 1].values?.[t2];
-        }
-        hasAttr(t2) {
-          if (0 === this.path.length) return false;
-          const e2 = this.path[this.path.length - 1];
-          return void 0 !== e2.values && t2 in e2.values;
-        }
-        getPosition() {
-          return 0 === this.path.length ? -1 : this.path[this.path.length - 1].position ?? 0;
-        }
-        getCounter() {
-          return 0 === this.path.length ? -1 : this.path[this.path.length - 1].counter ?? 0;
-        }
-        getIndex() {
-          return this.getPosition();
-        }
-        getDepth() {
-          return this.path.length;
-        }
-        toString(t2, e2 = true) {
-          const i2 = t2 || this.separator;
-          if (i2 === this.separator && true === e2) {
-            if (null !== this._pathStringCache) return this._pathStringCache;
-            const t3 = this.path.map((t4) => t4.namespace ? `${t4.namespace}:${t4.tag}` : t4.tag).join(i2);
-            return this._pathStringCache = t3, t3;
-          }
-          return this.path.map((t3) => e2 && t3.namespace ? `${t3.namespace}:${t3.tag}` : t3.tag).join(i2);
-        }
-        toArray() {
-          return this.path.map((t2) => t2.tag);
-        }
-        reset() {
-          this._pathStringCache = null, this.path = [], this.siblingStacks = [];
-        }
-        matches(t2) {
-          const e2 = t2.segments;
-          return 0 !== e2.length && (t2.hasDeepWildcard() ? this._matchWithDeepWildcard(e2) : this._matchSimple(e2));
-        }
-        _matchSimple(t2) {
-          if (this.path.length !== t2.length) return false;
-          for (let e2 = 0; e2 < t2.length; e2++) if (!this._matchSegment(t2[e2], this.path[e2], e2 === this.path.length - 1)) return false;
-          return true;
-        }
-        _matchWithDeepWildcard(t2) {
-          let e2 = this.path.length - 1, i2 = t2.length - 1;
-          for (; i2 >= 0 && e2 >= 0; ) {
-            const n2 = t2[i2];
-            if ("deep-wildcard" === n2.type) {
-              if (i2--, i2 < 0) return true;
-              const n3 = t2[i2];
-              let r2 = false;
-              for (let t3 = e2; t3 >= 0; t3--) if (this._matchSegment(n3, this.path[t3], t3 === this.path.length - 1)) {
-                e2 = t3 - 1, i2--, r2 = true;
-                break;
-              }
-              if (!r2) return false;
-            } else {
-              if (!this._matchSegment(n2, this.path[e2], e2 === this.path.length - 1)) return false;
-              e2--, i2--;
-            }
-          }
-          return i2 < 0;
-        }
-        _matchSegment(t2, e2, i2) {
-          if ("*" !== t2.tag && t2.tag !== e2.tag) return false;
-          if (void 0 !== t2.namespace && "*" !== t2.namespace && t2.namespace !== e2.namespace) return false;
-          if (void 0 !== t2.attrName) {
-            if (!i2) return false;
-            if (!e2.values || !(t2.attrName in e2.values)) return false;
-            if (void 0 !== t2.attrValue && String(e2.values[t2.attrName]) !== String(t2.attrValue)) return false;
-          }
-          if (void 0 !== t2.position) {
-            if (!i2) return false;
-            const n2 = e2.counter ?? 0;
-            if ("first" === t2.position && 0 !== n2) return false;
-            if ("odd" === t2.position && n2 % 2 != 1) return false;
-            if ("even" === t2.position && n2 % 2 != 0) return false;
-            if ("nth" === t2.position && n2 !== t2.positionValue) return false;
-          }
-          return true;
-        }
-        matchesAny(t2) {
-          return t2.matchesAny(this);
-        }
-        snapshot() {
-          return { path: this.path.map((t2) => ({ ...t2 })), siblingStacks: this.siblingStacks.map((t2) => new Map(t2)) };
-        }
-        restore(t2) {
-          this._pathStringCache = null, this.path = t2.path.map((t3) => ({ ...t3 })), this.siblingStacks = t2.siblingStacks.map((t3) => new Map(t3));
-        }
-        readOnly() {
-          return this._view;
-        }
-      }
-      class nt {
-        constructor(t2, e2 = {}, i2) {
-          this.pattern = t2, this.separator = e2.separator || ".", this.segments = this._parse(t2), this.data = i2, this._hasDeepWildcard = this.segments.some((t3) => "deep-wildcard" === t3.type), this._hasAttributeCondition = this.segments.some((t3) => void 0 !== t3.attrName), this._hasPositionSelector = this.segments.some((t3) => void 0 !== t3.position);
-        }
-        _parse(t2) {
-          const e2 = [];
-          let i2 = 0, n2 = "";
-          for (; i2 < t2.length; ) t2[i2] === this.separator ? i2 + 1 < t2.length && t2[i2 + 1] === this.separator ? (n2.trim() && (e2.push(this._parseSegment(n2.trim())), n2 = ""), e2.push({ type: "deep-wildcard" }), i2 += 2) : (n2.trim() && e2.push(this._parseSegment(n2.trim())), n2 = "", i2++) : (n2 += t2[i2], i2++);
-          return n2.trim() && e2.push(this._parseSegment(n2.trim())), e2;
-        }
-        _parseSegment(t2) {
-          const e2 = { type: "tag" };
-          let i2 = null, n2 = t2;
-          const r2 = t2.match(/^([^\[]+)(\[[^\]]*\])(.*)$/);
-          if (r2 && (n2 = r2[1] + r2[3], r2[2])) {
-            const t3 = r2[2].slice(1, -1);
-            t3 && (i2 = t3);
-          }
-          let s2, o2, a2 = n2;
-          if (n2.includes("::")) {
-            const e3 = n2.indexOf("::");
-            if (s2 = n2.substring(0, e3).trim(), a2 = n2.substring(e3 + 2).trim(), !s2) throw new Error(`Invalid namespace in pattern: ${t2}`);
-          }
-          let l2 = null;
-          if (a2.includes(":")) {
-            const t3 = a2.lastIndexOf(":"), e3 = a2.substring(0, t3).trim(), i3 = a2.substring(t3 + 1).trim();
-            ["first", "last", "odd", "even"].includes(i3) || /^nth\(\d+\)$/.test(i3) ? (o2 = e3, l2 = i3) : o2 = a2;
-          } else o2 = a2;
-          if (!o2) throw new Error(`Invalid segment pattern: ${t2}`);
-          if (e2.tag = o2, s2 && (e2.namespace = s2), i2) if (i2.includes("=")) {
-            const t3 = i2.indexOf("=");
-            e2.attrName = i2.substring(0, t3).trim(), e2.attrValue = i2.substring(t3 + 1).trim();
-          } else e2.attrName = i2.trim();
-          if (l2) {
-            const t3 = l2.match(/^nth\((\d+)\)$/);
-            t3 ? (e2.position = "nth", e2.positionValue = parseInt(t3[1], 10)) : e2.position = l2;
-          }
-          return e2;
-        }
-        get length() {
-          return this.segments.length;
-        }
-        hasDeepWildcard() {
-          return this._hasDeepWildcard;
-        }
-        hasAttributeCondition() {
-          return this._hasAttributeCondition;
-        }
-        hasPositionSelector() {
-          return this._hasPositionSelector;
-        }
-        toString() {
-          return this.pattern;
-        }
-      }
-      class rt {
-        constructor() {
-          this._byDepthAndTag = /* @__PURE__ */ new Map(), this._wildcardByDepth = /* @__PURE__ */ new Map(), this._deepWildcards = [], this._patterns = /* @__PURE__ */ new Set(), this._sealed = false;
-        }
-        add(t2) {
-          if (this._sealed) throw new TypeError("ExpressionSet is sealed. Create a new ExpressionSet to add more expressions.");
-          if (this._patterns.has(t2.pattern)) return this;
-          if (this._patterns.add(t2.pattern), t2.hasDeepWildcard()) return this._deepWildcards.push(t2), this;
-          const e2 = t2.length, i2 = t2.segments[t2.segments.length - 1], n2 = i2?.tag;
-          if (n2 && "*" !== n2) {
-            const i3 = `${e2}:${n2}`;
-            this._byDepthAndTag.has(i3) || this._byDepthAndTag.set(i3, []), this._byDepthAndTag.get(i3).push(t2);
-          } else this._wildcardByDepth.has(e2) || this._wildcardByDepth.set(e2, []), this._wildcardByDepth.get(e2).push(t2);
-          return this;
-        }
-        addAll(t2) {
-          for (const e2 of t2) this.add(e2);
-          return this;
-        }
-        has(t2) {
-          return this._patterns.has(t2.pattern);
-        }
-        get size() {
-          return this._patterns.size;
-        }
-        seal() {
-          return this._sealed = true, this;
-        }
-        get isSealed() {
-          return this._sealed;
-        }
-        matchesAny(t2) {
-          return null !== this.findMatch(t2);
-        }
-        findMatch(t2) {
-          const e2 = t2.getDepth(), i2 = `${e2}:${t2.getCurrentTag()}`, n2 = this._byDepthAndTag.get(i2);
-          if (n2) {
-            for (let e3 = 0; e3 < n2.length; e3++) if (t2.matches(n2[e3])) return n2[e3];
-          }
-          const r2 = this._wildcardByDepth.get(e2);
-          if (r2) {
-            for (let e3 = 0; e3 < r2.length; e3++) if (t2.matches(r2[e3])) return r2[e3];
-          }
-          for (let e3 = 0; e3 < this._deepWildcards.length; e3++) if (t2.matches(this._deepWildcards[e3])) return this._deepWildcards[e3];
-          return null;
-        }
-      }
-      const st = { cent: "\xA2", pound: "\xA3", curren: "\xA4", yen: "\xA5", euro: "\u20AC", dollar: "$", fnof: "\u0192", inr: "\u20B9", af: "\u060B", birr: "\u1265\u122D", peso: "\u20B1", rub: "\u20BD", won: "\u20A9", yuan: "\xA5", cedil: "\xB8" }, ot = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' }, at = { nbsp: "\xA0", copy: "\xA9", reg: "\xAE", trade: "\u2122", mdash: "\u2014", ndash: "\u2013", hellip: "\u2026", laquo: "\xAB", raquo: "\xBB", lsquo: "\u2018", rsquo: "\u2019", ldquo: "\u201C", rdquo: "\u201D", bull: "\u2022", para: "\xB6", sect: "\xA7", deg: "\xB0", frac12: "\xBD", frac14: "\xBC", frac34: "\xBE" }, lt = Object.freeze({ ALLOW: "allow", BLOCK: "block", THROW: "throw" }), pt = new Set("!?\\\\/[]$%{}^&*()<>|+");
-      function ct(t2) {
-        if ("#" === t2[0]) throw new Error(`[EntityReplacer] Invalid character '#' in entity name: "${t2}"`);
-        for (const e2 of t2) if (pt.has(e2)) throw new Error(`[EntityReplacer] Invalid character '${e2}' in entity name: "${t2}"`);
-        return t2;
-      }
-      function ht(...t2) {
-        const e2 = /* @__PURE__ */ Object.create(null);
-        for (const i2 of t2) if (i2) for (const t3 of Object.keys(i2)) {
-          const n2 = i2[t3];
-          if ("string" == typeof n2) e2[t3] = n2;
-          else if (n2 && "object" == typeof n2 && void 0 !== n2.val) {
-            const i3 = n2.val;
-            "string" == typeof i3 && (e2[t3] = i3);
-          }
-        }
-        return e2;
-      }
-      const dt = "external", ut = "base", ft = "all", gt = Object.freeze({ allow: 0, leave: 1, remove: 2, throw: 3 }), mt = /* @__PURE__ */ new Set([9, 10, 13]);
-      class xt {
-        constructor(t2 = {}) {
-          var e2;
-          this._limit = t2.limit || {}, this._maxTotalExpansions = this._limit.maxTotalExpansions || 0, this._maxExpandedLength = this._limit.maxExpandedLength || 0, this._postCheck = "function" == typeof t2.postCheck ? t2.postCheck : (t3) => t3, this._limitTiers = (e2 = this._limit.applyLimitsTo ?? dt) && e2 !== dt ? e2 === ft ? /* @__PURE__ */ new Set([ft]) : e2 === ut ? /* @__PURE__ */ new Set([ut]) : Array.isArray(e2) ? new Set(e2) : /* @__PURE__ */ new Set([dt]) : /* @__PURE__ */ new Set([dt]), this._numericAllowed = t2.numericAllowed ?? true, this._baseMap = ht(ot, t2.namedEntities || null), this._externalMap = /* @__PURE__ */ Object.create(null), this._inputMap = /* @__PURE__ */ Object.create(null), this._totalExpansions = 0, this._expandedLength = 0, this._removeSet = new Set(t2.remove && Array.isArray(t2.remove) ? t2.remove : []), this._leaveSet = new Set(t2.leave && Array.isArray(t2.leave) ? t2.leave : []);
-          const i2 = (function(t3) {
-            if (!t3) return { xmlVersion: 1, onLevel: gt.allow, nullLevel: gt.remove };
-            const e3 = 1.1 === t3.xmlVersion ? 1.1 : 1, i3 = gt[t3.onNCR] ?? gt.allow, n2 = gt[t3.nullNCR] ?? gt.remove;
-            return { xmlVersion: e3, onLevel: i3, nullLevel: Math.max(n2, gt.remove) };
-          })(t2.ncr);
-          this._ncrXmlVersion = i2.xmlVersion, this._ncrOnLevel = i2.onLevel, this._ncrNullLevel = i2.nullLevel, this._onExternalEntity = "function" == typeof t2.onExternalEntity ? t2.onExternalEntity : null, this._onInputEntity = "function" == typeof t2.onInputEntity ? t2.onInputEntity : null;
-        }
-        _applyRegistrationHook(t2, e2, i2, n2) {
-          if (!t2) return true;
-          const r2 = t2(e2, i2);
-          if (r2 === lt.BLOCK) return false;
-          if (r2 === lt.THROW) throw new Error(`[EntityDecoder] Registration of ${n2} entity "&${e2};" was rejected by hook`);
-          return true;
-        }
-        setExternalEntities(t2) {
-          if (t2) for (const e3 of Object.keys(t2)) ct(e3);
-          if (!this._onExternalEntity) return void (this._externalMap = ht(t2));
-          const e2 = ht(t2), i2 = /* @__PURE__ */ Object.create(null);
-          for (const [t3, n2] of Object.entries(e2)) this._applyRegistrationHook(this._onExternalEntity, t3, n2, "external") && (i2[t3] = n2);
-          this._externalMap = i2;
-        }
-        addExternalEntity(t2, e2) {
-          ct(t2), "string" == typeof e2 && -1 === e2.indexOf("&") && this._applyRegistrationHook(this._onExternalEntity, t2, e2, "external") && (this._externalMap[t2] = e2);
-        }
-        addInputEntities(t2) {
-          if (this._totalExpansions = 0, this._expandedLength = 0, !this._onInputEntity) return void (this._inputMap = ht(t2));
-          const e2 = ht(t2), i2 = /* @__PURE__ */ Object.create(null);
-          for (const [t3, n2] of Object.entries(e2)) this._applyRegistrationHook(this._onInputEntity, t3, n2, "input") && (i2[t3] = n2);
-          this._inputMap = i2;
-        }
-        reset() {
-          return this._inputMap = /* @__PURE__ */ Object.create(null), this._totalExpansions = 0, this._expandedLength = 0, this;
-        }
-        setXmlVersion(t2) {
-          this._ncrXmlVersion = 1.1 === t2 ? 1.1 : 1;
-        }
-        decode(t2) {
-          if ("string" != typeof t2 || 0 === t2.length) return t2;
-          if (-1 === t2.indexOf("&")) return t2;
-          const e2 = t2, i2 = [], n2 = t2.length;
-          let r2 = 0, s2 = 0;
-          const o2 = this._maxTotalExpansions > 0, a2 = this._maxExpandedLength > 0, l2 = o2 || a2;
-          for (; s2 < n2; ) {
-            if (38 !== t2.charCodeAt(s2)) {
-              s2++;
-              continue;
-            }
-            let e3 = s2 + 1;
-            for (; e3 < n2 && 59 !== t2.charCodeAt(e3) && e3 - s2 <= 32; ) e3++;
-            if (e3 >= n2 || 59 !== t2.charCodeAt(e3)) {
-              s2++;
-              continue;
-            }
-            const p3 = t2.slice(s2 + 1, e3);
-            if (0 === p3.length) {
-              s2++;
-              continue;
-            }
-            let c2, h2;
-            if (this._removeSet.has(p3)) c2 = "", void 0 === h2 && (h2 = dt);
-            else {
-              if (this._leaveSet.has(p3)) {
-                s2++;
-                continue;
-              }
-              if (35 === p3.charCodeAt(0)) {
-                const t3 = this._resolveNCR(p3);
-                if (void 0 === t3) {
-                  s2++;
-                  continue;
-                }
-                c2 = t3, h2 = ut;
-              } else {
-                const t3 = this._resolveName(p3);
-                c2 = t3?.value, h2 = t3?.tier;
-              }
-            }
-            if (void 0 !== c2) {
-              if (s2 > r2 && i2.push(t2.slice(r2, s2)), i2.push(c2), r2 = e3 + 1, s2 = r2, l2 && this._tierCounts(h2)) {
-                if (o2 && (this._totalExpansions++, this._totalExpansions > this._maxTotalExpansions)) throw new Error(`[EntityReplacer] Entity expansion count limit exceeded: ${this._totalExpansions} > ${this._maxTotalExpansions}`);
-                if (a2) {
-                  const t3 = c2.length - (p3.length + 2);
-                  if (t3 > 0 && (this._expandedLength += t3, this._expandedLength > this._maxExpandedLength)) throw new Error(`[EntityReplacer] Expanded content length limit exceeded: ${this._expandedLength} > ${this._maxExpandedLength}`);
-                }
-              }
-            } else s2++;
-          }
-          r2 < n2 && i2.push(t2.slice(r2));
-          const p2 = 0 === i2.length ? t2 : i2.join("");
-          return this._postCheck(p2, e2);
-        }
-        _tierCounts(t2) {
-          return !!this._limitTiers.has(ft) || this._limitTiers.has(t2);
-        }
-        _resolveName(t2) {
-          return t2 in this._inputMap ? { value: this._inputMap[t2], tier: dt } : t2 in this._externalMap ? { value: this._externalMap[t2], tier: dt } : t2 in this._baseMap ? { value: this._baseMap[t2], tier: ut } : void 0;
-        }
-        _classifyNCR(t2) {
-          return 0 === t2 ? this._ncrNullLevel : t2 >= 55296 && t2 <= 57343 || 1 === this._ncrXmlVersion && t2 >= 1 && t2 <= 31 && !mt.has(t2) ? gt.remove : -1;
-        }
-        _applyNCRAction(t2, e2, i2) {
-          switch (t2) {
-            case gt.allow:
-              return String.fromCodePoint(i2);
-            case gt.remove:
-              return "";
-            case gt.leave:
-              return;
-            case gt.throw:
-              throw new Error(`[EntityDecoder] Prohibited numeric character reference &${e2}; (U+${i2.toString(16).toUpperCase().padStart(4, "0")})`);
-            default:
-              return String.fromCodePoint(i2);
-          }
-        }
-        _resolveNCR(t2) {
-          const e2 = t2.charCodeAt(1);
-          let i2;
-          if (i2 = 120 === e2 || 88 === e2 ? parseInt(t2.slice(2), 16) : parseInt(t2.slice(1), 10), Number.isNaN(i2) || i2 < 0 || i2 > 1114111) return;
-          const n2 = this._classifyNCR(i2);
-          if (!this._numericAllowed && n2 < gt.remove) return;
-          const r2 = -1 === n2 ? this._ncrOnLevel : Math.max(this._ncrOnLevel, n2);
-          return this._applyNCRAction(r2, t2, i2);
-        }
-      }
-      const bt = [{ id: "sql-block-comment-open", description: "SQL block comment open: /* ... */ \u2014 unusual in legitimate user text", pattern: /\/\*/ }, { id: "sql-union-select", description: "UNION SELECT \u2014 most common SQL injection aggregation attack", pattern: /\bUNION\s{1,20}(?:ALL\s{1,20})?SELECT\b/i }, { id: "sql-drop-table", description: "DROP TABLE \u2014 destructive DDL injection", pattern: /\bDROP\s{1,20}TABLE\b/i }, { id: "sql-drop-database", description: "DROP DATABASE \u2014 destructive DDL injection", pattern: /\bDROP\s{1,20}DATABASE\b/i }, { id: "sql-insert-into", description: "INSERT INTO \u2014 data injection", pattern: /\bINSERT\s{1,20}INTO\b/i }, { id: "sql-delete-from", description: "DELETE FROM \u2014 data deletion injection", pattern: /\bDELETE\s{1,20}FROM\b/i }, { id: "sql-update-set", description: "UPDATE ... SET \u2014 data modification injection", pattern: /\bUPDATE\b[\s\S]{1,60}\bSET\b/i }, { id: "sql-exec-xp", description: "EXEC xp_ \u2014 MSSQL extended stored procedure execution", pattern: /\bEXEC(?:UTE)?\s{1,20}xp_/i }, { id: "sql-tautology-string", description: `Classic string tautology: ' OR '1'='1 or " OR "1"="1"`, pattern: /'\s{0,10}OR\s{0,10}'[^']{0,20}'\s*=\s*'[^']{0,20}/i }, { id: "sql-tautology-numeric", description: "Numeric tautology: OR 1=1", pattern: /\bOR\s{1,10}1\s*=\s*1\b/i }, { id: "sql-always-true-zero", description: "Numeric tautology: OR 0=0", pattern: /\bOR\s{1,10}0\s*=\s*0\b/i }, { id: "sql-sleep-benchmark", description: "Time-based blind injection: SLEEP() or BENCHMARK()", pattern: /\b(?:SLEEP|BENCHMARK)\s*\(/i }, { id: "sql-waitfor-delay", description: "MSSQL time-based blind injection: WAITFOR DELAY", pattern: /\bWAITFOR\s{1,20}DELAY\b/i }, { id: "sql-char-function", description: "CHAR() function \u2014 used to obfuscate injected strings", pattern: /\bCHAR\s*\(\s*\d{1,3}/i }, { id: "sql-information-schema", description: "INFORMATION_SCHEMA \u2014 reconnaissance query for table/column enumeration", pattern: /\bINFORMATION_SCHEMA\b/i }], yt = `["'\\s]*:`, Nt = { HTML: [{ id: "html-script-open", description: "<script opening tag", pattern: /<script[\s>/]/i }, { id: "html-script-close", description: "</script closing tag", pattern: /<\/script[\s>]/i }, { id: "html-javascript-protocol", description: "javascript: URI scheme (with optional whitespace/encoding)", pattern: /j[\t\n\r ]*a[\t\n\r ]*v[\t\n\r ]*a[\t\n\r ]*s[\t\n\r ]*c[\t\n\r ]*r[\t\n\r ]*i[\t\n\r ]*p[\t\n\r ]*t[\t\n\r ]*:/i }, { id: "html-vbscript-protocol", description: "vbscript: URI scheme", pattern: /vbscript[\t\n\r ]*:/i }, { id: "html-data-html", description: "data:text/html URI \u2014 can execute scripts in browsers", pattern: /data[\t\n\r ]*:[\t\n\r ]*text\/html/i }, { id: "html-data-xhtml", description: "data:application/xhtml+xml URI", pattern: /data[\t\n\r ]*:[\t\n\r ]*application\/xhtml/i }, { id: "html-data-svg", description: "data:image/svg+xml URI \u2014 can execute scripts", pattern: /data[\t\n\r ]*:[\t\n\r ]*image\/svg\+xml/i }, { id: "html-inline-event-handler", description: "Inline event handler attributes: onclick=, onerror=, onload=, etc.", pattern: /\bon\w{1,30}\s*=/i }, { id: "html-entity-obfuscated-script", description: "HTML-entity-encoded <script (e.g. &#x3C;script or &lt;script)", pattern: /(?:&#x0*3[Cc];?|&#0*60;?|&lt;)\s*script/i }, { id: "html-entity-obfuscated-javascript", description: 'HTML-entity-encoded javascript: (partial \u2014 catches common &#106; or &#x6a; for "j")', pattern: /(?:&#x0*6[Aa];?|&#0*106;?)\s*(?:&#x0*61;?|a)[\s\S]{0,80}script\s*:/i }, { id: "html-style-expression", description: "CSS expression() \u2014 IE-era code execution in style attributes", pattern: /style[\s\S]{0,20}expression\s*\(/i }, { id: "html-object-embed", description: "<object or <embed tags that can load active content", pattern: /<(?:object|embed)[\s>/]/i }, { id: "html-base-tag", description: "<base href= \u2014 can hijack all relative URLs on a page", pattern: /<base[\s>]/i }, { id: "html-meta-refresh", description: '<meta http-equiv="refresh" \u2014 can redirect users', pattern: /<meta[\s\S]{0,40}http-equiv[\s\S]{0,20}refresh/i }, { id: "html-srcdoc", description: "srcdoc= attribute on iframes \u2014 embeds HTML that can run scripts", pattern: /srcdoc\s*=/i }, { id: "html-iframe", description: "<iframe tag", pattern: /<iframe[\s>/]/i }, { id: "html-form", description: "<form tag \u2014 can be used for phishing / credential harvesting injection", pattern: /<form[\s>/]/i }], XML: [{ id: "xml-cdata-injection", description: "CDATA section injection: <![CDATA[ breaks out of text node context", pattern: /<!\[CDATA\[/i }, { id: "xml-cdata-close", description: "CDATA close sequence: ]]> can terminate an enclosing CDATA section", pattern: /\]\]>/ }, { id: "xml-processing-instruction", description: "XML processing instruction: <?xml-stylesheet or <?php etc.", pattern: /<\?(?:xml[\- ]|php|asp)/i }, { id: "xml-doctype-injection", description: "DOCTYPE declaration embedded in content \u2014 can define entities", pattern: /<!DOCTYPE(?:[\s[]|$)/i }, { id: "xml-entity-system", description: "SYSTEM keyword \u2014 used in external entity declarations (XXE)", pattern: /\bSYSTEM\s+["']/i }, { id: "xml-entity-public", description: "PUBLIC keyword \u2014 used in external entity declarations (XXE)", pattern: /\bPUBLIC\s+["']/i }, { id: "xml-entity-declaration", description: "<!ENTITY declaration \u2014 defines entities, potential XXE or entity expansion", pattern: /<!ENTITY[\s%]/i }, { id: "xml-billion-laughs", description: "Entity reference chaining / billion laughs: repeated &eX; style references", pattern: /(?:&\w{1,20};){3,}/ }, { id: "xml-namespace-confusion", description: "xmlns: attribute injection \u2014 can redefine namespaces to confuse parsers", pattern: /\bxmlns\s*(?::\w{1,40})?\s*=/i }, { id: "xml-comment-injection", description: "<!-- comment injection \u2014 can hide content from some parsers", pattern: /<!--/ }, { id: "xml-comment-close", description: "--> closes an enclosing XML comment", pattern: /-->/ }, { id: "xml-pi-close", description: "?> closes an enclosing processing instruction", pattern: /\?>/ }], SVG: [{ id: "svg-script-element", description: "<script element inside SVG executes JavaScript", pattern: /<script[\s>/]/i }, { id: "svg-xlink-href-javascript", description: "xlink:href with javascript: \u2014 classic SVG XSS via <a> or <use>", pattern: /xlink\s*:\s*href\s*=\s*["']?\s*javascript\s*:/i }, { id: "svg-href-javascript", description: "href= with javascript: in SVG context (<a>, <animate>, etc.)", pattern: /href\s*=\s*["']?\s*javascript\s*:/i }, { id: "svg-foreignobject", description: "<foreignObject embeds HTML inside SVG \u2014 can execute scripts", pattern: /<foreignObject[\s>/]/i }, { id: "svg-use-external", description: "<use xlink:href or href pointing to external resource (non-fragment URL)", pattern: /<use[\s\S]{0,60}(?:xlink\s*:\s*)?href\s*=\s*(?:["'][^#]|[^"'#\s>])/i }, { id: "svg-animate-href", description: '<animate attributeName="href" \u2014 can dynamically change href to javascript:', pattern: /<animate[\s\S]{0,80}attributeName\s*=\s*["'][\s]*href["']/i }, { id: "svg-animate-xlinkhref", description: '<animate attributeName="xlink:href"', pattern: /<animate[\s\S]{0,80}attributeName\s*=\s*["'][\s]*xlink\s*:\s*href["']/i }, { id: "svg-set-javascript", description: '<set to="javascript:..." \u2014 sets an attribute to a javascript: URI', pattern: /<set[\s\S]{0,80}to\s*=\s*["']?\s*javascript\s*:/i }, { id: "svg-event-handler", description: "SVG-specific event handler attributes: onload=, onerror=, onactivate=, etc.", pattern: /\bon(?:load|error|activate|begin|end|repeat|focus|blur|click|mouse\w{1,20}|key\w{1,20})\s*=/i }, { id: "svg-handler-generic", description: "Generic on* handler catch-all for SVG attributes", pattern: /\bon\w{1,30}\s*=/i }, { id: "svg-filter-feimage", description: "<feImage href= \u2014 filter primitive that can load external resources", pattern: /<feImage[\s\S]{0,80}(?:xlink\s*:\s*)?href\s*=/i }, { id: "svg-image-external", description: "<image xlink:href with http/https or javascript protocol", pattern: /<image[\s\S]{0,80}(?:xlink\s*:\s*)?href\s*=\s*["']?\s*(?:https?|javascript)\s*:/i }, { id: "svg-style-javascript", description: "style= attribute containing javascript: (e.g. background:url(javascript:...))", pattern: /style\s*=[\s\S]{0,60}javascript\s*:/i }], SQL: bt, "SQL-STRICT": [...bt, { id: "sql-line-comment", description: "SQL line comment: -- followed by whitespace or end of string", pattern: /--(?:\s|$)/ }, { id: "sql-stacked-query", description: "Stacked queries: semicolon immediately followed by a SQL keyword", pattern: /;\s{0,10}(?:SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC)\b/i }, { id: "sql-hex-encoding", description: "Hex-encoded string injection: 0x41414141 style (MySQL)", pattern: /\b0x[0-9a-f]{4,}/i }], SHELL: [{ id: "shell-path-traversal-unix", description: "Unix path traversal: ../  \u2014 climbing the directory tree", pattern: /\.\.\// }, { id: "shell-path-traversal-windows", description: "Windows path traversal: ..\\ \u2014 climbing the directory tree", pattern: /\.\.\\/ }, { id: "shell-path-traversal-encoded", description: "URL-encoded path traversal: %2e%2e or %2f variants", pattern: /%2e%2e|%2f\.\.|\.\.%2f/i }, { id: "shell-null-byte", description: "Null byte injection: \\x00 or %00 \u2014 truncates strings in C-backed functions", pattern: /\x00|%00/ }, { id: "shell-semicolon", description: "Semicolon command separator: cmd1; cmd2", pattern: /;/ }, { id: "shell-pipe", description: "Pipe operator: cmd1 | cmd2", pattern: /\|/ }, { id: "shell-and-operator", description: "AND operator: cmd1 && cmd2", pattern: /&&/ }, { id: "shell-or-operator", description: "OR operator: cmd1 || cmd2", pattern: /\|\|/ }, { id: "shell-backtick", description: "Backtick command substitution: `cmd`", pattern: /`/ }, { id: "shell-dollar-paren", description: "Dollar-paren command substitution: $(cmd)", pattern: /\$\(/ }, { id: "shell-dollar-brace", description: "Dollar-brace variable expansion: ${var} \u2014 can be abused for injection", pattern: /\$\{/ }, { id: "shell-redirect-out", description: "Output redirection: cmd > file or cmd >> file", pattern: />{1,2}/ }, { id: "shell-redirect-in", description: "Input redirection: cmd < file", pattern: /</ }, { id: "shell-newline-injection", description: "Newline injection: \\n or \\r \u2014 can inject new shell commands", pattern: /[\n\r]/ }, { id: "shell-glob-star", description: "Glob expansion: * or ? \u2014 can expand to unintended files", pattern: /[/\\][*?]/ }, { id: "shell-absolute-root", description: "Absolute root path injection: string starting with / or \\ (Windows UNC)", pattern: /^(?:\/|\\\\)/ }, { id: "shell-windows-drive", description: "Windows drive letter path injection: C:\\ or D:/", pattern: /^[a-zA-Z]:[/\\]/ }, { id: "shell-curl-wget", description: "curl/wget with URL or flags \u2014 can exfiltrate data or download payloads", pattern: /\b(?:curl|wget)\s+(?:https?:\/\/|ftp:\/\/|-)/i }], REDOS: [{ id: "redos-nested-quantifier-plus", description: "Nested + quantifier inside a group with outer quantifier: (a+)+, (.+b)*, etc.", pattern: /\([^)]*\+[^)]*\)[+*]/ }, { id: "redos-nested-quantifier-star", description: "Nested * quantifier: (a*)* or (a*)+ \u2014 catastrophic backtracking", pattern: /\([^)]*\*[^)]*\)[*+]/ }, { id: "redos-nested-groups", description: "Doubly nested quantified groups: ((a+)+) \u2014 guaranteed catastrophic", pattern: /\(\([^)]{0,40}\)[+*]\)[+*]/ }, { id: "redos-alternation-overlap", description: "Overlapping alternation under quantifier: (a|a)+ \u2014 ambiguous NFA paths", pattern: /\(([^|()]{1,20})\|(?:\1)(?:\|[^|()]{1,20}){0,5}\)[+*?]{1,2}/ }, { id: "redos-star-plus-concat", description: "(x*x)+ pattern \u2014 triggers super-linear backtracking", pattern: /\([^)]{0,10}\*[^)]{0,10}\)[+*]/ }, { id: "redos-dot-star-greedy", description: "(.*){n,} or (.+){n,} \u2014 repeated greedy dot quantifiers", pattern: /\(\.[*+]\)\{?\d/ }, { id: "redos-large-repetition", description: "Very large fixed or range repetition count {1000,} or {1000,n} \u2014 denial of service via backtracking", pattern: /\{\d{4,}(?:,\d*)?\}/ }, { id: "redos-catastrophic-alternation", description: "Long alternation with many similar branches \u2014 polynomial backtracking risk", pattern: /\([^)]{0,200}(?:\|[^|)]{0,50}){9,}\)/ }], NOSQL: [{ id: "nosql-where-operator", description: "$where \u2014 executes arbitrary JavaScript server-side in MongoDB", pattern: new RegExp(`\\$where${yt}`, "i") }, { id: "nosql-ne-operator", description: '$ne \u2014 "not equal" operator used to bypass equality checks', pattern: new RegExp(`\\$ne${yt}`, "i") }, { id: "nosql-gt-operator", description: '$gt \u2014 "greater than" used to bypass password/value checks', pattern: new RegExp(`\\$gte?${yt}`, "i") }, { id: "nosql-lt-operator", description: '$lt / $lte \u2014 "less than" bypass variants', pattern: new RegExp(`\\$lte?${yt}`, "i") }, { id: "nosql-regex-operator", description: "$regex \u2014 can be used to extract data character by character (blind injection)", pattern: new RegExp(`\\$regex${yt}`, "i") }, { id: "nosql-or-operator", description: "$or \u2014 logical OR; used to create always-true conditions", pattern: new RegExp(`\\$or${yt}\\s*\\[`, "i") }, { id: "nosql-and-operator", description: "$and \u2014 logical AND operator injection", pattern: new RegExp(`\\$and${yt}\\s*\\[`, "i") }, { id: "nosql-nor-operator", description: "$nor \u2014 logical NOR operator injection", pattern: new RegExp(`\\$nor${yt}\\s*\\[`, "i") }, { id: "nosql-exists-operator", description: "$exists \u2014 can enumerate fields to determine schema", pattern: new RegExp(`\\$exists${yt}`, "i") }, { id: "nosql-in-operator", description: "$in \u2014 matches any value in a list; can enumerate values", pattern: new RegExp(`\\$in${yt}\\s*\\[`, "i") }, { id: "nosql-expr-operator", description: "$expr \u2014 allows aggregation expressions in queries (MongoDB 3.6+)", pattern: new RegExp(`\\$expr${yt}`, "i") }, { id: "nosql-function-operator", description: "$function \u2014 executes arbitrary JavaScript in MongoDB 4.4+", pattern: new RegExp(`\\$function${yt}`, "i") }, { id: "nosql-accumulator-operator", description: "$accumulator \u2014 custom aggregation with arbitrary JS execution", pattern: new RegExp(`\\$accumulator${yt}`, "i") }, { id: "nosql-proto-pollution", description: "__proto__ \u2014 prototype pollution via object key injection", pattern: /__proto__/ }, { id: "nosql-constructor-prototype", description: "constructor.prototype \u2014 alternative prototype pollution vector (dot notation or JSON key)", pattern: /constructor[\s"':.,{\[]*prototype/i }, { id: "nosql-proto-bracket", description: '["__proto__"] \u2014 bracket-notation prototype pollution', pattern: /\[["']__proto__["']\]/ }], LOG: [{ id: "log-crlf-injection", description: "CRLF injection: literal \\r or \\n embeds fake log lines", pattern: /[\r\n]/ }, { id: "log-url-encoded-crlf", description: "URL-encoded CRLF: %0d, %0a, %0D, %0A \u2014 decoded by some log parsers", pattern: /%0[dDaA]/ }, { id: "log-unicode-newline", description: "Unicode newline variants: U+2028 (line separator), U+2029 (paragraph separator)", pattern: /[\u2028\u2029]/ }, { id: "log-log4shell-jndi", description: "Log4Shell: ${jndi:...} triggers remote code execution in Apache Log4j", pattern: /\$\{jndi\s*:/i }, { id: "log-log4shell-obfuscated", description: "Obfuscated Log4Shell: ${::-j}... lookup-bypass prefix used to evade WAF detection", pattern: /\$\{::-/ }, { id: "log-log4j-lookup", description: "Log4j lookup syntax: ${env:...}, ${sys:...}, ${ctx:...} \u2014 data exfiltration", pattern: /\$\{(?:env|sys|ctx|main|map|sd|web|docker|k8s|spring)\s*:/i }, { id: "log-ssti-double-brace", description: "SSTI double-brace: {{expression}} \u2014 Jinja2, Twig, Handlebars, etc.", pattern: /\{\{[\s\S]{0,80}\}\}/ }, { id: "log-ssti-hash-brace", description: "SSTI hash-brace: #{expression} \u2014 Thymeleaf, Velocity, Ruby ERB", pattern: /#\{[\s\S]{0,80}\}/ }, { id: "log-ssti-dollar-brace", description: "SSTI/EL injection: ${expression with operators or method calls} \u2014 JSP EL, Freemarker, SpEL", pattern: /\$\{[^}]*(?:\.|\(|\*|\+|\bclass\b|\bruntime\b|\bprocess\b|\bexec\b)[^}]{0,80}\}/i }, { id: "log-ssti-percent-tag", description: "SSTI ERB/ASP tag: <%= expression %> \u2014 Ruby ERB, ASP", pattern: /<%=[\s\S]{0,80}%>/ }, { id: "log-null-byte", description: "Null byte: \\x00 or %00 \u2014 can truncate log entries in C-backed loggers", pattern: /\x00|%00/ }, { id: "log-ansi-escape", description: "ANSI escape sequence: ESC[ \u2014 can manipulate terminal output when logs are tailed", pattern: /\x1b\[/ }] }, Et = Nt, wt = Object.freeze(Object.fromEntries(Object.keys(Nt).map((t2) => [t2, t2])));
-      function vt(t2, e2) {
-        const i2 = Et[e2];
-        for (const n2 of i2) if (n2.pattern.test(t2)) return { context: e2, id: n2.id, description: n2.description, pattern: n2.pattern };
-        return null;
-      }
-      function St(t2, e2) {
-        if ((function(t3) {
-          if ("string" != typeof t3) throw new TypeError("is-unsafe: first argument must be a string, got " + typeof t3);
-        })(t2), (function(t3) {
-          if (!(t3 instanceof RegExp)) {
-            if ("string" != typeof t3) {
-              if (!Array.isArray(t3)) throw new TypeError("is-unsafe: second argument must be a context string, array of context strings, or RegExp. Got: " + typeof t3);
-              if (0 === t3.length) throw new TypeError("is-unsafe: context array must not be empty");
-              for (const e3 of t3) if ("string" != typeof e3 || !Et[e3]) throw new TypeError(`is-unsafe: unknown context "${e3}" in array. Valid contexts: ${Object.keys(wt).join(", ")}`);
-            } else if (!Et[t3]) throw new TypeError(`is-unsafe: unknown context "${t3}". Valid contexts: ${Object.keys(wt).join(", ")}`);
-          }
-        })(e2), e2 instanceof RegExp) return e2.test(t2);
-        if ("string" == typeof e2) return null !== vt(t2, e2);
-        for (const i2 of e2) if (null !== vt(t2, i2)) return true;
-        return false;
-      }
-      function At(t2, e2) {
-        if (!t2) return {};
-        const i2 = e2.attributesGroupName ? t2[e2.attributesGroupName] : t2;
-        if (!i2) return {};
-        const n2 = {};
-        for (const t3 in i2) t3.startsWith(e2.attributeNamePrefix) ? n2[t3.substring(e2.attributeNamePrefix.length)] = i2[t3] : n2[t3] = i2[t3];
-        return n2;
-      }
-      function Tt(t2) {
-        if (!t2 || "string" != typeof t2) return;
-        const e2 = t2.indexOf(":");
-        if (-1 !== e2 && e2 > 0) {
-          const i2 = t2.substring(0, e2);
-          if ("xmlns" !== i2) return i2;
-        }
-      }
-      class _t {
-        constructor(t2, e2) {
-          var i2;
-          this.options = t2, this.currentNode = null, this.tagsNodeStack = [], this.parseXml = jt, this.parseTextData = Ct, this.resolveNameSpace = $t, this.buildAttributesMap = Pt, this.isItStopNode = Dt, this.replaceEntitiesValue = kt, this.readStopNodeData = qt, this.saveTextToParentTag = Lt, this.addChild = It, this.ignoreAttributesFn = "function" == typeof (i2 = this.options.ignoreAttributes) ? i2 : Array.isArray(i2) ? (t3) => {
-            for (const e3 of i2) {
-              if ("string" == typeof e3 && t3 === e3) return true;
-              if (e3 instanceof RegExp && e3.test(t3)) return true;
-            }
-          } : () => false, this.entityExpansionCount = 0, this.currentExpandedLength = 0;
-          let n2 = { ...ot };
-          this.options.entityDecoder ? this.entityDecoder = this.options.entityDecoder : ("object" == typeof this.options.htmlEntities ? n2 = this.options.htmlEntities : true === this.options.htmlEntities && (n2 = { ...at, ...st }), this.entityDecoder = new xt({ namedEntities: { ...n2, ...e2 }, numericAllowed: this.options.htmlEntities, limit: { maxTotalExpansions: this.options.processEntities.maxTotalExpansions, maxExpandedLength: this.options.processEntities.maxExpandedLength, applyLimitsTo: this.options.processEntities.appliesTo }, onInputEntity: (t3, e3) => St(e3, [wt.HTML, wt.XML]) ? lt.BLOCK : lt.ALLOW })), this.matcher = new it(), this.readonlyMatcher = this.matcher.readOnly(), this.isCurrentNodeStopNode = false, this.stopNodeExpressionsSet = new rt();
-          const r2 = this.options.stopNodes;
-          if (r2 && r2.length > 0) {
-            for (let t3 = 0; t3 < r2.length; t3++) {
-              const e3 = r2[t3];
-              "string" == typeof e3 ? this.stopNodeExpressionsSet.add(new nt(e3)) : e3 instanceof nt && this.stopNodeExpressionsSet.add(e3);
-            }
-            this.stopNodeExpressionsSet.seal();
-          }
-        }
-      }
-      function Ct(t2, e2, i2, n2, r2, s2, o2) {
-        const a2 = this.options;
-        if (void 0 !== t2 && (a2.trimValues && !n2 && (t2 = t2.trim()), t2.length > 0)) {
-          o2 || (t2 = this.replaceEntitiesValue(t2, e2, i2));
-          const n3 = a2.jPath ? i2.toString() : i2, l2 = a2.tagValueProcessor(e2, t2, n3, r2, s2);
-          return null == l2 ? t2 : typeof l2 != typeof t2 || l2 !== t2 ? l2 : a2.trimValues || t2.trim() === t2 ? Ft(t2, a2.parseTagValue, a2.numberParseOptions) : t2;
-        }
-      }
-      function $t(t2) {
-        if (this.options.removeNSPrefix) {
-          const e2 = t2.split(":"), i2 = "/" === t2.charAt(0) ? "/" : "";
-          if ("xmlns" === e2[0]) return "";
-          2 === e2.length && (t2 = i2 + e2[1]);
-        }
-        return t2;
-      }
-      const Ot = new RegExp(`([^\\s=]+)\\s*(=\\s*(['"])([\\s\\S]*?)\\3)?`, "gm");
-      function Pt(t2, e2, i2, n2 = false) {
-        const s2 = this.options;
-        if (true === n2 || true !== s2.ignoreAttributes && "string" == typeof t2) {
-          const n3 = r(t2, Ot), o2 = n3.length, a2 = {}, l2 = new Array(o2);
-          let p2 = false;
-          const c2 = {};
-          for (let t3 = 0; t3 < o2; t3++) {
-            const e3 = this.resolveNameSpace(n3[t3][1]), r2 = n3[t3][4];
-            if (e3.length && void 0 !== r2) {
-              let n4 = r2;
-              s2.trimValues && (n4 = n4.trim()), n4 = this.replaceEntitiesValue(n4, i2, this.readonlyMatcher), l2[t3] = n4, c2[e3] = n4, p2 = true;
-            }
-          }
-          p2 && "object" == typeof e2 && e2.updateCurrent && e2.updateCurrent(c2);
-          const h2 = s2.jPath ? e2.toString() : this.readonlyMatcher;
-          let d2 = false;
-          for (let t3 = 0; t3 < o2; t3++) {
-            const e3 = this.resolveNameSpace(n3[t3][1]);
-            if (this.ignoreAttributesFn(e3, h2)) continue;
-            let i3 = s2.attributeNamePrefix + e3;
-            if (e3.length) if (s2.transformAttributeName && (i3 = s2.transformAttributeName(i3)), i3 = Gt(i3, s2), void 0 !== n3[t3][4]) {
-              const n4 = l2[t3], r2 = s2.attributeValueProcessor(e3, n4, h2);
-              a2[i3] = null == r2 ? n4 : typeof r2 != typeof n4 || r2 !== n4 ? r2 : Ft(n4, s2.parseAttributeValue, s2.numberParseOptions), d2 = true;
-            } else s2.allowBooleanAttributes && (a2[i3] = true, d2 = true);
-          }
-          if (!d2) return;
-          if (s2.attributesGroupName && !s2.preserveOrder) {
-            const t3 = {};
-            return t3[s2.attributesGroupName] = a2, t3;
-          }
-          return a2;
-        }
-      }
-      const jt = function(t2) {
-        t2 = t2.replace(/\r\n?/g, "\n");
-        const e2 = new O("!xml");
-        let i2 = e2, n2 = "";
-        this.matcher.reset(), this.entityDecoder.reset(), this.entityExpansionCount = 0, this.currentExpandedLength = 0;
-        const r2 = this.options, s2 = new M(r2.processEntities), o2 = t2.length;
-        for (let a2 = 0; a2 < o2; a2++) if ("<" === t2[a2]) {
-          const l2 = t2.charCodeAt(a2 + 1);
-          if (47 === l2) {
-            const e3 = Rt(t2, ">", a2, "Closing Tag is not closed.");
-            let s3 = t2.substring(a2 + 2, e3).trim();
-            if (r2.removeNSPrefix) {
-              const t3 = s3.indexOf(":");
-              -1 !== t3 && (s3 = s3.substr(t3 + 1));
-            }
-            s3 = Ut(r2.transformTagName, s3, "", r2).tagName, i2 && (n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher));
-            const o3 = this.matcher.getCurrentTag();
-            if (s3 && r2.unpairedTagsSet.has(s3)) throw new Error(`Unpaired tag can not be used as closing tag: </${s3}>`);
-            o3 && r2.unpairedTagsSet.has(o3) && (this.matcher.pop(), this.tagsNodeStack.pop()), this.matcher.pop(), this.isCurrentNodeStopNode = false, i2 = this.tagsNodeStack.pop(), n2 = "", a2 = e3;
-          } else if (63 === l2) {
-            let e3 = Vt(t2, a2, false, "?>");
-            if (!e3) throw new Error("Pi Tag is not closed.");
-            n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher);
-            const o3 = this.buildAttributesMap(e3.tagExp, this.matcher, e3.tagName, true);
-            if (o3) {
-              const t3 = o3[this.options.attributeNamePrefix + "version"];
-              this.entityDecoder.setXmlVersion(Number(t3) || 1), s2.setXmlVersion(Number(t3) || 1);
-            }
-            if (r2.ignoreDeclaration && "?xml" === e3.tagName || r2.ignorePiTags) ;
-            else {
-              const t3 = new O(e3.tagName);
-              t3.add(r2.textNodeName, ""), e3.tagName !== e3.tagExp && e3.attrExpPresent && true !== r2.ignoreAttributes && (t3[":@"] = o3), this.addChild(i2, t3, this.readonlyMatcher, a2);
-            }
-            a2 = e3.closeIndex + 1;
-          } else if (33 === l2 && 45 === t2.charCodeAt(a2 + 2) && 45 === t2.charCodeAt(a2 + 3)) {
-            const e3 = Rt(t2, "-->", a2 + 4, "Comment is not closed.");
-            if (r2.commentPropName) {
-              const s3 = t2.substring(a2 + 4, e3 - 2);
-              n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher), i2.add(r2.commentPropName, [{ [r2.textNodeName]: s3 }]);
-            }
-            a2 = e3;
-          } else if (33 === l2 && 68 === t2.charCodeAt(a2 + 2)) {
-            const e3 = s2.readDocType(t2, a2);
-            this.entityDecoder.addInputEntities(e3.entities), a2 = e3.i;
-          } else if (33 === l2 && 91 === t2.charCodeAt(a2 + 2)) {
-            const e3 = Rt(t2, "]]>", a2, "CDATA is not closed.") - 2, s3 = t2.substring(a2 + 9, e3);
-            n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher);
-            let o3 = this.parseTextData(s3, i2.tagname, this.readonlyMatcher, true, false, true, true);
-            null == o3 && (o3 = ""), r2.cdataPropName ? i2.add(r2.cdataPropName, [{ [r2.textNodeName]: s3 }]) : i2.add(r2.textNodeName, o3), a2 = e3 + 2;
-          } else {
-            let s3 = Vt(t2, a2, r2.removeNSPrefix);
-            if (!s3) {
-              const e3 = t2.substring(Math.max(0, a2 - 50), Math.min(o2, a2 + 50));
-              throw new Error(`readTagExp returned undefined at position ${a2}. Context: "${e3}"`);
-            }
-            let l3 = s3.tagName;
-            const p2 = s3.rawTagName;
-            let c2 = s3.tagExp, h2 = s3.attrExpPresent, d2 = s3.closeIndex;
-            if ({ tagName: l3, tagExp: c2 } = Ut(r2.transformTagName, l3, c2, r2), r2.strictReservedNames && (l3 === r2.commentPropName || l3 === r2.cdataPropName || l3 === r2.textNodeName || l3 === r2.attributesGroupName)) throw new Error(`Invalid tag name: ${l3}`);
-            i2 && n2 && "!xml" !== i2.tagname && (n2 = this.saveTextToParentTag(n2, i2, this.readonlyMatcher, false));
-            const u2 = i2;
-            u2 && r2.unpairedTagsSet.has(u2.tagname) && (i2 = this.tagsNodeStack.pop(), this.matcher.pop());
-            let f2 = false;
-            c2.length > 0 && c2.lastIndexOf("/") === c2.length - 1 && (f2 = true, "/" === l3[l3.length - 1] ? (l3 = l3.substr(0, l3.length - 1), c2 = l3) : c2 = c2.substr(0, c2.length - 1), h2 = l3 !== c2);
-            let g2, m2 = null, x2 = {};
-            g2 = Tt(p2), l3 !== e2.tagname && this.matcher.push(l3, {}, g2), l3 !== c2 && h2 && (m2 = this.buildAttributesMap(c2, this.matcher, l3), m2 && (x2 = At(m2, r2))), l3 !== e2.tagname && (this.isCurrentNodeStopNode = this.isItStopNode());
-            const b2 = a2;
-            if (this.isCurrentNodeStopNode) {
-              let e3 = "";
-              if (f2) a2 = s3.closeIndex;
-              else if (r2.unpairedTagsSet.has(l3)) a2 = s3.closeIndex;
-              else {
-                const i3 = this.readStopNodeData(t2, p2, d2 + 1);
-                if (!i3) throw new Error(`Unexpected end of ${p2}`);
-                a2 = i3.i, e3 = i3.tagContent;
-              }
-              const n3 = new O(l3);
-              m2 && (n3[":@"] = m2), n3.add(r2.textNodeName, e3), this.matcher.pop(), this.isCurrentNodeStopNode = false, this.addChild(i2, n3, this.readonlyMatcher, b2);
-            } else {
-              if (f2) {
-                ({ tagName: l3, tagExp: c2 } = Ut(r2.transformTagName, l3, c2, r2));
-                const t3 = new O(l3);
-                m2 && (t3[":@"] = m2), this.addChild(i2, t3, this.readonlyMatcher, b2), this.matcher.pop(), this.isCurrentNodeStopNode = false;
-              } else {
-                if (r2.unpairedTagsSet.has(l3)) {
-                  const t3 = new O(l3);
-                  m2 && (t3[":@"] = m2), this.addChild(i2, t3, this.readonlyMatcher, b2), this.matcher.pop(), this.isCurrentNodeStopNode = false, a2 = s3.closeIndex;
-                  continue;
-                }
-                {
-                  const t3 = new O(l3);
-                  if (this.tagsNodeStack.length > r2.maxNestedTags) throw new Error("Maximum nested tags exceeded");
-                  this.tagsNodeStack.push(i2), m2 && (t3[":@"] = m2), this.addChild(i2, t3, this.readonlyMatcher, b2), i2 = t3;
-                }
-              }
-              n2 = "", a2 = d2;
-            }
-          }
-        } else n2 += t2[a2];
-        return e2.child;
-      };
-      function It(t2, e2, i2, n2) {
-        this.options.captureMetaData || (n2 = void 0);
-        const r2 = this.options.jPath ? i2.toString() : i2, s2 = this.options.updateTag(e2.tagname, r2, e2[":@"]);
-        false === s2 || ("string" == typeof s2 ? (e2.tagname = s2, t2.addChild(e2, n2)) : t2.addChild(e2, n2));
-      }
-      function kt(t2, e2, i2) {
-        const n2 = this.options.processEntities;
-        if (!n2 || !n2.enabled) return t2;
-        if (n2.allowedTags) {
-          const r2 = this.options.jPath ? i2.toString() : i2;
-          if (!(Array.isArray(n2.allowedTags) ? n2.allowedTags.includes(e2) : n2.allowedTags(e2, r2))) return t2;
-        }
-        if (n2.tagFilter) {
-          const r2 = this.options.jPath ? i2.toString() : i2;
-          if (!n2.tagFilter(e2, r2)) return t2;
-        }
-        return this.entityDecoder.decode(t2);
-      }
-      function Lt(t2, e2, i2, n2) {
-        return t2 && (void 0 === n2 && (n2 = 0 === e2.child.length), void 0 !== (t2 = this.parseTextData(t2, e2.tagname, i2, false, !!e2[":@"] && 0 !== Object.keys(e2[":@"]).length, n2)) && "" !== t2 && e2.add(this.options.textNodeName, t2), t2 = ""), t2;
-      }
-      function Dt() {
-        return 0 !== this.stopNodeExpressionsSet.size && this.matcher.matchesAny(this.stopNodeExpressionsSet);
-      }
-      function Rt(t2, e2, i2, n2) {
-        const r2 = t2.indexOf(e2, i2);
-        if (-1 === r2) throw new Error(n2);
-        return r2 + e2.length - 1;
-      }
-      function Mt(t2, e2, i2, n2) {
-        const r2 = t2.indexOf(e2, i2);
-        if (-1 === r2) throw new Error(n2);
-        return r2;
-      }
-      function Vt(t2, e2, i2, n2 = ">") {
-        const r2 = (function(t3, e3, i3 = ">") {
-          let n3 = 0;
-          const r3 = t3.length, s3 = i3.charCodeAt(0), o3 = i3.length > 1 ? i3.charCodeAt(1) : -1;
-          let a3 = "", l3 = e3;
-          for (let i4 = e3; i4 < r3; i4++) {
-            const e4 = t3.charCodeAt(i4);
-            if (n3) e4 === n3 && (n3 = 0);
-            else if (34 === e4 || 39 === e4) n3 = e4;
-            else if (e4 === s3) {
-              if (-1 === o3) return a3 += t3.substring(l3, i4), { data: a3, index: i4 };
-              if (t3.charCodeAt(i4 + 1) === o3) return a3 += t3.substring(l3, i4), { data: a3, index: i4 };
-            } else 9 !== e4 || n3 || (a3 += t3.substring(l3, i4) + " ", l3 = i4 + 1);
-          }
-        })(t2, e2 + 1, n2);
-        if (!r2) return;
-        let s2 = r2.data;
-        const o2 = r2.index, a2 = s2.search(/\s/);
-        let l2 = s2, p2 = true;
-        -1 !== a2 && (l2 = s2.substring(0, a2), s2 = s2.substring(a2 + 1).trimStart());
-        const c2 = l2;
-        if (i2) {
-          const t3 = l2.indexOf(":");
-          -1 !== t3 && (l2 = l2.substr(t3 + 1), p2 = l2 !== r2.data.substr(t3 + 1));
-        }
-        return { tagName: l2, tagExp: s2, closeIndex: o2, attrExpPresent: p2, rawTagName: c2 };
-      }
-      function qt(t2, e2, i2) {
-        const n2 = i2;
-        let r2 = 1;
-        const s2 = t2.length;
-        for (; i2 < s2; i2++) if ("<" === t2[i2]) {
-          const s3 = t2.charCodeAt(i2 + 1);
-          if (47 === s3) {
-            const s4 = Mt(t2, ">", i2, `${e2} is not closed`);
-            if (t2.substring(i2 + 2, s4).trim() === e2 && (r2--, 0 === r2)) return { tagContent: t2.substring(n2, i2), i: s4 };
-            i2 = s4;
-          } else if (63 === s3) i2 = Rt(t2, "?>", i2 + 1, "StopNode is not closed.");
-          else if (33 === s3 && 45 === t2.charCodeAt(i2 + 2) && 45 === t2.charCodeAt(i2 + 3)) i2 = Rt(t2, "-->", i2 + 3, "StopNode is not closed.");
-          else if (33 === s3 && 91 === t2.charCodeAt(i2 + 2)) i2 = Rt(t2, "]]>", i2, "StopNode is not closed.") - 2;
-          else {
-            const n3 = Vt(t2, i2, false);
-            n3 && ((n3 && n3.tagName) === e2 && "/" !== n3.tagExp[n3.tagExp.length - 1] && r2++, i2 = n3.closeIndex);
-          }
-        }
-      }
-      function Ft(t2, e2, i2) {
-        if (e2 && "string" == typeof t2) {
-          const e3 = t2.trim();
-          return "true" === e3 || "false" !== e3 && Z(t2, i2);
-        }
-        return void 0 !== t2 ? t2 : "";
-      }
-      function Ut(t2, e2, i2, n2) {
-        if (t2) {
-          const n3 = t2(e2);
-          i2 === e2 && (i2 = n3), e2 = n3;
-        }
-        return { tagName: e2 = Gt(e2, n2), tagExp: i2 };
-      }
-      function Gt(t2, e2) {
-        if (a.includes(t2)) throw new Error(`[SECURITY] Invalid name: "${t2}" is a reserved JavaScript keyword that could cause prototype pollution`);
-        return o.includes(t2) ? e2.onDangerousProperty(t2) : t2;
-      }
-      const Bt = O.getMetaDataSymbol();
-      function Wt(t2, e2) {
-        if (!t2 || "object" != typeof t2) return {};
-        if (!e2) return t2;
-        const i2 = {};
-        for (const n2 in t2) n2.startsWith(e2) ? i2[n2.substring(e2.length)] = t2[n2] : i2[n2] = t2[n2];
-        return i2;
-      }
-      function Xt(t2, e2, i2, n2) {
-        return Yt(t2, e2, i2, n2);
-      }
-      function Yt(t2, e2, i2, n2) {
-        let r2;
-        const s2 = {};
-        for (let o2 = 0; o2 < t2.length; o2++) {
-          const a2 = t2[o2], l2 = zt(a2);
-          if (void 0 !== l2 && l2 !== e2.textNodeName) {
-            const t3 = Wt(a2[":@"] || {}, e2.attributeNamePrefix);
-            i2.push(l2, t3);
-          }
-          if (l2 === e2.textNodeName) void 0 === r2 ? r2 = a2[l2] : r2 += "" + a2[l2];
-          else {
-            if (void 0 === l2) continue;
-            if (a2[l2]) {
-              let t3 = Yt(a2[l2], e2, i2, n2);
-              const r3 = Qt(t3, e2);
-              if (0 === Object.keys(t3).length && e2.alwaysCreateTextNode && (t3[e2.textNodeName] = ""), a2[":@"] ? Ht(t3, a2[":@"], n2, e2) : 1 !== Object.keys(t3).length || void 0 === t3[e2.textNodeName] || e2.alwaysCreateTextNode ? 0 === Object.keys(t3).length && (e2.alwaysCreateTextNode ? t3[e2.textNodeName] = "" : t3 = "") : t3 = t3[e2.textNodeName], void 0 !== a2[Bt] && "object" == typeof t3 && null !== t3 && (t3[Bt] = a2[Bt]), void 0 !== s2[l2] && Object.prototype.hasOwnProperty.call(s2, l2)) Array.isArray(s2[l2]) || (s2[l2] = [s2[l2]]), s2[l2].push(t3);
-              else {
-                const i3 = e2.jPath ? n2.toString() : n2;
-                e2.isArray(l2, i3, r3) ? s2[l2] = [t3] : s2[l2] = t3;
-              }
-              void 0 !== l2 && l2 !== e2.textNodeName && i2.pop();
-            }
-          }
-        }
-        return "string" == typeof r2 ? r2.length > 0 && (s2[e2.textNodeName] = r2) : void 0 !== r2 && (s2[e2.textNodeName] = r2), s2;
-      }
-      function zt(t2) {
-        const e2 = Object.keys(t2);
-        for (let t3 = 0; t3 < e2.length; t3++) {
-          const i2 = e2[t3];
-          if (":@" !== i2) return i2;
-        }
-      }
-      function Ht(t2, e2, i2, n2) {
-        if (e2) {
-          const r2 = Object.keys(e2), s2 = r2.length;
-          for (let o2 = 0; o2 < s2; o2++) {
-            const s3 = r2[o2], a2 = s3.startsWith(n2.attributeNamePrefix) ? s3.substring(n2.attributeNamePrefix.length) : s3, l2 = n2.jPath ? i2.toString() + "." + a2 : i2;
-            n2.isArray(s3, l2, true, true) ? t2[s3] = [e2[s3]] : t2[s3] = e2[s3];
-          }
-        }
-      }
-      function Qt(t2, e2) {
-        const { textNodeName: i2 } = e2, n2 = Object.keys(t2).length;
-        return 0 === n2 || !(1 !== n2 || !t2[i2] && "boolean" != typeof t2[i2] && 0 !== t2[i2]);
-      }
-      class Jt {
-        constructor(t2) {
-          this.externalEntities = {}, this.options = C(t2);
-        }
-        parse(t2, e2) {
-          if ("string" != typeof t2 && t2.toString) t2 = t2.toString();
-          else if ("string" != typeof t2) throw new Error("XML data is accepted in String or Bytes[] form.");
-          if (e2) {
-            true === e2 && (e2 = {});
-            const i3 = p(t2, e2);
-            if (true !== i3) throw Error(`${i3.err.msg}:${i3.err.line}:${i3.err.col}`);
-          }
-          const i2 = new _t(this.options, this.externalEntities), n2 = i2.parseXml(t2);
-          return this.options.preserveOrder || void 0 === n2 ? n2 : Xt(n2, this.options, i2.matcher, i2.readonlyMatcher);
-        }
-        addEntity(t2, e2) {
-          if (-1 !== e2.indexOf("&")) throw new Error("Entity value can't have '&'");
-          if (-1 !== t2.indexOf("&") || -1 !== t2.indexOf(";")) throw new Error("An entity must be set without '&' and ';'. Eg. use '#xD' for '&#xD;'");
-          if ("&" === e2) throw new Error("An entity with value '&' is not permitted");
-          this.externalEntities[t2] = e2;
-        }
-        static getMetaDataSymbol() {
-          return O.getMetaDataSymbol();
-        }
-      }
-      function Zt(t2) {
-        return String(t2).replace(/--/g, "- -").replace(/--/g, "- -").replace(/-$/, "- ");
-      }
-      function Kt(t2) {
-        return String(t2).replace(/\]\]>/g, "]]]]><![CDATA[>");
-      }
-      function te(t2) {
-        return String(t2).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-      }
-      function ee(t2, e2, i2, n2, r2) {
-        return i2.sanitizeName ? R(t2, { xmlVersion: r2 }) ? t2 : i2.sanitizeName(t2, { isAttribute: e2, matcher: n2.readOnly() }) : t2;
-      }
-      function ie(t2, e2) {
-        let i2 = "";
-        e2.format && (i2 = "\n");
-        const n2 = [];
-        if (e2.stopNodes && Array.isArray(e2.stopNodes)) for (let t3 = 0; t3 < e2.stopNodes.length; t3++) {
-          const i3 = e2.stopNodes[t3];
-          "string" == typeof i3 ? n2.push(new nt(i3)) : i3 instanceof nt && n2.push(i3);
-        }
-        const r2 = (function(t3, e3) {
-          if (!Array.isArray(t3) || 0 === t3.length) return "1.0";
-          const i3 = t3[0];
-          if ("?xml" === ae(i3)) {
-            const t4 = i3[":@"];
-            if (t4) {
-              const i4 = e3.attributeNamePrefix + "version";
-              if (t4[i4]) return t4[i4];
-            }
-          }
-          return "1.0";
-        })(t2, e2);
-        return ne(t2, e2, i2, new it(), n2, r2);
-      }
-      function ne(t2, e2, i2, n2, r2, s2) {
-        let o2 = "", a2 = false;
-        if (e2.maxNestedTags && n2.getDepth() > e2.maxNestedTags) throw new Error("Maximum nested tags exceeded");
-        if (!Array.isArray(t2)) {
-          if (null != t2) {
-            let i3 = t2.toString();
-            return i3 = ce(i3, e2), i3;
-          }
-          return "";
-        }
-        for (let l2 = 0; l2 < t2.length; l2++) {
-          const p2 = t2[l2], c2 = ae(p2);
-          if (void 0 === c2) continue;
-          const h2 = c2 === e2.textNodeName || c2 === e2.cdataPropName || c2 === e2.commentPropName || "?" === c2[0] ? c2 : ee(c2, false, e2, n2, s2), d2 = re(p2[":@"], e2);
-          n2.push(h2, d2);
-          const u2 = pe(n2, r2);
-          if (h2 === e2.textNodeName) {
-            let t3 = p2[c2];
-            u2 || (t3 = e2.tagValueProcessor(h2, t3), t3 = ce(t3, e2)), a2 && (o2 += i2), o2 += t3, a2 = false, n2.pop();
-            continue;
-          }
-          if (h2 === e2.cdataPropName) {
-            a2 && (o2 += i2), o2 += `<![CDATA[${Kt(p2[c2][0][e2.textNodeName])}]]>`, a2 = false, n2.pop();
-            continue;
-          }
-          if (h2 === e2.commentPropName) {
-            o2 += i2 + `<!--${Zt(p2[c2][0][e2.textNodeName])}-->`, a2 = true, n2.pop();
-            continue;
-          }
-          if ("?" === h2[0]) {
-            o2 += ("?xml" === h2 ? "" : i2) + `<${h2}${le(p2[":@"], e2, u2, n2, s2)}?>`, a2 = true, n2.pop();
-            continue;
-          }
-          let f2 = i2;
-          "" !== f2 && (f2 += e2.indentBy);
-          const g2 = i2 + `<${h2}${le(p2[":@"], e2, u2, n2, s2)}`;
-          let m2;
-          m2 = u2 ? se(p2[c2], e2) : ne(p2[c2], e2, f2, n2, r2, s2), -1 !== e2.unpairedTags.indexOf(h2) ? e2.suppressUnpairedNode ? o2 += g2 + ">" : o2 += g2 + "/>" : m2 && 0 !== m2.length || !e2.suppressEmptyNode ? m2 && m2.endsWith(">") ? o2 += g2 + `>${m2}${i2}</${h2}>` : (o2 += g2 + ">", m2 && "" !== i2 && (m2.includes("/>") || m2.includes("</")) ? o2 += i2 + e2.indentBy + m2 + i2 : o2 += m2, o2 += `</${h2}>`) : o2 += g2 + "/>", a2 = true, n2.pop();
-        }
-        return o2;
-      }
-      function re(t2, e2) {
-        if (!t2 || e2.ignoreAttributes) return null;
-        const i2 = {};
-        let n2 = false;
-        for (let r2 in t2) Object.prototype.hasOwnProperty.call(t2, r2) && (i2[r2.startsWith(e2.attributeNamePrefix) ? r2.substr(e2.attributeNamePrefix.length) : r2] = te(t2[r2]), n2 = true);
-        return n2 ? i2 : null;
-      }
-      function se(t2, e2) {
-        if (!Array.isArray(t2)) return null != t2 ? t2.toString() : "";
-        let i2 = "";
-        for (let n2 = 0; n2 < t2.length; n2++) {
-          const r2 = t2[n2], s2 = ae(r2);
-          if (s2 === e2.textNodeName) i2 += r2[s2];
-          else if (s2 === e2.cdataPropName) i2 += r2[s2][0][e2.textNodeName];
-          else if (s2 === e2.commentPropName) i2 += r2[s2][0][e2.textNodeName];
-          else {
-            if (s2 && "?" === s2[0]) continue;
-            if (s2) {
-              const t3 = oe(r2[":@"], e2), n3 = se(r2[s2], e2);
-              n3 && 0 !== n3.length ? i2 += `<${s2}${t3}>${n3}</${s2}>` : i2 += `<${s2}${t3}/>`;
-            }
-          }
-        }
-        return i2;
-      }
-      function oe(t2, e2) {
-        let i2 = "";
-        if (t2 && !e2.ignoreAttributes) for (let n2 in t2) {
-          if (!Object.prototype.hasOwnProperty.call(t2, n2)) continue;
-          let r2 = t2[n2];
-          true === r2 && e2.suppressBooleanAttributes ? i2 += ` ${n2.substr(e2.attributeNamePrefix.length)}` : i2 += ` ${n2.substr(e2.attributeNamePrefix.length)}="${te(r2)}"`;
-        }
-        return i2;
-      }
-      function ae(t2) {
-        const e2 = Object.keys(t2);
-        for (let i2 = 0; i2 < e2.length; i2++) {
-          const n2 = e2[i2];
-          if (Object.prototype.hasOwnProperty.call(t2, n2) && ":@" !== n2) return n2;
-        }
-      }
-      function le(t2, e2, i2, n2, r2) {
-        let s2 = "";
-        if (t2 && !e2.ignoreAttributes) for (let o2 in t2) {
-          if (!Object.prototype.hasOwnProperty.call(t2, o2)) continue;
-          const a2 = o2.substr(e2.attributeNamePrefix.length), l2 = i2 ? a2 : ee(a2, true, e2, n2, r2);
-          let p2;
-          i2 ? p2 = t2[o2] : (p2 = e2.attributeValueProcessor(o2, t2[o2]), p2 = ce(p2, e2)), true === p2 && e2.suppressBooleanAttributes ? s2 += ` ${l2}` : s2 += ` ${l2}="${te(p2)}"`;
-        }
-        return s2;
-      }
-      function pe(t2, e2) {
-        if (!e2 || 0 === e2.length) return false;
-        for (let i2 = 0; i2 < e2.length; i2++) if (t2.matches(e2[i2])) return true;
-        return false;
-      }
-      function ce(t2, e2) {
-        if (t2 && t2.length > 0 && e2.processEntities) for (let i2 = 0; i2 < e2.entities.length; i2++) {
-          const n2 = e2.entities[i2];
-          t2 = t2.replace(n2.regex, n2.val);
-        }
-        return t2;
-      }
-      const he = { attributeNamePrefix: "@_", attributesGroupName: false, textNodeName: "#text", ignoreAttributes: true, cdataPropName: false, format: false, indentBy: "  ", suppressEmptyNode: false, suppressUnpairedNode: true, suppressBooleanAttributes: true, tagValueProcessor: function(t2, e2) {
-        return e2;
-      }, attributeValueProcessor: function(t2, e2) {
-        return e2;
-      }, preserveOrder: false, commentPropName: false, unpairedTags: [], entities: [{ regex: new RegExp("&", "g"), val: "&amp;" }, { regex: new RegExp(">", "g"), val: "&gt;" }, { regex: new RegExp("<", "g"), val: "&lt;" }, { regex: new RegExp("'", "g"), val: "&apos;" }, { regex: new RegExp('"', "g"), val: "&quot;" }], processEntities: true, stopNodes: [], oneListGroup: false, maxNestedTags: 100, jPath: true, sanitizeName: false };
-      function de(t2) {
-        if (this.options = Object.assign({}, he, t2), this.options.stopNodes && Array.isArray(this.options.stopNodes) && (this.options.stopNodes = this.options.stopNodes.map((t3) => "string" == typeof t3 && t3.startsWith("*.") ? ".." + t3.substring(2) : t3)), this.stopNodeExpressions = [], this.options.stopNodes && Array.isArray(this.options.stopNodes)) for (let t3 = 0; t3 < this.options.stopNodes.length; t3++) {
-          const e3 = this.options.stopNodes[t3];
-          "string" == typeof e3 ? this.stopNodeExpressions.push(new nt(e3)) : e3 instanceof nt && this.stopNodeExpressions.push(e3);
-        }
-        var e2;
-        true === this.options.ignoreAttributes || this.options.attributesGroupName ? this.isAttribute = function() {
-          return false;
-        } : (this.ignoreAttributesFn = "function" == typeof (e2 = this.options.ignoreAttributes) ? e2 : Array.isArray(e2) ? (t3) => {
-          for (const i2 of e2) {
-            if ("string" == typeof i2 && t3 === i2) return true;
-            if (i2 instanceof RegExp && i2.test(t3)) return true;
-          }
-        } : () => false, this.attrPrefixLen = this.options.attributeNamePrefix.length, this.isAttribute = me), this.processTextOrObjNode = fe, this.options.format ? (this.indentate = ge, this.tagEndChar = ">\n", this.newLine = "\n") : (this.indentate = function() {
-          return "";
-        }, this.tagEndChar = ">", this.newLine = "");
-      }
-      function ue(t2, e2, i2, n2, r2) {
-        return i2.sanitizeName ? R(t2, { xmlVersion: r2 }) ? t2 : i2.sanitizeName(t2, { isAttribute: e2, matcher: n2.readOnly() }) : t2;
-      }
-      function fe(t2, e2, i2, n2, r2) {
-        const s2 = this.extractAttributes(t2);
-        if (n2.push(e2, s2), this.checkStopNode(n2)) {
-          const r3 = this.buildRawContent(t2), s3 = this.buildAttributesForStopNode(t2);
-          return n2.pop(), this.buildObjectNode(r3, e2, s3, i2);
-        }
-        const o2 = this.j2x(t2, i2 + 1, n2, r2);
-        return n2.pop(), "?" === e2[0] ? this.buildTextValNode("", e2, o2.attrStr, i2, n2) : void 0 !== t2[this.options.textNodeName] && 1 === Object.keys(t2).length ? this.buildTextValNode(t2[this.options.textNodeName], e2, o2.attrStr, i2, n2) : this.buildObjectNode(o2.val, e2, o2.attrStr, i2);
-      }
-      function ge(t2) {
-        return this.options.indentBy.repeat(t2);
-      }
-      function me(t2) {
-        return !(!t2.startsWith(this.options.attributeNamePrefix) || t2 === this.options.textNodeName) && t2.substr(this.attrPrefixLen);
-      }
-      de.prototype.build = function(t2) {
-        if (this.options.preserveOrder) return ie(t2, this.options);
-        {
-          Array.isArray(t2) && this.options.arrayNodeName && this.options.arrayNodeName.length > 1 && (t2 = { [this.options.arrayNodeName]: t2 });
-          const e2 = new it(), i2 = (function(t3, e3) {
-            const i3 = t3["?xml"];
-            if (i3 && "object" == typeof i3) {
-              if (e3.attributesGroupName && i3[e3.attributesGroupName]) {
-                const t5 = i3[e3.attributesGroupName][e3.attributeNamePrefix + "version"];
-                if (t5) return t5;
-              }
-              const t4 = i3[e3.attributeNamePrefix + "version"];
-              if (t4) return t4;
-            }
-            return "1.0";
-          })(t2, this.options);
-          return this.j2x(t2, 0, e2, i2).val;
-        }
-      }, de.prototype.j2x = function(t2, e2, i2, n2) {
-        let r2 = "", s2 = "";
-        if (this.options.maxNestedTags && i2.getDepth() >= this.options.maxNestedTags) throw new Error("Maximum nested tags exceeded");
-        const o2 = this.options.jPath ? i2.toString() : i2, a2 = this.checkStopNode(i2);
-        for (let l2 in t2) {
-          if (!Object.prototype.hasOwnProperty.call(t2, l2)) continue;
-          const p2 = l2 === this.options.textNodeName || l2 === this.options.cdataPropName || l2 === this.options.commentPropName || this.options.attributesGroupName && l2 === this.options.attributesGroupName || this.isAttribute(l2) || "?" === l2[0] ? l2 : ue(l2, false, this.options, i2, n2);
-          if (void 0 === t2[l2]) this.isAttribute(l2) && (s2 += "");
-          else if (null === t2[l2]) this.isAttribute(l2) || p2 === this.options.cdataPropName || p2 === this.options.commentPropName ? s2 += "" : "?" === p2[0] ? s2 += this.indentate(e2) + "<" + p2 + "?" + this.tagEndChar : s2 += this.indentate(e2) + "<" + p2 + "/" + this.tagEndChar;
-          else if (t2[l2] instanceof Date) s2 += this.buildTextValNode(t2[l2], p2, "", e2, i2);
-          else if ("object" != typeof t2[l2]) {
-            const c2 = this.isAttribute(l2);
-            if (c2 && !this.ignoreAttributesFn(c2, o2)) {
-              const e3 = ue(c2, true, this.options, i2, n2);
-              r2 += this.buildAttrPairStr(e3, "" + t2[l2], a2);
-            } else if (!c2) if (l2 === this.options.textNodeName) {
-              let e3 = this.options.tagValueProcessor(l2, "" + t2[l2]);
-              s2 += this.replaceEntitiesValue(e3);
-            } else {
-              i2.push(p2);
-              const n3 = this.checkStopNode(i2);
-              if (i2.pop(), n3) {
-                const i3 = "" + t2[l2];
-                s2 += "" === i3 ? this.indentate(e2) + "<" + p2 + this.closeTag(p2) + this.tagEndChar : this.indentate(e2) + "<" + p2 + ">" + i3 + "</" + p2 + this.tagEndChar;
-              } else s2 += this.buildTextValNode(t2[l2], p2, "", e2, i2);
-            }
-          } else if (Array.isArray(t2[l2])) {
-            const r3 = t2[l2].length;
-            let o3 = "", a3 = "";
-            for (let c2 = 0; c2 < r3; c2++) {
-              const r4 = t2[l2][c2];
-              if (void 0 === r4) ;
-              else if (null === r4) "?" === p2[0] ? s2 += this.indentate(e2) + "<" + p2 + "?" + this.tagEndChar : s2 += this.indentate(e2) + "<" + p2 + "/" + this.tagEndChar;
-              else if ("object" == typeof r4) if (this.options.oneListGroup) {
-                i2.push(p2);
-                const t3 = this.j2x(r4, e2 + 1, i2, n2);
-                i2.pop(), o3 += t3.val, this.options.attributesGroupName && r4.hasOwnProperty(this.options.attributesGroupName) && (a3 += t3.attrStr);
-              } else o3 += this.processTextOrObjNode(r4, p2, e2, i2, n2);
-              else if (this.options.oneListGroup) {
-                let t3 = this.options.tagValueProcessor(p2, r4);
-                t3 = this.replaceEntitiesValue(t3), o3 += t3;
-              } else {
-                i2.push(p2);
-                const t3 = this.checkStopNode(i2);
-                if (i2.pop(), t3) {
-                  const t4 = "" + r4;
-                  o3 += "" === t4 ? this.indentate(e2) + "<" + p2 + this.closeTag(p2) + this.tagEndChar : this.indentate(e2) + "<" + p2 + ">" + t4 + "</" + p2 + this.tagEndChar;
-                } else o3 += this.buildTextValNode(r4, p2, "", e2, i2);
-              }
-            }
-            this.options.oneListGroup && (o3 = this.buildObjectNode(o3, p2, a3, e2)), s2 += o3;
-          } else if (this.options.attributesGroupName && l2 === this.options.attributesGroupName) {
-            const e3 = Object.keys(t2[l2]), s3 = e3.length;
-            for (let o3 = 0; o3 < s3; o3++) {
-              const s4 = ue(e3[o3], true, this.options, i2, n2);
-              r2 += this.buildAttrPairStr(s4, "" + t2[l2][e3[o3]], a2);
-            }
-          } else s2 += this.processTextOrObjNode(t2[l2], p2, e2, i2, n2);
-        }
-        return { attrStr: r2, val: s2 };
-      }, de.prototype.buildAttrPairStr = function(t2, e2, i2) {
-        return i2 || (e2 = this.options.attributeValueProcessor(t2, "" + e2), e2 = this.replaceEntitiesValue(e2)), this.options.suppressBooleanAttributes && "true" === e2 ? " " + t2 : " " + t2 + '="' + te(e2) + '"';
-      }, de.prototype.extractAttributes = function(t2) {
-        if (!t2 || "object" != typeof t2) return null;
-        const e2 = {};
-        let i2 = false;
-        if (this.options.attributesGroupName && t2[this.options.attributesGroupName]) {
-          const n2 = t2[this.options.attributesGroupName];
-          for (let t3 in n2) Object.prototype.hasOwnProperty.call(n2, t3) && (e2[t3.startsWith(this.options.attributeNamePrefix) ? t3.substring(this.options.attributeNamePrefix.length) : t3] = te(n2[t3]), i2 = true);
-        } else for (let n2 in t2) {
-          if (!Object.prototype.hasOwnProperty.call(t2, n2)) continue;
-          const r2 = this.isAttribute(n2);
-          r2 && (e2[r2] = te(t2[n2]), i2 = true);
-        }
-        return i2 ? e2 : null;
-      }, de.prototype.buildRawContent = function(t2) {
-        if ("string" == typeof t2) return t2;
-        if ("object" != typeof t2 || null === t2) return String(t2);
-        if (void 0 !== t2[this.options.textNodeName]) return t2[this.options.textNodeName];
-        let e2 = "";
-        for (let i2 in t2) {
-          if (!Object.prototype.hasOwnProperty.call(t2, i2)) continue;
-          if (this.isAttribute(i2)) continue;
-          if (this.options.attributesGroupName && i2 === this.options.attributesGroupName) continue;
-          const n2 = t2[i2];
-          if (i2 === this.options.textNodeName) e2 += n2;
-          else if (Array.isArray(n2)) {
-            for (let t3 of n2) if ("string" == typeof t3 || "number" == typeof t3) e2 += `<${i2}>${t3}</${i2}>`;
-            else if ("object" == typeof t3 && null !== t3) {
-              const n3 = this.buildRawContent(t3), r2 = this.buildAttributesForStopNode(t3);
-              e2 += "" === n3 ? `<${i2}${r2}/>` : `<${i2}${r2}>${n3}</${i2}>`;
-            }
-          } else if ("object" == typeof n2 && null !== n2) {
-            const t3 = this.buildRawContent(n2), r2 = this.buildAttributesForStopNode(n2);
-            e2 += "" === t3 ? `<${i2}${r2}/>` : `<${i2}${r2}>${t3}</${i2}>`;
-          } else e2 += `<${i2}>${n2}</${i2}>`;
-        }
-        return e2;
-      }, de.prototype.buildAttributesForStopNode = function(t2) {
-        if (!t2 || "object" != typeof t2) return "";
-        let e2 = "";
-        if (this.options.attributesGroupName && t2[this.options.attributesGroupName]) {
-          const i2 = t2[this.options.attributesGroupName];
-          for (let t3 in i2) {
-            if (!Object.prototype.hasOwnProperty.call(i2, t3)) continue;
-            const n2 = t3.startsWith(this.options.attributeNamePrefix) ? t3.substring(this.options.attributeNamePrefix.length) : t3, r2 = i2[t3];
-            true === r2 && this.options.suppressBooleanAttributes ? e2 += " " + n2 : e2 += " " + n2 + '="' + r2 + '"';
-          }
-        } else for (let i2 in t2) {
-          if (!Object.prototype.hasOwnProperty.call(t2, i2)) continue;
-          const n2 = this.isAttribute(i2);
-          if (n2) {
-            const r2 = t2[i2];
-            true === r2 && this.options.suppressBooleanAttributes ? e2 += " " + n2 : e2 += " " + n2 + '="' + r2 + '"';
-          }
-        }
-        return e2;
-      }, de.prototype.buildObjectNode = function(t2, e2, i2, n2) {
-        if ("" === t2) return "?" === e2[0] ? this.indentate(n2) + "<" + e2 + i2 + "?" + this.tagEndChar : this.indentate(n2) + "<" + e2 + i2 + this.closeTag(e2) + this.tagEndChar;
-        if ("?" === e2[0]) return this.indentate(n2) + "<" + e2 + i2 + "?" + this.tagEndChar;
-        {
-          let r2 = "</" + e2 + this.tagEndChar, s2 = "";
-          return "?" === e2[0] && (s2 = "?", r2 = ""), !i2 && "" !== i2 || -1 !== t2.indexOf("<") ? false !== this.options.commentPropName && e2 === this.options.commentPropName && 0 === s2.length ? this.indentate(n2) + `<!--${t2}-->` + this.newLine : this.indentate(n2) + "<" + e2 + i2 + s2 + this.tagEndChar + t2 + this.indentate(n2) + r2 : this.indentate(n2) + "<" + e2 + i2 + s2 + ">" + t2 + r2;
-        }
-      }, de.prototype.closeTag = function(t2) {
-        let e2 = "";
-        return -1 !== this.options.unpairedTags.indexOf(t2) ? this.options.suppressUnpairedNode || (e2 = "/") : e2 = this.options.suppressEmptyNode ? "/" : `></${t2}`, e2;
-      }, de.prototype.checkStopNode = function(t2) {
-        if (!this.stopNodeExpressions || 0 === this.stopNodeExpressions.length) return false;
-        for (let e2 = 0; e2 < this.stopNodeExpressions.length; e2++) if (t2.matches(this.stopNodeExpressions[e2])) return true;
-        return false;
-      }, de.prototype.buildTextValNode = function(t2, e2, i2, n2, r2) {
-        if (false !== this.options.cdataPropName && e2 === this.options.cdataPropName) {
-          const e3 = Kt(t2);
-          return this.indentate(n2) + `<![CDATA[${e3}]]>` + this.newLine;
-        }
-        if (false !== this.options.commentPropName && e2 === this.options.commentPropName) {
-          const e3 = Zt(t2);
-          return this.indentate(n2) + `<!--${e3}-->` + this.newLine;
-        }
-        if ("?" === e2[0]) return this.indentate(n2) + "<" + e2 + i2 + "?" + this.tagEndChar;
-        {
-          let r3 = this.options.tagValueProcessor(e2, t2);
-          return r3 = this.replaceEntitiesValue(r3), "" === r3 ? this.indentate(n2) + "<" + e2 + i2 + this.closeTag(e2) + this.tagEndChar : this.indentate(n2) + "<" + e2 + i2 + ">" + r3 + "</" + e2 + this.tagEndChar;
-        }
-      }, de.prototype.replaceEntitiesValue = function(t2) {
-        if (t2 && t2.length > 0 && this.options.processEntities) for (let e2 = 0; e2 < this.options.entities.length; e2++) {
-          const i2 = this.options.entities[e2];
-          t2 = t2.replace(i2.regex, i2.val);
-        }
-        return t2;
-      };
-      const xe = de, be = { validate: p };
-      module2.exports = e;
-    })();
-  }
-});
-
 // src/tally/ledger-template.js
 var require_ledger_template = __commonJS({
   "src/tally/ledger-template.js"(exports2, module2) {
@@ -50282,7 +51874,10 @@ var require_tallyService = __commonJS({
     var { AsyncLocalStorage } = require("async_hooks");
     var tallyMonitorStorage = new AsyncLocalStorage();
     var {
-      withTallyRequestQueue
+      withTallyRequestQueue,
+      getTallyTransportUncertainty,
+      markTallyTransportUncertain,
+      markTallyExecutionUnknown
     } = require_tallyRequestQueue();
     function runWithTallyMonitor(monitorContext, callback) {
       return tallyMonitorStorage.run(monitorContext, callback);
@@ -50364,7 +51959,14 @@ var require_tallyService = __commonJS({
     }
     var tallyHttpTail = Promise.resolve();
     function withTallyHttpQueue(operation) {
-      const task = tallyHttpTail.then(operation);
+      const task = tallyHttpTail.then(() => {
+        if (getTallyTransportUncertainty() !== null) {
+          throw new Error(
+            "TALLY_TRANSPORT_OUTCOME_UNCERTAIN"
+          );
+        }
+        return operation();
+      });
       tallyHttpTail = task.then(
         () => void 0,
         () => void 0
@@ -50388,16 +51990,32 @@ var require_tallyService = __commonJS({
         if (monitor?.onTallyRequestStart) {
           monitor.onTallyRequestStart();
         }
-        const response = await axios.post(
-          TALLY_URL,
-          xml,
-          {
-            headers: {
-              "Content-Type": "application/xml"
-            },
-            timeout: 12e4
+        let response;
+        try {
+          response = await axios.post(
+            TALLY_URL,
+            xml,
+            {
+              headers: {
+                "Content-Type": "application/xml"
+              },
+              timeout: 12e4
+            }
+          );
+        } catch (transportError) {
+          if (!transportError?.response) {
+            markTallyTransportUncertain(
+              "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+            );
+            try {
+              markTallyExecutionUnknown(
+                "TALLY_TRANSPORT_OUTCOME_UNKNOWN"
+              );
+            } catch (_) {
+            }
           }
-        );
+          throw transportError;
+        }
         if (monitor?.isHealthCheck !== true) {
           console.log("========== RAW TALLY RESPONSE ==========");
           console.log(response.data);
@@ -50414,7 +52032,14 @@ var require_tallyService = __commonJS({
           console.error(err);
         }
         if (monitor?.onTallyRequestError) {
-          monitor.onTallyRequestError(err);
+          try {
+            monitor.onTallyRequestError(err);
+          } catch (monitorError) {
+            console.error(
+              "Tally error-monitor callback failed:",
+              monitorError
+            );
+          }
         }
         throw err;
       }
@@ -52069,6 +53694,848 @@ ${useAlterIdFilter ? `
       getGroups,
       buildGroupTree
       // getStockMasters
+    };
+  }
+});
+
+// src/reconciliations/reconcileNow.js
+var require_reconcileNow = __commonJS({
+  "src/reconciliations/reconcileNow.js"(exports2, module2) {
+    "use strict";
+    var {
+      buildLedgerBulkGuidRequest
+    } = require_ledgerBulkGuidRequest();
+    var {
+      buildLedgerRequest
+    } = require_ledgerRequest();
+    var {
+      buildVoucherBulkGuidRequest
+    } = require_voucherBulkGuidRequest();
+    var {
+      fetchReconciliationOccurrenceDiagnostic
+    } = require_fetchReconciliationOccurrenceDiagnostic();
+    var {
+      parseReconciliationVoucherXml,
+      buildReconciliationLedgerLookups,
+      collectionRows,
+      verifyReconciliationVoucherOccurrences
+    } = require_parseReconciliationVoucherXml();
+    var {
+      sendToTally,
+      selectCompany
+    } = require_tallyService();
+    var {
+      runReconciliationTallyOperation
+    } = require_tallyRequestQueue();
+    var {
+      XMLParser,
+      XMLValidator
+    } = require_fxp();
+    var reconcileXmlParser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "",
+      parseTagValue: false,
+      trimValues: true
+    });
+    var reconciliationCompanyXmlParser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "@_",
+      parseTagValue: false,
+      parseAttributeValue: false,
+      trimValues: true,
+      processEntities: true
+    });
+    function validateLedgerOpeningBalance(ledger, expectedGuid) {
+      const guid = String(expectedGuid || "").trim();
+      if (!guid) {
+        throw new Error("RECONCILE_LEDGER_GUID_REQUIRED");
+      }
+      if (!ledger || typeof ledger !== "object") {
+        throw new Error("RECONCILE_LEDGER_RESPONSE_INVALID");
+      }
+      const actualGuid = String(
+        ledger.GUID?.["#text"] ?? ledger.GUID ?? ""
+      ).trim();
+      if (actualGuid !== guid) {
+        throw new Error("RECONCILE_LEDGER_GUID_MISMATCH");
+      }
+      if (!Object.prototype.hasOwnProperty.call(
+        ledger,
+        "OPENINGBALANCE"
+      )) {
+        throw new Error("RECONCILE_OPENING_BALANCE_MISSING");
+      }
+      const raw = ledger.OPENINGBALANCE?.["#text"] ?? ledger.OPENINGBALANCE;
+      const value = String(raw ?? "").trim();
+      if (!value || !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(value)) {
+        throw new Error("RECONCILE_OPENING_BALANCE_INVALID");
+      }
+      const negative = value.startsWith("-");
+      const unsigned = value.replace(/^[+-]/, "");
+      const parts = unsigned.split(".");
+      const integerPart = (parts[0] || "0").replace(/^0+(?=\d)/, "");
+      const fractionalPart = parts[1] || "";
+      const isZero = /^0*$/.test(integerPart) && /^0*$/.test(fractionalPart);
+      const normalizedAmount = integerPart + (fractionalPart ? "." + fractionalPart : "");
+      return {
+        guid,
+        openingBalance: normalizedAmount,
+        openingBalanceType: isZero ? "" : negative ? "DR" : "CR"
+      };
+    }
+    function parseVerifiedLedgerOpeningBalanceResponse(response, ledgerGuid) {
+      if (typeof response !== "string" || !response.trim()) {
+        throw new Error(
+          "RECONCILE_TALLY_RESPONSE_EMPTY"
+        );
+      }
+      if (XMLValidator.validate(response) !== true || /<!\s*(?:DOCTYPE|ENTITY)\b/i.test(response)) {
+        throw new Error(
+          "RECONCILE_OPENING_XML_INVALID"
+        );
+      }
+      const parsed = reconcileXmlParser.parse(response);
+      const collection = parsed?.ENVELOPE?.BODY?.DATA?.COLLECTION;
+      if (!collection || typeof collection !== "object" || Array.isArray(collection)) {
+        throw new Error(
+          "RECONCILE_LEDGER_COLLECTION_MISSING"
+        );
+      }
+      const rawLedgers = collection.LEDGER;
+      const ledgers = Array.isArray(rawLedgers) ? rawLedgers : rawLedgers ? [rawLedgers] : [];
+      if (ledgers.length !== 1) {
+        throw new Error(
+          "RECONCILE_LEDGER_RESULT_COUNT_INVALID"
+        );
+      }
+      return validateLedgerOpeningBalance(
+        ledgers[0],
+        ledgerGuid
+      );
+    }
+    async function fetchLedgerOpeningBalance({
+      company,
+      ledgerGuid,
+      booksBeginningFrom
+    }) {
+      const guid = String(ledgerGuid || "").trim();
+      if (!String(company || "").trim()) {
+        throw new Error("RECONCILE_COMPANY_REQUIRED");
+      }
+      if (!guid) {
+        throw new Error("RECONCILE_LEDGER_GUID_REQUIRED");
+      }
+      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
+        throw new Error("RECONCILE_BOOKS_BEGINNING_DATE_INVALID");
+      }
+      const xml = buildLedgerBulkGuidRequest({
+        company,
+        ledgerGuids: [guid],
+        booksBeginningFrom
+      });
+      await selectCompany(company);
+      const response = await sendToTally(xml);
+      return parseVerifiedLedgerOpeningBalanceResponse(
+        response,
+        guid
+      );
+    }
+    function validateReconciliationVoucherRequest({
+      company,
+      voucherGuids,
+      fromDate,
+      toDate
+    }) {
+      if (typeof company !== "string" || !company.trim() || /[<>&"'[\]\r\n]/.test(company)) {
+        throw new Error(
+          "RECONCILE_VOUCHER_COMPANY_INVALID"
+        );
+      }
+      if (!Array.isArray(voucherGuids) || voucherGuids.length === 0) {
+        throw new Error(
+          "RECONCILE_VOUCHER_GUIDS_INVALID"
+        );
+      }
+      const normalizedGuids = voucherGuids.map((value) => {
+        if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/.test(value)) {
+          throw new Error(
+            "RECONCILE_VOUCHER_GUID_INVALID"
+          );
+        }
+        return value;
+      });
+      const guidCaseIndex = /* @__PURE__ */ new Map();
+      for (const value of normalizedGuids) {
+        const folded = value.toLowerCase();
+        if (guidCaseIndex.has(folded)) {
+          throw new Error(
+            guidCaseIndex.get(folded) === value ? "RECONCILE_VOUCHER_GUID_DUPLICATE" : "RECONCILE_VOUCHER_GUID_CASE_COLLISION"
+          );
+        }
+        guidCaseIndex.set(folded, value);
+      }
+      const validDate = (value) => {
+        if (typeof value !== "string" || !/^\d{8}$/.test(value)) {
+          return false;
+        }
+        const year = Number(value.slice(0, 4));
+        const month = Number(value.slice(4, 6));
+        const day = Number(value.slice(6, 8));
+        if (year < 1 || month < 1 || month > 12 || day < 1) {
+          return false;
+        }
+        const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+        const daysInMonth = [
+          31,
+          leapYear ? 29 : 28,
+          31,
+          30,
+          31,
+          30,
+          31,
+          31,
+          30,
+          31,
+          30,
+          31
+        ];
+        return day <= daysInMonth[month - 1];
+      };
+      if (!validDate(fromDate) || !validDate(toDate) || fromDate > toDate) {
+        throw new Error(
+          "RECONCILE_VOUCHER_DATE_RANGE_INVALID"
+        );
+      }
+      return {
+        company: company.trim(),
+        voucherGuids: normalizedGuids,
+        fromDate,
+        toDate
+      };
+    }
+    function buildValidatedReconciliationVoucherRequest(input) {
+      const validated = validateReconciliationVoucherRequest(input);
+      const xml = buildVoucherBulkGuidRequest(validated);
+      if (typeof xml !== "string" || !xml.trim() || xml.includes("<!DOCTYPE") || xml.includes("<!ENTITY")) {
+        throw new Error(
+          "RECONCILE_VOUCHER_REQUEST_XML_INVALID"
+        );
+      }
+      return {
+        ...validated,
+        xml
+      };
+    }
+    function parseValidatedReconciliationVouchers({
+      responseXml,
+      request,
+      lookups,
+      companyCode,
+      tallyOwner
+    }) {
+      if (!request || !Array.isArray(request.voucherGuids) || typeof request.xml !== "string" || !lookups || !(lookups.ledgerLookup instanceof Map) || typeof companyCode !== "string" || !companyCode.trim() || !["USER", "CA"].includes(tallyOwner)) {
+        throw new Error(
+          "RECONCILE_VOUCHER_CONTEXT_INVALID"
+        );
+      }
+      return parseReconciliationVoucherXml({
+        responseXml,
+        requestedGuids: request.voucherGuids,
+        lookups,
+        companyCode,
+        tallyOwner
+      });
+    }
+    async function runReconciliationWithFifo(operation) {
+      if (typeof operation !== "function") {
+        throw new TypeError(
+          "RECONCILE_OPERATION_INVALID"
+        );
+      }
+      return runReconciliationTallyOperation(
+        async (control) => {
+          control.assertActive();
+          const result = await operation(control);
+          control.assertActive();
+          return result;
+        }
+      );
+    }
+    function parseFreshReconciliationLedgerLookups(responseXml) {
+      if (typeof responseXml !== "string" || !responseXml.trim()) {
+        throw new Error(
+          "RECONCILE_LEDGER_RESPONSE_EMPTY"
+        );
+      }
+      const ledgers = collectionRows(responseXml, "LEDGER");
+      for (const ledger of ledgers) {
+        if (!ledger || typeof ledger !== "object" || Array.isArray(ledger)) {
+          throw new Error(
+            "RECONCILE_LEDGER_IDENTITY_INCOMPLETE"
+          );
+        }
+        for (const field of [
+          "NAME",
+          "GUID",
+          "MASTERID",
+          "ALTERID"
+        ]) {
+          const value = ledger[field];
+          if (typeof value !== "string" || !value.trim()) {
+            throw new Error(
+              "RECONCILE_LEDGER_IDENTITY_INCOMPLETE"
+            );
+          }
+        }
+      }
+      return buildReconciliationLedgerLookups(ledgers);
+    }
+    function buildFreshReconciliationLedgerRequest({
+      company,
+      booksBeginningFrom
+    }) {
+      if (typeof company !== "string" || !company.trim() || /[<>&"'\r\n]/.test(company)) {
+        throw new Error(
+          "RECONCILE_LEDGER_COMPANY_INVALID"
+        );
+      }
+      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
+        throw new Error(
+          "RECONCILE_LEDGER_DATE_INVALID"
+        );
+      }
+      const xml = buildLedgerRequest({
+        company: company.trim(),
+        booksBeginningFrom,
+        masterIds: [],
+        lastLedgerAlterId: null
+      });
+      if (typeof xml !== "string" || !xml.includes(
+        '<COLLECTION NAME="Billey Ledger Collection">'
+      ) || xml.includes("<FILTER>")) {
+        throw new Error(
+          "RECONCILE_LEDGER_REQUEST_INVALID"
+        );
+      }
+      return xml;
+    }
+    function buildReconciliationCompanyRequest(company) {
+      if (typeof company !== "string" || !company.trim() || /[\u0000-\u001F\u007F]/.test(company)) {
+        throw new Error(
+          "RECONCILE_COMPANY_NAME_INVALID"
+        );
+      }
+      const escapedCompany = company.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+      return `
+<ENVELOPE>
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+        <TYPE>Object</TYPE>
+        <SUBTYPE>Company</SUBTYPE>
+        <ID TYPE="Name">${escapedCompany}</ID>
+    </HEADER>
+    <BODY>
+        <DESC>
+            <STATICVARIABLES>
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            </STATICVARIABLES>
+            <FETCHLIST>
+                <FETCH>NAME</FETCH>
+                <FETCH>BOOKSFROM</FETCH>
+                <FETCH>STARTINGFROM</FETCH>
+                <FETCH>FINANCIALYEARFROM</FETCH>
+                <FETCH>GUID</FETCH>
+            </FETCHLIST>
+        </DESC>
+    </BODY>
+</ENVELOPE>`;
+    }
+    function validateReconciliationBooksBeginningFrom(value) {
+      if (typeof value !== "string" || !/^\d{8}$/.test(value)) {
+        throw new Error(
+          "RECONCILE_BOOKSFROM_INVALID"
+        );
+      }
+      const year = Number(value.slice(0, 4));
+      const month = Number(value.slice(4, 6));
+      const day = Number(value.slice(6, 8));
+      if (year < 1 || month < 1 || month > 12 || day < 1) {
+        throw new Error(
+          "RECONCILE_BOOKSFROM_INVALID"
+        );
+      }
+      const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+      const daysInMonth = [
+        31,
+        leapYear ? 29 : 28,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31
+      ];
+      if (day > daysInMonth[month - 1]) {
+        throw new Error(
+          "RECONCILE_BOOKSFROM_INVALID"
+        );
+      }
+      return value;
+    }
+    function readReconciliationCompanyField(company, field) {
+      if (!company || typeof company !== "object" || Array.isArray(company)) {
+        throw new Error(
+          "RECONCILE_COMPANY_OBJECT_INVALID"
+        );
+      }
+      const raw = company[field];
+      if (typeof raw === "string" && raw.trim()) {
+        return raw.trim();
+      }
+      if (raw && typeof raw === "object" && !Array.isArray(raw) && typeof raw["#text"] === "string" && raw["#text"].trim() && Object.keys(raw).every(
+        (key) => key === "#text" || key.startsWith("@_")
+      )) {
+        return raw["#text"].trim();
+      }
+      throw new Error(
+        `RECONCILE_COMPANY_FIELD_INVALID:${field}`
+      );
+    }
+    function validateReconciliationCompanyResponse({
+      responseXml,
+      expectedCompanyGuid,
+      expectedCompanyName
+    }) {
+      if (typeof responseXml !== "string" || !responseXml.trim() || /<!\s*(?:DOCTYPE|ENTITY)\b/i.test(responseXml) || XMLValidator.validate(responseXml) !== true) {
+        throw new Error("RECONCILE_COMPANY_XML_INVALID");
+      }
+      if (typeof expectedCompanyGuid !== "string" || !expectedCompanyGuid.trim() || typeof expectedCompanyName !== "string" || !expectedCompanyName.trim()) {
+        throw new Error("RECONCILE_COMPANY_CONTEXT_INVALID");
+      }
+      const parsed = reconciliationCompanyXmlParser.parse(responseXml);
+      const envelope = parsed?.ENVELOPE;
+      if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+        throw new Error("RECONCILE_COMPANY_ENVELOPE_INVALID");
+      }
+      const header = envelope.HEADER;
+      if (!header || typeof header !== "object" || Array.isArray(header) || header.STATUS !== "1") {
+        throw new Error("RECONCILE_COMPANY_STATUS_INVALID");
+      }
+      const errorTags = /* @__PURE__ */ new Set([
+        "LINEERROR",
+        "ERROR",
+        "ERRORS",
+        "EXCEPTION",
+        "EXCEPTIONS"
+      ]);
+      function hasErrorNode(node) {
+        if (!node || typeof node !== "object") {
+          return false;
+        }
+        return Object.entries(node).some(
+          ([key, value]) => errorTags.has(key.toUpperCase()) || hasErrorNode(value)
+        );
+      }
+      if (hasErrorNode(envelope)) {
+        throw new Error("RECONCILE_COMPANY_TALLY_ERROR");
+      }
+      const body = envelope.BODY;
+      const data = body?.DATA;
+      if (!body || typeof body !== "object" || Array.isArray(body) || !data || typeof data !== "object" || Array.isArray(data)) {
+        throw new Error("RECONCILE_COMPANY_DATA_INVALID");
+      }
+      const messages = Array.isArray(data.TALLYMESSAGE) ? data.TALLYMESSAGE : data.TALLYMESSAGE ? [data.TALLYMESSAGE] : [];
+      const companies = [];
+      for (const message of messages) {
+        if (!message || typeof message !== "object" || Array.isArray(message)) {
+          throw new Error("RECONCILE_COMPANY_MESSAGE_INVALID");
+        }
+        if (!Object.prototype.hasOwnProperty.call(
+          message,
+          "COMPANY"
+        )) {
+          continue;
+        }
+        const entries = Array.isArray(message.COMPANY) ? message.COMPANY : [message.COMPANY];
+        companies.push(...entries);
+      }
+      if (companies.length !== 1 || !companies[0] || typeof companies[0] !== "object" || Array.isArray(companies[0])) {
+        throw new Error("RECONCILE_COMPANY_COUNT_INVALID");
+      }
+      const company = companies[0];
+      const guid = readReconciliationCompanyField(company, "GUID");
+      const companyName = readReconciliationCompanyField(company, "NAME");
+      const booksBeginningFrom = validateReconciliationBooksBeginningFrom(
+        readReconciliationCompanyField(
+          company,
+          "BOOKSFROM"
+        )
+      );
+      if (guid.toLowerCase() !== expectedCompanyGuid.trim().toLowerCase()) {
+        throw new Error("RECONCILE_COMPANY_GUID_MISMATCH");
+      }
+      if (companyName !== expectedCompanyName.trim()) {
+        throw new Error("RECONCILE_COMPANY_NAME_MISMATCH");
+      }
+      if (typeof company["@_NAME"] === "string" && company["@_NAME"].trim() !== companyName) {
+        throw new Error(
+          "RECONCILE_COMPANY_NAME_CONFLICT"
+        );
+      }
+      return {
+        guid,
+        companyName,
+        booksBeginningFrom
+      };
+    }
+    function buildReconciliationCompanySelectionRequest(company) {
+      if (typeof company !== "string" || !company.trim() || /[\u0000-\u001F\u007F]/.test(company)) {
+        throw new Error(
+          "RECONCILE_COMPANY_NAME_INVALID"
+        );
+      }
+      const escapedCompany = company.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+      return `
+<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Export</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <DESC>
+            <STATICVARIABLES>
+                <SVCURRENTCOMPANY>${escapedCompany}</SVCURRENTCOMPANY>
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            </STATICVARIABLES>
+            <REPORTNAME>List of Accounts</REPORTNAME>
+        </DESC>
+    </BODY>
+</ENVELOPE>`;
+    }
+    function validateReconciliationCompanySelectionResponse(responseXml) {
+      if (typeof responseXml !== "string" || !responseXml.trim() || /<!\s*(?:DOCTYPE|ENTITY)\b/i.test(responseXml) || XMLValidator.validate(responseXml) !== true) {
+        throw new Error("RECONCILE_SELECTION_XML_INVALID");
+      }
+      const document2 = reconciliationCompanyXmlParser.parse(responseXml);
+      const rootKeys = Object.keys(document2).filter((key) => key !== "?xml");
+      const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+      if (rootKeys.length !== 1 || rootKeys[0] !== "ENVELOPE" || !isRecord(document2.ENVELOPE)) {
+        throw new Error("RECONCILE_SELECTION_ENVELOPE_INVALID");
+      }
+      const envelope = document2.ENVELOPE;
+      const errors = /* @__PURE__ */ new Set([
+        "LINEERROR",
+        "ERROR",
+        "ERRORS",
+        "EXCEPTION",
+        "EXCEPTIONS"
+      ]);
+      function containsError(node) {
+        if (!node || typeof node !== "object") {
+          return false;
+        }
+        return Object.entries(node).some(
+          ([key, value]) => errors.has(key.toUpperCase()) || containsError(value)
+        );
+      }
+      if (containsError(envelope)) {
+        throw new Error("RECONCILE_SELECTION_TALLY_ERROR");
+      }
+      if (!isRecord(envelope.HEADER) || !isRecord(envelope.BODY)) {
+        throw new Error("RECONCILE_SELECTION_ENVELOPE_INVALID");
+      }
+      if (envelope.HEADER.STATUS !== "1") {
+        throw new Error("RECONCILE_SELECTION_NOT_CONFIRMED");
+      }
+      return true;
+    }
+    function verifyReconciliationCompanyIdentity({
+      responseXml,
+      expectedCompanyGuid,
+      expectedCompanyName
+    }) {
+      const verified = validateReconciliationCompanyResponse({
+        responseXml,
+        expectedCompanyGuid,
+        expectedCompanyName
+      });
+      return Object.freeze({
+        companyGuid: verified.guid,
+        companyName: verified.companyName,
+        booksBeginningFrom: verified.booksBeginningFrom
+      });
+    }
+    async function fetchVerifiedReconciliationCompanyWithinOwner({
+      companyName,
+      expectedCompanyGuid,
+      control
+    }) {
+      if (typeof expectedCompanyGuid !== "string" || !expectedCompanyGuid.trim()) {
+        throw new Error(
+          "RECONCILE_COMPANY_GUID_REQUIRED"
+        );
+      }
+      control.assertActive();
+      const selectionXml = buildReconciliationCompanySelectionRequest(companyName);
+      const companyRequestXml = buildReconciliationCompanyRequest(companyName);
+      const selectionResponseXml = await sendToTally(selectionXml);
+      control.assertActive();
+      validateReconciliationCompanySelectionResponse(
+        selectionResponseXml
+      );
+      control.assertActive();
+      const responseXml = await sendToTally(companyRequestXml);
+      control.assertActive();
+      return verifyReconciliationCompanyIdentity({
+        responseXml,
+        expectedCompanyGuid,
+        expectedCompanyName: companyName.trim()
+      });
+    }
+    async function fetchVerifiedReconciliationCompany({
+      companyName,
+      expectedCompanyGuid
+    }) {
+      return runReconciliationWithFifo(
+        async (control) => fetchVerifiedReconciliationCompanyWithinOwner({
+          companyName,
+          expectedCompanyGuid,
+          control
+        })
+      );
+    }
+    async function runWithVerifiedReconciliationCompany({
+      companyName,
+      expectedCompanyGuid,
+      operation
+    }) {
+      if (typeof operation !== "function") {
+        throw new TypeError(
+          "RECONCILE_OPERATION_REQUIRED"
+        );
+      }
+      return runReconciliationWithFifo(async (control) => {
+        control.assertActive();
+        const verifiedCompany = await fetchVerifiedReconciliationCompanyWithinOwner({
+          companyName,
+          expectedCompanyGuid,
+          control
+        });
+        control.assertActive();
+        const verifiedContext = Object.freeze({
+          companyGuid: verifiedCompany.companyGuid,
+          companyName: verifiedCompany.companyName,
+          booksBeginningFrom: verifiedCompany.booksBeginningFrom,
+          buildLedgerRequest() {
+            control.assertActive();
+            return buildFreshReconciliationLedgerRequest({
+              company: verifiedCompany.companyName,
+              booksBeginningFrom: verifiedCompany.booksBeginningFrom
+            });
+          },
+          buildOpeningRequest({ ledgerGuid }) {
+            control.assertActive();
+            const guid = String(ledgerGuid || "").trim();
+            if (!guid) {
+              throw new Error(
+                "RECONCILE_LEDGER_GUID_REQUIRED"
+              );
+            }
+            return buildLedgerBulkGuidRequest({
+              company: verifiedCompany.companyName,
+              ledgerGuids: [guid],
+              booksBeginningFrom: verifiedCompany.booksBeginningFrom
+            });
+          },
+          async fetchOpeningBalance({ ledgerGuid }) {
+            control.assertActive();
+            const guid = String(ledgerGuid || "").trim();
+            const xml = verifiedContext.buildOpeningRequest({
+              ledgerGuid: guid
+            });
+            control.assertActive();
+            const response = await sendToTally(xml);
+            control.assertActive();
+            const openingBalance = parseVerifiedLedgerOpeningBalanceResponse(
+              response,
+              guid
+            );
+            control.assertActive();
+            return openingBalance;
+          },
+          buildVoucherRequest({ voucherGuids, fromDate, toDate }) {
+            control.assertActive();
+            const booksBeginningFrom = verifiedCompany.booksBeginningFrom;
+            if (typeof fromDate !== "string" || !/^\d{8}$/.test(fromDate) || fromDate < booksBeginningFrom) {
+              throw new Error(
+                "RECONCILE_VOUCHER_BEFORE_BOOKS_BEGINNING"
+              );
+            }
+            return buildValidatedReconciliationVoucherRequest({
+              company: verifiedCompany.companyName,
+              voucherGuids,
+              fromDate,
+              toDate
+            });
+          },
+          // Manual Reconciliation diagnostic only.
+          // Never establishes settlement completeness.
+          // Explicit invocation required.
+          async fetchOccurrenceDiagnostic({
+            voucherGuids,
+            fromDate,
+            toDate
+          }) {
+            control.assertActive();
+            const request = verifiedContext.buildVoucherRequest({
+              voucherGuids,
+              fromDate,
+              toDate
+            });
+            control.assertActive();
+            const diagnostic = await fetchReconciliationOccurrenceDiagnostic({
+              control,
+              verifiedCompany,
+              request,
+              sendToTally
+            });
+            control.assertActive();
+            return diagnostic;
+          },
+          async fetchVouchers({
+            voucherGuids,
+            fromDate,
+            toDate,
+            companyCode,
+            tallyOwner
+          }) {
+            control.assertActive();
+            if (typeof companyCode !== "string" || !companyCode.trim() || !["USER", "CA"].includes(tallyOwner)) {
+              throw new Error(
+                "RECONCILE_VOUCHER_CONTEXT_INVALID"
+              );
+            }
+            const ENABLE_OCCURRENCE_PROBE = process.env.BILLEY_RECONCILE_OCCURRENCE_PROBE === "true";
+            const ledgerRequest = verifiedContext.buildLedgerRequest();
+            control.assertActive();
+            const ledgerResponseXml = await sendToTally(ledgerRequest);
+            control.assertActive();
+            const lookups = parseFreshReconciliationLedgerLookups(
+              ledgerResponseXml
+            );
+            control.assertActive();
+            const request = verifiedContext.buildVoucherRequest({
+              voucherGuids,
+              fromDate,
+              toDate
+            });
+            control.assertActive();
+            let beforeXml = null;
+            let afterXml = null;
+            if (ENABLE_OCCURRENCE_PROBE) {
+              const before = await fetchReconciliationOccurrenceDiagnostic({
+                control,
+                verifiedCompany,
+                request,
+                sendToTally
+              });
+              control.assertActive();
+              if (before?.status !== "UNVERIFIED_RAW_RESPONSE" || typeof before.responseXml !== "string") {
+                throw new Error(
+                  "RECONCILE_OCCURRENCE_BEFORE_INVALID"
+                );
+              }
+              beforeXml = before.responseXml;
+            }
+            control.assertActive();
+            const responseXml = await sendToTally(request.xml);
+            control.assertActive();
+            const result2 = parseValidatedReconciliationVouchers({
+              responseXml,
+              request,
+              lookups,
+              companyCode,
+              tallyOwner
+            });
+            control.assertActive();
+            let occurrenceVerification = null;
+            if (ENABLE_OCCURRENCE_PROBE) {
+              const after = await fetchReconciliationOccurrenceDiagnostic({
+                control,
+                verifiedCompany,
+                request,
+                sendToTally
+              });
+              control.assertActive();
+              if (after?.status !== "UNVERIFIED_RAW_RESPONSE" || typeof after.responseXml !== "string") {
+                throw new Error(
+                  "RECONCILE_OCCURRENCE_AFTER_INVALID"
+                );
+              }
+              afterXml = after.responseXml;
+              occurrenceVerification = verifyReconciliationVoucherOccurrences({
+                beforeXml,
+                afterXml,
+                request,
+                snapshot: result2
+              });
+              control.assertActive();
+              if (occurrenceVerification?.settlementEligible !== false || occurrenceVerification?.runtimeSemanticsVerified !== false || occurrenceVerification?.atomicSnapshotVerified !== false) {
+                throw new Error(
+                  "RECONCILE_OCCURRENCE_UNSAFE_VERDICT"
+                );
+              }
+            }
+            control.assertActive();
+            return {
+              ...result2,
+              snapshotCoverage: {
+                ...result2.snapshotCoverage,
+                tallyCompleteVoucherGuids: [],
+                tallyUnverifiedMissingGuids: [
+                  ...result2.missingGuids
+                ]
+              },
+              occurrenceVerification: occurrenceVerification || {
+                schemaVersion: 1,
+                status: "NOT_RUN",
+                runtimeSemanticsVerified: false,
+                atomicSnapshotVerified: false,
+                settlementEligible: false
+              },
+              settlementEligible: false
+            };
+          }
+        });
+        const result = await operation(
+          verifiedContext,
+          control
+        );
+        control.assertActive();
+        return result;
+      });
+    }
+    module2.exports = {
+      validateLedgerOpeningBalance,
+      fetchLedgerOpeningBalance,
+      validateReconciliationVoucherRequest,
+      buildValidatedReconciliationVoucherRequest,
+      parseValidatedReconciliationVouchers,
+      runReconciliationWithFifo,
+      parseFreshReconciliationLedgerLookups,
+      buildFreshReconciliationLedgerRequest,
+      buildReconciliationCompanyRequest,
+      validateReconciliationBooksBeginningFrom,
+      validateReconciliationCompanyResponse,
+      buildReconciliationCompanySelectionRequest,
+      validateReconciliationCompanySelectionResponse,
+      verifyReconciliationCompanyIdentity,
+      fetchVerifiedReconciliationCompany,
+      runWithVerifiedReconciliationCompany
     };
   }
 });
@@ -54347,132 +56814,6 @@ var require_voucherGuidRequest = __commonJS({
   }
 });
 
-// src/tally/voucherHeader.js
-var require_voucherHeader = __commonJS({
-  "src/tally/voucherHeader.js"(exports2, module2) {
-    function getValue(v) {
-      if (v == null) return "";
-      if (typeof v === "string") return v;
-      if (typeof v === "number") return v;
-      if (typeof v === "object") {
-        if ("#text" in v) return v["#text"];
-        if ("TEXT" in v) return v.TEXT;
-      }
-      return "";
-    }
-    function parseVoucherHeader(v) {
-      return {
-        guid: getValue(v.GUID),
-        masterid: getValue(v.MASTERID),
-        alterid: getValue(v.ALTERID),
-        voucherType: getValue(v.VOUCHERTYPENAME),
-        voucherTypeName: getValue(v.VOUCHERTYPENAME),
-        voucherNumber: getValue(v.VOUCHERNUMBER),
-        voucherDate: getValue(v.DATE),
-        effectiveDate: getValue(v.EFFECTIVEDATE),
-        reference: getValue(v.REFERENCE),
-        referenceDate: getValue(v.REFERENCEDATE),
-        partyLedger: getValue(v.PARTYLEDGERNAME),
-        narration: getValue(v.NARRATION),
-        gstin: getValue(v.PARTYGSTIN),
-        placeOfSupply: getValue(v.PLACEOFSUPPLY),
-        buyerName: getValue(v.BASICBUYERNAME),
-        buyerAddress: getValue(v.BASICBUYERADDRESS),
-        gstRegistrationType: getValue(v.GSTREGISTRATIONTYPE),
-        persistedView: getValue(v.PERSISTEDVIEW),
-        isInvoice: getValue(v.ISINVOICE),
-        isOptional: getValue(v.ISOPTIONAL),
-        isCancelled: getValue(v.ISCANCELLED)
-      };
-    }
-    module2.exports = {
-      parseVoucherHeader
-    };
-  }
-});
-
-// src/tally/voucherLedgers.js
-var require_voucherLedgers = __commonJS({
-  "src/tally/voucherLedgers.js"(exports2, module2) {
-    var fs = require("fs");
-    function toArray(value) {
-      if (!value) return [];
-      return Array.isArray(value) ? value : [value];
-    }
-    function getValue(v) {
-      if (v == null) return "";
-      if (typeof v === "string") return v;
-      if (typeof v === "number") return v;
-      if (typeof v === "object") {
-        if ("#text" in v) return v["#text"];
-        if ("TEXT" in v) return v.TEXT;
-      }
-      return "";
-    }
-    function getNumber(v) {
-      const n = Number(getValue(v));
-      return isNaN(n) ? 0 : n;
-    }
-    function parseBillAllocations(row) {
-      return toArray(row["BILLALLOCATIONS.LIST"]).map((bill) => ({
-        billName: getValue(bill.NAME),
-        billType: getValue(bill.BILLTYPE),
-        amount: getNumber(bill.AMOUNT),
-        dueDate: getValue(bill.DUEDATE),
-        creditPeriod: bill.BILLCREDITPERIOD?.P || getValue(bill.BILLCREDITPERIOD) || null,
-        creditDays: 0
-      }));
-    }
-    function parseCostCentreAllocations(row) {
-      return toArray(row["CATEGORYALLOCATIONS.LIST"]).flatMap(
-        (category) => toArray(category["COSTCENTREALLOCATIONS.LIST"]).map((cc) => ({
-          category: getValue(category.CATEGORY),
-          costCentre: getValue(cc.NAME),
-          amount: getNumber(cc.AMOUNT)
-        }))
-      );
-    }
-    function parseVoucherLedgers(voucher, lookups) {
-      const rows = toArray(voucher["ALLLEDGERENTRIES.LIST"]).length > 0 ? toArray(voucher["ALLLEDGERENTRIES.LIST"]) : toArray(voucher["LEDGERENTRIES.LIST"]);
-      const ledgerLookup = lookups?.ledgerLookup;
-      const groupLookup = lookups?.groupLookup;
-      return rows.map((row) => {
-        const ledger = ledgerLookup?.get(
-          getValue(row.LEDGERNAME).trim().toUpperCase()
-        );
-        const ledgerParent = ledger ? groupLookup?.get(
-          (ledger.parent || "").trim().toUpperCase()
-        ) : null;
-        const amount = getNumber(row.AMOUNT);
-        const isDeemedPositive = getValue(row.ISDEEMEDPOSITIVE);
-        return {
-          ledgerName: ledger?.name || getValue(row.LEDGERNAME),
-          ledgerGuid: ledger?.guid || null,
-          ledgerMasterId: ledger?.masterId || getValue(row.LEDGERMASTERID),
-          ledgerAlterId: ledger?.alterId || null,
-          ledgerParentName: ledgerParent?.name || ledger?.parent || null,
-          ledgerParentGuid: ledgerParent?.guid || null,
-          ledgerParentMasterId: ledgerParent?.masterId || null,
-          ledgerParentAlterId: ledgerParent?.alterId || null,
-          amount,
-          debit: isDeemedPositive === "Yes" ? Math.abs(amount) : 0,
-          credit: isDeemedPositive === "No" ? Math.abs(amount) : 0,
-          isDeemedPositive,
-          isPartyLedger: getValue(row.ISPARTYLEDGER),
-          isLastDeemedPositive: getValue(row.ISLASTDEEMEDPOSITIVE),
-          removeZeroEntries: getValue(row.REMOVEZEROENTRIES),
-          billAllocations: parseBillAllocations(row),
-          costCentreAllocations: parseCostCentreAllocations(row),
-          raw: row
-        };
-      });
-    }
-    module2.exports = {
-      parseVoucherLedgers
-    };
-  }
-});
-
 // src/tally/voucherInventory.js
 var require_voucherInventory = __commonJS({
   "src/tally/voucherInventory.js"(exports2, module2) {
@@ -55147,170 +57488,6 @@ var require_voucherImportService = __commonJS({
   }
 });
 
-// src/tally/ledgerRequest.js
-var require_ledgerRequest = __commonJS({
-  "src/tally/ledgerRequest.js"(exports2, module2) {
-    function buildLedgerRequest({
-      company,
-      booksBeginningFrom,
-      lastLedgerAlterId = null,
-      masterIds = []
-    }) {
-      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
-        throw new Error(
-          "LEDGER_XML_BOOKS_BEGINNING_DATE_INVALID"
-        );
-      }
-      console.log("[LEDGER_XML] DATE VERIFIED", {
-        company,
-        SVFROMDATE: booksBeginningFrom,
-        SVTODATE: booksBeginningFrom,
-        masterIdsCount: masterIds.length,
-        lastLedgerAlterId
-      });
-      const xml = `
-<ENVELOPE>
-
-    <HEADER>
-        <VERSION>1</VERSION>
-        <TALLYREQUEST>Export</TALLYREQUEST>
-        <TYPE>Collection</TYPE>
-        <ID>Billey Ledger Collection</ID>
-    </HEADER>
-
-    <BODY>
-
-        <DESC>
-
-            <STATICVARIABLES>
-
-                <SVCURRENTCOMPANY>
-                    ${company}
-                </SVCURRENTCOMPANY>
-
-                <SVEXPORTFORMAT>
-                    $$SysName:XML
-                </SVEXPORTFORMAT>
-
-                <SVFROMDATE TYPE="Date">
-                    ${booksBeginningFrom}
-                </SVFROMDATE>
-                
-
-                <SVTODATE TYPE="Date">
-                    ${booksBeginningFrom}
-                </SVTODATE>
-
-            </STATICVARIABLES>
-
-            <TDL>
-
-                <TDLMESSAGE>
-
-                    <COLLECTION NAME="Billey Ledger Collection">
-
-                        <TYPE>Ledger</TYPE>
-
-                        ${masterIds.length ? `<FILTER>LedgerMasterIdFilter</FILTER>` : lastLedgerAlterId !== null ? `<FILTER>LedgerAlterIdFilter</FILTER>` : ""}
-
-                        <FETCH>
-
-                            NAME,
-                            GUID,
-                            MASTERID,
-                            ALTERID,
-
-                            PARENT,
-                            RESERVEDNAME,
-
-                            GSTAPPLICABLE,
-                            GSTREGISTRATIONTYPE,
-                            GSTIN,
-
-                            MAILINGNAME,
-                            ADDRESS,
-                            STATENAME,
-                            COUNTRY,
-                            PINCODE,
-
-                            LEDGERMOBILE,
-                            EMAIL,
-                            CONTACTPERSON,
-
-                            OPENINGBALANCE,
-                            OPENINGBALANCEON,
-                            ISBILLWISEON,
-
-                            CREDITLIMIT,
-                            BILLCREDITPERIOD,
-
-                            BILLALLOCATIONS.LIST,
-                            BILLALLOCATIONS.LIST.NAME,
-                            BILLALLOCATIONS.LIST.BILLDATE,
-                            BILLALLOCATIONS.LIST.BILLCREDITPERIOD,
-                            BILLALLOCATIONS.LIST.OPENINGBALANCE,
-
-                            ISREVENUE,
-                            ISDEEMEDPOSITIVE,
-
-                            LEDGSTREGDETAILS.LIST,
-                            LEDMAILINGDETAILS.LIST,
-                            CONTACTDETAILS.LIST,
-
-                            TYPEOFDUTYTAX,
-                            TAXTYPE,
-                            GSTDUTYHEAD,
-                            RATEOFTAXCALCULATION,
-                            GSTRATE,
-
-                            PARENTGUID,
-                            PARENTMASTERID,
-                            PARENTALTERID
-
-                        </FETCH>
-
-                       
-
-                    </COLLECTION>
-
-                    ${masterIds.length ? `
-                        <SYSTEM TYPE="Formulae" NAME="LedgerMasterIdFilter">
-                            ${masterIds.map((id) => `$MASTERID = ${id}`).join(" OR ")}
-                        </SYSTEM>
-                        ` : lastLedgerAlterId !== null ? `
-                            <SYSTEM TYPE="Formulae" NAME="LedgerAlterIdFilter">
-                                $ALTERID > ${lastLedgerAlterId}
-                            </SYSTEM>
-                            ` : ""}
-
-                </TDLMESSAGE>
-
-            </TDL>
-
-        </DESC>
-
-    </BODY>
-
-</ENVELOPE>
-`;
-      console.log(
-        "================================"
-      );
-      console.log(
-        "booksBeginningFrom:",
-        booksBeginningFrom
-      );
-      console.log(
-        "================================"
-      );
-      return xml;
-    }
-    module2.exports = {
-      buildLedgerRequest
-    };
-  }
-});
-
 // src/tally/ledgerParser.js
 var require_ledgerParser = __commonJS({
   "src/tally/ledgerParser.js"(exports2, module2) {
@@ -55613,149 +57790,6 @@ var require_ledgerImportService = __commonJS({
     }
     module2.exports = {
       importLedgers
-    };
-  }
-});
-
-// src/tally/ledgerBulkGuidRequest.js
-var require_ledgerBulkGuidRequest = __commonJS({
-  "src/tally/ledgerBulkGuidRequest.js"(exports2, module2) {
-    function buildLedgerBulkGuidRequest({
-      company,
-      ledgerGuids,
-      booksBeginningFrom
-    }) {
-      if (typeof booksBeginningFrom !== "string" || !/^\d{8}$/.test(booksBeginningFrom)) {
-        throw new Error(
-          "LEDGER_BULK_GUID_XML_DATE_INVALID"
-        );
-      }
-      console.log("[LEDGER_BULK_GUID_XML] DATE VERIFIED", {
-        company,
-        SVFROMDATE: booksBeginningFrom,
-        SVTODATE: booksBeginningFrom,
-        ledgerCount: ledgerGuids.length
-      });
-      const filter = ledgerGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
-      return `
-<ENVELOPE>
-
-    <HEADER>
-
-        <VERSION>1</VERSION>
-
-        <TALLYREQUEST>Export</TALLYREQUEST>
-
-        <TYPE>Collection</TYPE>
-
-        <ID>BilleyLedgerCollection</ID>
-
-    </HEADER>
-
-    <BODY>
-
-        <DESC>
-
-          <STATICVARIABLES>
-
-    <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
-
-    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-
-    <SVFROMDATE TYPE="Date">
-        ${booksBeginningFrom}
-    </SVFROMDATE>
-
-    <SVTODATE TYPE="Date">
-        ${booksBeginningFrom}
-    </SVTODATE>
-
-</STATICVARIABLES>
-
-            <TDL>
-
-                <TDLMESSAGE>
-
-                    <COLLECTION NAME="BilleyLedgerCollection">
-
-                    <TYPE>Ledger</TYPE>
-
-                    <FILTER>LedgerGuidFilter</FILTER>
-
-                <COMPUTE>LEDGERGUID : $GUID</COMPUTE>
-                <COMPUTE>LEDGERMASTERID : $MASTERID</COMPUTE>
-                <COMPUTE>LEDGERALTERID : $ALTERID</COMPUTE>
-
-                         <FETCH>
-
-                        NAME,
-                        GUID,
-                        MASTERID,
-                        ALTERID,
-
-                        PARENT,
-                        RESERVEDNAME,
-
-                        GSTAPPLICABLE,
-                        GSTREGISTRATIONTYPE,
-                        GSTIN,
-
-                        MAILINGNAME,
-                        ADDRESS,
-                        STATENAME,
-                        COUNTRY,
-                        PINCODE,
-
-                        LEDGERMOBILE,
-                        EMAIL,
-                        CONTACTPERSON,
-
-                        OPENINGBALANCE,
-                        OPENINGBALANCEON,
-
-                        ISBILLWISEON,
-                        CREDITLIMIT,
-                        BILLCREDITPERIOD,
-                        BILLALLOCATIONS.LIST,
-                        BILLALLOCATIONS.LIST.NAME,
-                        BILLALLOCATIONS.LIST.BILLDATE,
-                        BILLALLOCATIONS.LIST.BILLCREDITPERIOD,
-                        BILLALLOCATIONS.LIST.OPENINGBALANCE,
-                        ISREVENUE,
-                        ISDEEMEDPOSITIVE,
-                        LEDGSTREGDETAILS.LIST,
-                        LEDMAILINGDETAILS.LIST,
-                        CONTACTDETAILS.LIST,
-                        TYPEOFDUTYTAX,
-                        TAXTYPE,
-                        RATEOFTAXCALCULATION,
-                        GSTRATE,
-                        GSTDUTYHEAD,
-                        PARENTGUID,
-                        PARENTMASTERID,
-                        PARENTALTERID
-
-                    </FETCH>
-
-                    </COLLECTION>
-
-                    <SYSTEM TYPE="Formulae" NAME="LedgerGuidFilter">
-                        ${filter}
-                    </SYSTEM>
-
-                </TDLMESSAGE>
-
-            </TDL>
-
-        </DESC>
-
-    </BODY>
-
-</ENVELOPE>
-`;
-    }
-    module2.exports = {
-      buildLedgerBulkGuidRequest
     };
   }
 });
@@ -58297,131 +60331,6 @@ var require_costCentreGuidImportService = __commonJS({
   }
 });
 
-// src/tally/voucherBulkGuidRequest.js
-var require_voucherBulkGuidRequest = __commonJS({
-  "src/tally/voucherBulkGuidRequest.js"(exports2, module2) {
-    function buildVoucherBulkGuidRequest({
-      company,
-      voucherGuids,
-      fromDate = "20160401",
-      toDate = "20991231"
-    }) {
-      const filter = voucherGuids.map((guid) => `$$IsEqual:$GUID:"${guid}"`).join(" OR ");
-      return `
-<ENVELOPE>
- 
-    <HEADER>
-
-        <VERSION>1</VERSION>
-
-        <TALLYREQUEST>Export</TALLYREQUEST>
-
-        <TYPE>Collection</TYPE>
-
-         
-
-        <ID>BilleyVoucherCollection</ID>
-
-    </HEADER>
-
-    <BODY>
-
-        <DESC>
-
-            <STATICVARIABLES>
-
-          <SVCURRENTCOMPANY>${company}</SVCURRENTCOMPANY>
-<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-<SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
-<SVTODATE TYPE="Date">${toDate}</SVTODATE>
-
-            </STATICVARIABLES>
-
-            <TDL>
-
-                <TDLMESSAGE>
-
-                    <COLLECTION NAME="BilleyVoucherCollection">
-
-                      <FILTER>VoucherGuidFilter</FILTER>
-
-                        <TYPE>Voucher</TYPE>
-
-                        <FETCH>
-
-                            GUID,
-
-                            MASTERID,
-
-                            ALTERID,
-
-                            DATE,
-
-                            EFFECTIVEDATE,
-
-                            VOUCHERTYPENAME,
-
-                            VOUCHERNUMBER,
-
-                            REFERENCE,
-
-                            REFERENCEDATE,
-
-                            PARTYLEDGERNAME,
-
-                            NARRATION,
-
-                            PARTYGSTIN,
-
-                            PLACEOFSUPPLY,
-
-                            BASICBUYERNAME,
-
-                            BASICBUYERADDRESS,
-
-                            GSTREGISTRATIONTYPE,
-
-                            PERSISTEDVIEW,
-
-                            ISINVOICE,
-
-                            ISOPTIONAL,
-
-                            ISCANCELLED,
-
-                            ALLLEDGERENTRIES,
-
-                            ALLINVENTORYENTRIES,
-
-                            INVENTORYENTRIESIN,
-
-                            INVENTORYENTRIESOUT
-
-                        </FETCH>
-
-                    </COLLECTION>
-
-                    <SYSTEM TYPE="Formulae" NAME="VoucherGuidFilter">
-                        ${filter}
-                    </SYSTEM>
-
-                </TDLMESSAGE>
-
-            </TDL>
-
-        </DESC>
-
-    </BODY>
-
-</ENVELOPE>
-`;
-    }
-    module2.exports = {
-      buildVoucherBulkGuidRequest
-    };
-  }
-});
-
 // src/tally/voucherImportServiceBulkGuid.js
 var require_voucherImportServiceBulkGuid = __commonJS({
   "src/tally/voucherImportServiceBulkGuid.js"(exports2, module2) {
@@ -58829,6 +60738,12 @@ var require_secondSyncClientEvents = __commonJS({
     var {
       withTallyOperationQueue
     } = require_tallyOperationQueue();
+    var {
+      runWithVerifiedReconciliationCompany
+    } = require_reconcileNow();
+    var {
+      collectionRows
+    } = require_parseReconciliationVoucherXml();
     var {
       getTallyQueueStatus,
       setTallyQueueStatusListener,
@@ -60920,6 +62835,184 @@ var require_secondSyncClientEvents = __commonJS({
                 requestId: data?.requestId,
                 success: false,
                 error: err.message
+              }
+            );
+          }
+        });
+        syncSocket.on("reconcileLedgerOpening", async (data) => {
+          const requestId = data?.requestId;
+          try {
+            if (!data || typeof requestId !== "string" || !requestId.trim() || typeof data.company !== "string" || !data.company.trim() || typeof data.expectedCompanyGuid !== "string" || !data.expectedCompanyGuid.trim() || typeof data.ledgerGuid !== "string" || !data.ledgerGuid.trim() || typeof data.booksBeginningFrom !== "string" || !/^\d{8}$/.test(data.booksBeginningFrom)) {
+              throw new Error("RECONCILE_LEDGER_REQUEST_INVALID");
+            }
+            const result = await runWithVerifiedReconciliationCompany({
+              companyName: data.company,
+              expectedCompanyGuid: data.expectedCompanyGuid,
+              operation: async (context) => {
+                if (context.booksBeginningFrom !== data.booksBeginningFrom) {
+                  throw new Error(
+                    "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                  );
+                }
+                return context.fetchOpeningBalance({
+                  ledgerGuid: data.ledgerGuid
+                });
+              }
+            });
+            syncSocket.emit("reconcileLedgerOpeningResult", {
+              requestId,
+              success: true,
+              data: result
+            });
+          } catch (err) {
+            console.error(
+              "[RECONCILE NOW] LEDGER OPENING ERROR",
+              err
+            );
+            syncSocket.emit("reconcileLedgerOpeningResult", {
+              requestId,
+              success: false,
+              error: err.message
+            });
+          }
+        });
+        syncSocket.on("reconcileVouchers", async (data) => {
+          const requestId = data?.requestId;
+          try {
+            if (!data || typeof requestId !== "string" || !requestId.trim() || typeof data.company !== "string" || !data.company.trim() || typeof data.expectedCompanyGuid !== "string" || !data.expectedCompanyGuid.trim() || typeof data.booksBeginningFrom !== "string" || !/^\d{8}$/.test(data.booksBeginningFrom) || !Array.isArray(data.voucherGuids) || !data.voucherGuids.length || data.voucherGuids.some(
+              (guid) => typeof guid !== "string" || !guid.trim()
+            ) || typeof data.fromDate !== "string" || !/^\d{8}$/.test(data.fromDate) || typeof data.toDate !== "string" || !/^\d{8}$/.test(data.toDate)) {
+              throw new Error("RECONCILE_VOUCHER_REQUEST_INVALID");
+            }
+            const result = await runWithVerifiedReconciliationCompany({
+              companyName: data.company,
+              expectedCompanyGuid: data.expectedCompanyGuid,
+              operation: async (context) => {
+                if (context.booksBeginningFrom !== data.booksBeginningFrom) {
+                  throw new Error(
+                    "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                  );
+                }
+                return context.fetchVouchers({
+                  voucherGuids: data.voucherGuids,
+                  fromDate: data.fromDate,
+                  toDate: data.toDate,
+                  companyCode: data.companyCode,
+                  tallyOwner: data.tallyOwner
+                });
+              }
+            });
+            syncSocket.emit("reconcileVouchersResult", {
+              requestId,
+              success: true,
+              data: result
+            });
+          } catch (err) {
+            console.error(
+              "[RECONCILE NOW] VOUCHER FETCH ERROR",
+              err
+            );
+            syncSocket.emit("reconcileVouchersResult", {
+              requestId,
+              success: false,
+              error: err.message
+            });
+          }
+        });
+        syncSocket.on("reconcileOccurrenceDiagnostic", async (data) => {
+          const requestId = data?.requestId;
+          try {
+            const OCCURRENCE_DIAGNOSTIC_ENABLED = false;
+            if (!OCCURRENCE_DIAGNOSTIC_ENABLED) {
+              throw new Error(
+                "RECONCILE_OCCURRENCE_DIAGNOSTIC_DISABLED"
+              );
+            }
+            if (!data || typeof requestId !== "string" || !requestId.trim() || typeof data.company !== "string" || !data.company.trim() || typeof data.expectedCompanyGuid !== "string" || !data.expectedCompanyGuid.trim() || typeof data.booksBeginningFrom !== "string" || !/^\d{8}$/.test(data.booksBeginningFrom) || !Array.isArray(data.voucherGuids) || data.voucherGuids.length !== 1 || typeof data.voucherGuids[0] !== "string" || !/^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/.test(
+              data.voucherGuids[0]
+            ) || typeof data.fromDate !== "string" || !/^\d{8}$/.test(data.fromDate) || typeof data.toDate !== "string" || !/^\d{8}$/.test(data.toDate)) {
+              throw new Error(
+                "RECONCILE_OCCURRENCE_DIAGNOSTIC_REQUEST_INVALID"
+              );
+            }
+            const result = await runWithVerifiedReconciliationCompany({
+              companyName: data.company,
+              expectedCompanyGuid: data.expectedCompanyGuid,
+              operation: async (context) => {
+                if (context.booksBeginningFrom !== data.booksBeginningFrom) {
+                  throw new Error(
+                    "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                  );
+                }
+                const diagnostic = await context.fetchOccurrenceDiagnostic({
+                  voucherGuids: data.voucherGuids,
+                  fromDate: data.fromDate,
+                  toDate: data.toDate
+                });
+                if (diagnostic?.status !== "UNVERIFIED_RAW_RESPONSE" || typeof diagnostic.responseXml !== "string" || diagnostic.responseXml.length > 8 * 1024 * 1024) {
+                  throw new Error(
+                    "RECONCILE_OCCURRENCE_RESPONSE_INVALID"
+                  );
+                }
+                const rows = collectionRows(
+                  diagnostic.responseXml,
+                  "VOUCHER"
+                );
+                if (rows.length !== 1 || rows[0].GUID !== data.voucherGuids[0]) {
+                  throw new Error(
+                    "RECONCILE_OCCURRENCE_MEMBERSHIP_INVALID"
+                  );
+                }
+                const row = rows[0];
+                const rawCount = row.BILLEYLEDGEROCCURRENCECOUNT;
+                if (typeof rawCount !== "string" || !/^(0|[1-9]\d*)$/.test(rawCount) || rawCount.length > 16 || BigInt(rawCount) > BigInt(Number.MAX_SAFE_INTEGER)) {
+                  throw new Error(
+                    "RECONCILE_OCCURRENCE_COUNT_INVALID"
+                  );
+                }
+                for (const field of [
+                  "MASTERID",
+                  "ALTERID"
+                ]) {
+                  if (typeof row[field] !== "string" || !/^(0|[1-9]\d*)$/.test(row[field])) {
+                    throw new Error(
+                      "RECONCILE_OCCURRENCE_VERSION_INVALID"
+                    );
+                  }
+                }
+                if (typeof row.DATE !== "string" || !/^\d{8}$/.test(row.DATE) || row.DATE < data.fromDate || row.DATE > data.toDate) {
+                  throw new Error(
+                    "RECONCILE_OCCURRENCE_DATE_INVALID"
+                  );
+                }
+                return {
+                  status: "COUNT_OBSERVED_UNVERIFIED",
+                  voucherGuid: row.GUID,
+                  masterId: row.MASTERID,
+                  alterId: row.ALTERID,
+                  voucherDate: row.DATE,
+                  reportedLedgerOccurrenceCount: Number(rawCount),
+                  runtimeSemanticsVerified: false,
+                  atomicSnapshotVerified: false,
+                  settlementEligible: false
+                };
+              }
+            });
+            syncSocket.emit(
+              "reconcileOccurrenceDiagnosticResult",
+              {
+                requestId,
+                success: true,
+                data: result
+              }
+            );
+          } catch (err) {
+            syncSocket.emit(
+              "reconcileOccurrenceDiagnosticResult",
+              {
+                requestId,
+                success: false,
+                error: typeof err?.message === "string" && err.message.startsWith("RECONCILE_") ? err.message : "RECONCILE_OCCURRENCE_DIAGNOSTIC_FAILED"
               }
             );
           }
