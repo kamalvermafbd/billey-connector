@@ -18,6 +18,14 @@ const {
     runWithVerifiedReconciliationCompany
 } = require("../reconciliations/reconcileNow");
 
+
+const {
+    admitReconciliationExecution,
+    installReconciliationFence,
+    getReconciliationExecutionSnapshot,
+    getReconciliationExecutionObservation
+} = require("../reconciliations/reconciliationExecutionTracker");
+
 const {
     collectionRows
 } = require("../reconciliations/parseReconciliationVoucherXml");
@@ -3337,19 +3345,155 @@ syncSocket.on("getTrialBalance", async (data) => {
 
 });
 
+// Manual Reconciliation transport identity validation.
+// This does not establish a remote execution fence.
+const RECONCILE_UUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function validateReconcileExecutionIdentity(data) {
+    if (
+        !data ||
+        typeof data !== "object" ||
+        Array.isArray(data) ||
+        ![
+            "requestId",
+            "attemptId",
+            "executionId",
+            "operationId"
+        ].every(
+            key =>
+                typeof data[key] === "string" &&
+                RECONCILE_UUID.test(data[key])
+        ) ||
+        !Number.isSafeInteger(data.operationOrdinal) ||
+        data.operationOrdinal <= 0
+    ) {
+        throw new Error(
+            "RECONCILE_EXECUTION_IDENTITY_INVALID"
+        );
+    }
+}
+
+function reconcileResponseIdentity(data) {
+    return {
+        attemptId: data.attemptId,
+        executionId: data.executionId,
+        operationId: data.operationId,
+        operationOrdinal: data.operationOrdinal
+    };
+}
+
+// ==============================================
+// MANUAL RECONCILIATION — FENCE REQUEST
+// ==============================================
+
+syncSocket.on("reconcile:installFence", (data = {}) => {
+    const requestId = data?.requestId;
+    const fenceId = data?.fenceId;
+
+   
+if (
+    !data ||
+    typeof data !== "object" ||
+    Array.isArray(data) ||
+    typeof requestId !== "string" ||
+    !RECONCILE_UUID.test(requestId) ||
+    typeof fenceId !== "string" ||
+    !RECONCILE_UUID.test(fenceId) ||
+    typeof data.attemptId !== "string" ||
+    !RECONCILE_UUID.test(data.attemptId) ||
+    typeof data.executionId !== "string" ||
+    !RECONCILE_UUID.test(data.executionId)
+) {
+    return;
+}
+
+
+    try {
+        const snapshot = installReconciliationFence({
+    fenceId,
+    attemptId: data.attemptId,
+    executionId: data.executionId
+});
+
+       syncSocket.emit("reconcile:installFenceResult", {
+            requestId,
+            attemptId: data.attemptId,
+            executionId: data.executionId,
+            fenceId,
+            success: true,
+            snapshot,
+            settlementEligible: false
+        });
+    } catch (error) {
+        syncSocket.emit("reconcile:installFenceResult", {
+            requestId,
+            fenceId,
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// ==============================================
+// MANUAL RECONCILIATION — EXECUTION OBSERVATION
+// Read-only, process-local, non-settling.
+// ==============================================
+
+syncSocket.on("reconcile:observeExecution", (data = {}) => {
+    const requestId = data?.requestId;
+
+    if (
+        typeof requestId !== "string" ||
+        !RECONCILE_UUID.test(requestId)
+    ) {
+        return;
+    }
+
+    try {
+        const observation =
+            getReconciliationExecutionObservation({
+                attemptId: data.attemptId,
+                executionId: data.executionId
+            });
+
+        syncSocket.emit(
+            "reconcile:observeExecutionResult",
+            {
+                requestId,
+                success: true,
+                observation,
+                settlementEligible: false
+            }
+        );
+    } catch (error) {
+        syncSocket.emit(
+            "reconcile:observeExecutionResult",
+            {
+                requestId,
+                success: false,
+                error:
+                    error?.message ||
+                    "RECONCILE_OBSERVATION_FAILED",
+                settlementEligible: false
+            }
+        );
+    }
+});
 // ==============================================
 // RECONCILE NOW — LEDGER OPENING (READ ONLY)
 // ==============================================
 
 
+
 syncSocket.on("reconcileLedgerOpening", async (data) => {
     const requestId = data?.requestId;
+    let executionTicket = null;
 
     try {
+        validateReconcileExecutionIdentity(data);
+
         if (
-            !data ||
-            typeof requestId !== "string" ||
-            !requestId.trim() ||
             typeof data.company !== "string" ||
             !data.company.trim() ||
             typeof data.expectedCompanyGuid !== "string" ||
@@ -3362,29 +3506,38 @@ syncSocket.on("reconcileLedgerOpening", async (data) => {
             throw new Error("RECONCILE_LEDGER_REQUEST_INVALID");
         }
 
-        const result =
-            await runWithVerifiedReconciliationCompany({
-                companyName: data.company,
-                expectedCompanyGuid:
-                    data.expectedCompanyGuid,
-                operation: async context => {
-                    if (
-                        context.booksBeginningFrom !==
-                        data.booksBeginningFrom
-                    ) {
-                        throw new Error(
-                            "RECONCILE_BOOKS_BEGINNING_MISMATCH"
-                        );
-                    }
+        // Admission happens before entering the Tally FIFO.
+        executionTicket = admitReconciliationExecution(data);
 
-                    return context.fetchOpeningBalance({
-                        ledgerGuid: data.ledgerGuid
-                    });
+        const result = await runWithVerifiedReconciliationCompany({
+            companyName: data.company,
+            expectedCompanyGuid: data.expectedCompanyGuid,
+            executionTicket,
+            operation: async context => {
+                executionTicket.assertNotFenced();
+
+                if (
+                    context.booksBeginningFrom !==
+                    data.booksBeginningFrom
+                ) {
+                    throw new Error(
+                        "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                    );
                 }
-            });
+
+                executionTicket.assertNotFenced();
+
+                return context.fetchOpeningBalance({
+                    ledgerGuid: data.ledgerGuid
+                });
+            }
+        });
+
+        executionTicket.assertNotFenced();
 
         syncSocket.emit("reconcileLedgerOpeningResult", {
             requestId,
+            ...reconcileResponseIdentity(data),
             success: true,
             data: result
         });
@@ -3397,14 +3550,19 @@ syncSocket.on("reconcileLedgerOpening", async (data) => {
 
         syncSocket.emit("reconcileLedgerOpeningResult", {
             requestId,
+            ...(data &&
+            typeof data === "object" &&
+            !Array.isArray(data)
+                ? reconcileResponseIdentity(data)
+                : {}),
             success: false,
-            error: err.message
+            error: err?.message || "RECONCILE_LEDGER_FAILED"
         });
+
+    } finally {
+        executionTicket?.settle();
     }
 });
-
-
-
 
 
 
@@ -3412,14 +3570,15 @@ syncSocket.on("reconcileLedgerOpening", async (data) => {
 // RECONCILE NOW — VOUCHERS (READ ONLY)
 // ==============================================
 
+
 syncSocket.on("reconcileVouchers", async (data) => {
     const requestId = data?.requestId;
+    let executionTicket = null;
 
     try {
+        validateReconcileExecutionIdentity(data);
+
         if (
-            !data ||
-            typeof requestId !== "string" ||
-            !requestId.trim() ||
             typeof data.company !== "string" ||
             !data.company.trim() ||
             typeof data.expectedCompanyGuid !== "string" ||
@@ -3441,33 +3600,42 @@ syncSocket.on("reconcileVouchers", async (data) => {
             throw new Error("RECONCILE_VOUCHER_REQUEST_INVALID");
         }
 
-        const result =
-            await runWithVerifiedReconciliationCompany({
-                companyName: data.company,
-                expectedCompanyGuid:
-                    data.expectedCompanyGuid,
-                operation: async context => {
-                    if (
-                        context.booksBeginningFrom !==
-                        data.booksBeginningFrom
-                    ) {
-                        throw new Error(
-                            "RECONCILE_BOOKS_BEGINNING_MISMATCH"
-                        );
-                    }
+        // Reject duplicate or locally fenced executions.
+        executionTicket = admitReconciliationExecution(data);
 
-                    return context.fetchVouchers({
-                        voucherGuids: data.voucherGuids,
-                        fromDate: data.fromDate,
-                        toDate: data.toDate,
-                        companyCode: data.companyCode,
-                        tallyOwner: data.tallyOwner
-                    });
+        const result = await runWithVerifiedReconciliationCompany({
+            companyName: data.company,
+            expectedCompanyGuid: data.expectedCompanyGuid,
+            executionTicket,
+            operation: async context => {
+                executionTicket.assertNotFenced();
+
+                if (
+                    context.booksBeginningFrom !==
+                    data.booksBeginningFrom
+                ) {
+                    throw new Error(
+                        "RECONCILE_BOOKS_BEGINNING_MISMATCH"
+                    );
                 }
-            });
+
+                executionTicket.assertNotFenced();
+
+                return context.fetchVouchers({
+                    voucherGuids: data.voucherGuids,
+                    fromDate: data.fromDate,
+                    toDate: data.toDate,
+                    companyCode: data.companyCode,
+                    tallyOwner: data.tallyOwner
+                });
+            }
+        });
+
+        executionTicket.assertNotFenced();
 
         syncSocket.emit("reconcileVouchersResult", {
             requestId,
+            ...reconcileResponseIdentity(data),
             success: true,
             data: result
         });
@@ -3480,11 +3648,20 @@ syncSocket.on("reconcileVouchers", async (data) => {
 
         syncSocket.emit("reconcileVouchersResult", {
             requestId,
+            ...(data &&
+            typeof data === "object" &&
+            !Array.isArray(data)
+                ? reconcileResponseIdentity(data)
+                : {}),
             success: false,
-            error: err.message
+            error: err?.message || "RECONCILE_VOUCHER_FAILED"
         });
+
+    } finally {
+        executionTicket?.settle();
     }
 });
+
 
 
     // ==============================================

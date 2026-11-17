@@ -981,10 +981,12 @@ async function fetchVerifiedReconciliationCompany({
 }
 
 
+
 async function runWithVerifiedReconciliationCompany({
     companyName,
     expectedCompanyGuid,
-    operation
+    operation,
+    executionTicket
 }) {
     if (typeof operation !== "function") {
         throw new TypeError(
@@ -992,8 +994,35 @@ async function runWithVerifiedReconciliationCompany({
         );
     }
 
-    return runReconciliationWithFifo(async control => {
+    if (
+        !executionTicket ||
+        typeof executionTicket.assertMayStart !== "function" ||
+        typeof executionTicket.assertNotFenced !== "function"
+    ) {
+        throw new Error(
+            "RECONCILE_EXECUTION_TICKET_REQUIRED"
+        );
+    }
+
+    return runReconciliationWithFifo(async fifoControl => {
+        fifoControl.assertActive();
+
+        // This runs only after acquiring FIFO ownership.
+        // A queued execution cannot start after a local fence.
+        executionTicket.assertMayStart();
+
+        const control = Object.freeze({
+            assertActive() {
+                fifoControl.assertActive();
+                executionTicket.assertNotFenced();
+            },
+            revoke(reason) {
+                fifoControl.revoke(reason);
+            }
+        });
+
         control.assertActive();
+
 
         const verifiedCompany =
             await fetchVerifiedReconciliationCompanyWithinOwner({
