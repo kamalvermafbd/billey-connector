@@ -3,6 +3,10 @@
 
 const { randomUUID } = require("crypto");
 
+const {
+    getTallyTransportUncertainty
+} = require("../tally/tallyRequestQueue");
+
 const UUID =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -48,10 +52,15 @@ function snapshot() {
             record => record.state === "RUNNING"
         ).length,
 
-        // Local observation only; not durable recovery evidence.
-        drained: records.every(
-            record => record.state === "SETTLED"
-        )
+             // Local observation only; not durable recovery evidence.
+        transportOutcomeKnown:
+            getTallyTransportUncertainty() === null,
+
+        drained:
+            getTallyTransportUncertainty() === null &&
+            records.every(
+                record => record.state === "SETTLED"
+            )
     });
 }
 // Observe only an execution registered in this process.
@@ -99,9 +108,13 @@ function getReconciliationExecutionObservation({
             record => record.state === "SETTLED"
         ).length,
 
-        // Local observation only.
-        // Not durable remote-execution proof.
+              // Callback completion is not remote settlement proof.
+        // A response-less transport failure remains uncertain.
+        transportOutcomeKnown:
+            getTallyTransportUncertainty() === null,
+
         locallyDrained:
+            getTallyTransportUncertainty() === null &&
             current.fenced === true &&
             fence !== null &&
             fence.attemptId.toLowerCase() ===
