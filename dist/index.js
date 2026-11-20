@@ -54562,6 +54562,9 @@ var require_reconciliationExecutionTracker = __commonJS({
   "src/reconciliations/reconciliationExecutionTracker.js"(exports2, module2) {
     "use strict";
     var { randomUUID } = require("crypto");
+    var {
+      getTallyTransportUncertainty
+    } = require_tallyRequestQueue();
     var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     var processEpoch = randomUUID();
     var executions = /* @__PURE__ */ new Map();
@@ -54591,7 +54594,8 @@ var require_reconciliationExecutionTracker = __commonJS({
           (record) => record.state === "RUNNING"
         ).length,
         // Local observation only; not durable recovery evidence.
-        drained: records.every(
+        transportOutcomeKnown: getTallyTransportUncertainty() === null,
+        drained: getTallyTransportUncertainty() === null && records.every(
           (record) => record.state === "SETTLED"
         )
       });
@@ -54626,9 +54630,10 @@ var require_reconciliationExecutionTracker = __commonJS({
         settled: matching.filter(
           (record) => record.state === "SETTLED"
         ).length,
-        // Local observation only.
-        // Not durable remote-execution proof.
-        locallyDrained: current.fenced === true && fence !== null && fence.attemptId.toLowerCase() === attemptId.toLowerCase() && fence.executionId.toLowerCase() === executionId.toLowerCase() && matching.length === 1 && matching[0].state === "SETTLED",
+        // Callback completion is not remote settlement proof.
+        // A response-less transport failure remains uncertain.
+        transportOutcomeKnown: getTallyTransportUncertainty() === null,
+        locallyDrained: getTallyTransportUncertainty() === null && current.fenced === true && fence !== null && fence.attemptId.toLowerCase() === attemptId.toLowerCase() && fence.executionId.toLowerCase() === executionId.toLowerCase() && matching.length === 1 && matching[0].state === "SETTLED",
         settlementEligible: false
       });
     }
