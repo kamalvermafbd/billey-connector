@@ -54600,6 +54600,21 @@ var require_reconciliationExecutionTracker = __commonJS({
         )
       });
     }
+    function getReconciliationRecoveryIdentity() {
+      const current = snapshot();
+      return Object.freeze({
+        processEpoch: current.processEpoch,
+        generation: current.generation,
+        fenced: current.fenced,
+        fenceId: current.fenceId,
+        pending: current.pending,
+        running: current.running,
+        drained: current.drained,
+        transportOutcomeKnown: current.transportOutcomeKnown,
+        durableExecutionEvidence: false,
+        settlementEligible: false
+      });
+    }
     function getReconciliationExecutionObservation({
       attemptId,
       executionId
@@ -54630,10 +54645,25 @@ var require_reconciliationExecutionTracker = __commonJS({
         settled: matching.filter(
           (record) => record.state === "SETTLED"
         ).length,
+        settledOperations: Object.freeze(
+          matching.filter((record) => record.state === "SETTLED").map(
+            (record) => Object.freeze({
+              requestId: record.identity.requestId,
+              attemptId: record.identity.attemptId,
+              executionId: record.identity.executionId,
+              operationId: record.identity.operationId,
+              operationOrdinal: record.identity.operationOrdinal
+            })
+          ).sort(
+            (a, b) => a.operationOrdinal - b.operationOrdinal
+          )
+        ),
         // Callback completion is not remote settlement proof.
         // A response-less transport failure remains uncertain.
         transportOutcomeKnown: getTallyTransportUncertainty() === null,
-        locallyDrained: getTallyTransportUncertainty() === null && current.fenced === true && fence !== null && fence.attemptId.toLowerCase() === attemptId.toLowerCase() && fence.executionId.toLowerCase() === executionId.toLowerCase() && matching.length === 1 && matching[0].state === "SETTLED",
+        locallyDrained: getTallyTransportUncertainty() === null && current.fenced === true && fence !== null && fence.attemptId.toLowerCase() === attemptId.toLowerCase() && fence.executionId.toLowerCase() === executionId.toLowerCase() && matching.length > 0 && matching.every(
+          (record) => record.state === "SETTLED"
+        ),
         settlementEligible: false
       });
     }
@@ -54647,9 +54677,18 @@ var require_reconciliationExecutionTracker = __commonJS({
         throw new Error("RECONCILE_EXECUTION_DUPLICATE_REQUEST");
       }
       for (const record2 of executions.values()) {
-        if (record2.identity.executionId.toLowerCase() === identity.executionId.toLowerCase()) {
+        const existing = record2.identity;
+        if (existing.executionId.toLowerCase() !== identity.executionId.toLowerCase()) {
+          continue;
+        }
+        if (existing.attemptId.toLowerCase() !== identity.attemptId.toLowerCase()) {
           throw new Error(
             "RECONCILE_EXECUTION_DUPLICATE_IDENTITY"
+          );
+        }
+        if (existing.operationId.toLowerCase() === identity.operationId.toLowerCase() || existing.operationOrdinal === identity.operationOrdinal) {
+          throw new Error(
+            "RECONCILE_EXECUTION_DUPLICATE_OPERATION"
           );
         }
       }
@@ -54733,7 +54772,8 @@ var require_reconciliationExecutionTracker = __commonJS({
       admitReconciliationExecution: admit,
       installReconciliationFence: installFence,
       getReconciliationExecutionSnapshot: snapshot,
-      getReconciliationExecutionObservation
+      getReconciliationExecutionObservation,
+      getReconciliationRecoveryIdentity
     };
   }
 });
@@ -60943,7 +60983,8 @@ var require_secondSyncClientEvents = __commonJS({
       admitReconciliationExecution,
       installReconciliationFence,
       getReconciliationExecutionSnapshot,
-      getReconciliationExecutionObservation
+      getReconciliationExecutionObservation,
+      getReconciliationRecoveryIdentity
     } = require_reconciliationExecutionTracker();
     var {
       collectionRows
@@ -61073,7 +61114,8 @@ var require_secondSyncClientEvents = __commonJS({
       let syncSocket = null;
       let syncProtocolController = null;
       let syncRegistrationRetryTimer = null;
-      let syncConnectorRegistered = false;
+      const registeredSyncConnectorIds = /* @__PURE__ */ new Set();
+      const retryingSyncConnectorIds = /* @__PURE__ */ new Set();
       function sendSyncConnectorIdentification() {
         if (!syncSocket?.connected || !socket?.connected || identifiedCompanyGuids.length === 0) {
           return false;
@@ -61092,7 +61134,7 @@ var require_secondSyncClientEvents = __commonJS({
         return true;
       }
       setTallyQueueStatusListener((status) => {
-        if (!syncSocket?.connected || !syncConnectorRegistered) {
+        if (!syncSocket?.connected || registeredSyncConnectorIds.size === 0) {
           return;
         }
         syncSocket.emit("tally:queue:status", status);
@@ -61121,7 +61163,8 @@ var require_secondSyncClientEvents = __commonJS({
         });
         syncProtocolController = new ConnectorProtocolController(syncSocket);
         syncSocket.on("connect", () => {
-          syncConnectorRegistered = false;
+          registeredSyncConnectorIds.clear();
+          retryingSyncConnectorIds.clear();
           console.log("\u2705 Connected to Second Sync Server", syncSocket.id);
           if (syncRegistrationRetryTimer) {
             clearTimeout(syncRegistrationRetryTimer);
@@ -61140,7 +61183,7 @@ var require_secondSyncClientEvents = __commonJS({
             syncSocket.emit("protocol:heartbeat", {
               timestamp: Date.now()
             });
-            if (syncConnectorRegistered) {
+            if (registeredSyncConnectorIds.size > 0) {
               const status = getTallyQueueStatus();
               syncSocket.emit("tally:queue:status", status);
               console.log("[SYNC TALLY QUEUE PROOF RENEWAL]", {
@@ -61169,9 +61212,17 @@ var require_secondSyncClientEvents = __commonJS({
             connector_id: data?.connector_id,
             received_at: (/* @__PURE__ */ new Date()).toISOString()
           });
+          const connectorId = typeof data?.connector_id === "string" ? data.connector_id.trim() : "";
+          if (!syncSocket?.connected || !connectorId) {
+            return;
+          }
           if (data?.registered === true) {
-            syncConnectorRegistered = true;
-            if (syncRegistrationRetryTimer) {
+            if (data.socket_id !== syncSocket.id) {
+              return;
+            }
+            registeredSyncConnectorIds.add(connectorId);
+            retryingSyncConnectorIds.delete(connectorId);
+            if (retryingSyncConnectorIds.size === 0 && syncRegistrationRetryTimer) {
               clearTimeout(syncRegistrationRetryTimer);
               syncRegistrationRetryTimer = null;
             }
@@ -61184,17 +61235,35 @@ var require_secondSyncClientEvents = __commonJS({
           if (data?.registered !== false) {
             return;
           }
-          syncConnectorRegistered = false;
-          if (syncRegistrationRetryTimer) {
-            clearTimeout(syncRegistrationRetryTimer);
-            syncRegistrationRetryTimer = null;
+          registeredSyncConnectorIds.delete(connectorId);
+          const retryableReasons = /* @__PURE__ */ new Set([
+            "OTHER_CONNECTED_SOCKET",
+            "CONNECTOR_OPERATION_LOCK",
+            "CONNECTOR_ACTIVE_MARKER",
+            "CONNECTOR_QUARANTINE",
+            "SOCKET_OPERATION_LOCK",
+            "SOCKET_ACTIVE_MARKER",
+            "SOCKET_QUARANTINE"
+          ]);
+          if (retryableReasons.has(data?.reason)) {
+            retryingSyncConnectorIds.add(connectorId);
+          } else {
+            retryingSyncConnectorIds.delete(connectorId);
           }
-          if (data?.reason !== "OTHER_CONNECTED_SOCKET") {
+          if (retryingSyncConnectorIds.size === 0) {
+            if (syncRegistrationRetryTimer) {
+              clearTimeout(syncRegistrationRetryTimer);
+              syncRegistrationRetryTimer = null;
+            }
             return;
           }
+          if (syncRegistrationRetryTimer) {
+            return;
+          }
+          const retrySocketId = syncSocket.id;
           syncRegistrationRetryTimer = setTimeout(() => {
             syncRegistrationRetryTimer = null;
-            if (!syncSocket?.connected || !socket?.connected || identifiedCompanyGuids.length === 0) {
+            if (!syncSocket?.connected || syncSocket.id !== retrySocketId || !socket?.connected || identifiedCompanyGuids.length === 0 || retryingSyncConnectorIds.size === 0) {
               console.warn(
                 "[SYNC REGISTRATION RETRY SKIPPED] Connection or verified company GUIDs unavailable"
               );
@@ -61210,7 +61279,8 @@ var require_secondSyncClientEvents = __commonJS({
           );
         });
         syncSocket.on("disconnect", (reason) => {
-          syncConnectorRegistered = false;
+          registeredSyncConnectorIds.clear();
+          retryingSyncConnectorIds.clear();
           if (syncRegistrationRetryTimer) {
             clearTimeout(syncRegistrationRetryTimer);
             syncRegistrationRetryTimer = null;
@@ -61237,7 +61307,8 @@ var require_secondSyncClientEvents = __commonJS({
         socket
       );
       socket.on("connect", async () => {
-        syncConnectorRegistered = false;
+        registeredSyncConnectorIds.clear();
+        retryingSyncConnectorIds.clear();
         if (syncRegistrationRetryTimer) {
           clearTimeout(syncRegistrationRetryTimer);
           syncRegistrationRetryTimer = null;
@@ -61337,7 +61408,8 @@ var require_secondSyncClientEvents = __commonJS({
         }
       });
       socket.on("disconnect", (reason) => {
-        syncConnectorRegistered = false;
+        registeredSyncConnectorIds.clear();
+        retryingSyncConnectorIds.clear();
         if (syncRegistrationRetryTimer) {
           clearTimeout(syncRegistrationRetryTimer);
           syncRegistrationRetryTimer = null;
@@ -63120,6 +63192,34 @@ var require_secondSyncClientEvents = __commonJS({
                 requestId,
                 success: false,
                 error: error?.message || "RECONCILE_OBSERVATION_FAILED",
+                settlementEligible: false
+              }
+            );
+          }
+        });
+        syncSocket.on("reconcile:getRecoveryIdentity", (data = {}) => {
+          const requestId = data?.requestId;
+          if (typeof requestId !== "string" || !RECONCILE_UUID.test(requestId)) {
+            return;
+          }
+          try {
+            const identity = getReconciliationRecoveryIdentity();
+            syncSocket.emit(
+              "reconcile:getRecoveryIdentityResult",
+              {
+                requestId,
+                success: true,
+                identity,
+                settlementEligible: false
+              }
+            );
+          } catch (error) {
+            syncSocket.emit(
+              "reconcile:getRecoveryIdentityResult",
+              {
+                requestId,
+                success: false,
+                error: "RECONCILE_RECOVERY_IDENTITY_FAILED",
                 settlementEligible: false
               }
             );

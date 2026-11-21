@@ -1682,12 +1682,13 @@ monitoring = beginGetMastersMonitoring(session);
         event: "SYNC_PROGRESS"
     });
 
-    session.socket.emit("getMastersProgress", {
-        stage: progressData.stage,
-        progress: progressData.progress,
-        batchId: data.batchId,
-        timestamp: Date.now()
-    });
+  session.socket.emit("getMastersProgress", {
+    requestId: data.requestId,
+    stage: progressData.stage,
+    progress: progressData.progress,
+    batchId: data.batchId,
+    timestamp: Date.now()
+});
 }
             });
 
