@@ -63,6 +63,27 @@ function snapshot() {
             )
     });
 }
+
+// Read-only process identity for reconnect recovery diagnostics.
+// Never use this alone to authorize settlement or quarantine release.
+function getReconciliationRecoveryIdentity() {
+    const current = snapshot();
+
+    return Object.freeze({
+        processEpoch: current.processEpoch,
+        generation: current.generation,
+        fenced: current.fenced,
+        fenceId: current.fenceId,
+        pending: current.pending,
+        running: current.running,
+        drained: current.drained,
+        transportOutcomeKnown:
+            current.transportOutcomeKnown,
+        durableExecutionEvidence: false,
+        settlementEligible: false
+    });
+}
+
 // Observe only an execution registered in this process.
 // Unknown identities must never be treated as drained.
 function getReconciliationExecutionObservation({
@@ -108,6 +129,24 @@ function getReconciliationExecutionObservation({
             record => record.state === "SETTLED"
         ).length,
 
+        settledOperations: Object.freeze(
+            matching
+                .filter(record => record.state === "SETTLED")
+                .map(record =>
+                    Object.freeze({
+                        requestId: record.identity.requestId,
+                        attemptId: record.identity.attemptId,
+                        executionId: record.identity.executionId,
+                        operationId: record.identity.operationId,
+                        operationOrdinal:
+                            record.identity.operationOrdinal
+                    })
+                )
+                .sort((a, b) =>
+                    a.operationOrdinal - b.operationOrdinal
+                )
+        ),
+
               // Callback completion is not remote settlement proof.
         // A response-less transport failure remains uncertain.
         transportOutcomeKnown:
@@ -121,8 +160,10 @@ function getReconciliationExecutionObservation({
                 attemptId.toLowerCase() &&
             fence.executionId.toLowerCase() ===
                 executionId.toLowerCase() &&
-            matching.length === 1 &&
-            matching[0].state === "SETTLED",
+            matching.length > 0 &&
+            matching.every(
+                record => record.state === "SETTLED"
+            ),
 
         settlementEligible: false
     });
@@ -140,14 +181,35 @@ function admit(identity) {
         throw new Error("RECONCILE_EXECUTION_DUPLICATE_REQUEST");
     }
 
-    // Reject re-use of an execution identity under another request ID.
+    // Allow distinct operations within the same execution.
+    // Preserve rejection of conflicting attempts and replayed operations.
     for (const record of executions.values()) {
+        const existing = record.identity;
+
         if (
-            record.identity.executionId.toLowerCase() ===
+            existing.executionId.toLowerCase() !==
             identity.executionId.toLowerCase()
+        ) {
+            continue;
+        }
+
+        if (
+            existing.attemptId.toLowerCase() !==
+            identity.attemptId.toLowerCase()
         ) {
             throw new Error(
                 "RECONCILE_EXECUTION_DUPLICATE_IDENTITY"
+            );
+        }
+
+        if (
+            existing.operationId.toLowerCase() ===
+                identity.operationId.toLowerCase() ||
+            existing.operationOrdinal ===
+                identity.operationOrdinal
+        ) {
+            throw new Error(
+                "RECONCILE_EXECUTION_DUPLICATE_OPERATION"
             );
         }
     }
@@ -280,6 +342,6 @@ module.exports = {
     admitReconciliationExecution: admit,
     installReconciliationFence: installFence,
     getReconciliationExecutionSnapshot: snapshot,
-    getReconciliationExecutionObservation
+    getReconciliationExecutionObservation,
+    getReconciliationRecoveryIdentity
 };
-
