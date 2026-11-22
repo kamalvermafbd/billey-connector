@@ -215,8 +215,6 @@ const registeredSyncConnectorIds = new Set();
 const retryingSyncConnectorIds = new Set();
 
 const SYNC_REGISTRATION_RETRY_DELAY_MS = 60000;
-const SYNC_REGISTRATION_MAX_RETRIES = 5;
-
 let syncRegistrationRetryAttempts = 0;
 
 function cancelSyncRegistrationRetry() {
@@ -232,51 +230,43 @@ function scheduleSyncRegistrationRetry() {
     if (
         syncRegistrationRetryTimer !== null ||
         retryingSyncConnectorIds.size === 0 ||
-        syncRegistrationRetryAttempts >=
-            SYNC_REGISTRATION_MAX_RETRIES ||
         !syncSocket?.connected
     ) {
         return;
     }
 
-    const expectedSyncSocketId = syncSocket.id;
-    const expectedMainSocketId = socket?.id;
+    const expectedSocketId = syncSocket.id;
 
     syncRegistrationRetryTimer = setTimeout(() => {
         syncRegistrationRetryTimer = null;
 
         if (
             !syncSocket?.connected ||
-            syncSocket.id !== expectedSyncSocketId ||
-            !socket?.connected ||
-            socket.id !== expectedMainSocketId ||
-            identifiedCompanyGuids.length === 0 ||
+            syncSocket.id !== expectedSocketId ||
             retryingSyncConnectorIds.size === 0
         ) {
-            console.warn(
-                "[SYNC REGISTRATION RETRY STOPPED]",
-                "Connection or verified company GUIDs unavailable"
-            );
             return;
         }
 
-        syncRegistrationRetryAttempts += 1;
+        if (
+            !socket?.connected ||
+            identifiedCompanyGuids.length === 0
+        ) {
+            scheduleSyncRegistrationRetry();
+            return;
+        }
+
+        syncRegistrationRetryAttempts++;
 
         const sent = sendSyncConnectorIdentification();
 
         console.log("[SYNC REGISTRATION RETRY]", {
             attempt: syncRegistrationRetryAttempts,
-            maxAttempts: SYNC_REGISTRATION_MAX_RETRIES,
-            sent,
-            socket_id: expectedSyncSocketId
+            socket_id: expectedSocketId,
+            sent
         });
 
-        // Rearm independently of server acknowledgement.
-        // Server-side authorization remains mandatory.
-        if (
-            sent &&
-            retryingSyncConnectorIds.size > 0
-        ) {
+        if (retryingSyncConnectorIds.size > 0) {
             scheduleSyncRegistrationRetry();
         }
     }, SYNC_REGISTRATION_RETRY_DELAY_MS);
@@ -429,9 +419,24 @@ syncSocket.on("connector:registration:status", (data) => {
             ? data.connector_id.trim()
             : "";
 
-    if (!syncSocket?.connected || !connectorId) {
-        return;
-    }
+    if (
+    !syncSocket?.connected ||
+    !connectorId ||
+    (
+        typeof data?.socket_id === "string" &&
+        data.socket_id !== syncSocket.id
+    )
+) {
+    console.warn(
+        "[SYNC REGISTRATION STATUS IGNORED]",
+        {
+            current_socket_id: syncSocket?.id,
+            response_socket_id: data?.socket_id,
+            connector_id: connectorId
+        }
+    );
+    return;
+}
 
     if (data?.registered === true) {
         // Only accept a success for this exact socket.
@@ -460,7 +465,8 @@ syncSocket.on("connector:registration:status", (data) => {
 
     registeredSyncConnectorIds.delete(connectorId);
 
-    const retryableReasons = new Set([
+   
+const retryableReasons = new Set([
     "OTHER_CONNECTED_SOCKET",
     "CONNECTOR_OPERATION_LOCK",
     "CONNECTOR_ACTIVE_MARKER",
@@ -468,8 +474,16 @@ syncSocket.on("connector:registration:status", (data) => {
     "SOCKET_OPERATION_LOCK",
     "SOCKET_ACTIVE_MARKER",
     "SOCKET_QUARANTINE",
-    "REDIS_LEASE_LOST"
+    "REDIS_LEASE_LOST",
+    "REGISTRATION_IN_PROGRESS",
+    "RECOVERY_VERIFICATION_REQUIRED",
+    "RECOVERY_INSPECTION_FAILED",
+    "HEALTH_UPDATE_UNVERIFIED",
+    "REDIS_HEALTH_OWNER_UNVERIFIED",
+    "REDIS_HEALTH_UNVERIFIED",
+    "REDIS_LEASE_UNVERIFIED"
 ]);
+
 
     if (retryableReasons.has(data?.reason)) {
         retryingSyncConnectorIds.add(connectorId);
@@ -675,18 +689,12 @@ socket.on("connect", async () => {
 
 */
 
-socket.on("connect", async () => {
-    registeredSyncConnectorIds.clear();
-retryingSyncConnectorIds.clear();
 
-    // Previous connection ka registration retry cancel karo.
-    /*
-    if (syncRegistrationRetryTimer) {
-        clearTimeout(syncRegistrationRetryTimer);
-        syncRegistrationRetryTimer = null;
-    }
-*/
-   cancelSyncRegistrationRetry();
+socket.on("connect", async () => {
+    // Main socket and sync socket are independent.
+    // Do not clear sync registration ownership state here.
+    // Fresh Tally GUID verification happens below.
+
 
     // Fresh Tally verification is required after every connection.
     socket.tallyStatus = "OFFLINE";
@@ -846,15 +854,11 @@ if (
 
 
 socket.on("disconnect", (reason) => {
-    registeredSyncConnectorIds.clear();
-retryingSyncConnectorIds.clear();
-/*
-    if (syncRegistrationRetryTimer) {
-        clearTimeout(syncRegistrationRetryTimer);
-        syncRegistrationRetryTimer = null;
-    }
-    */
-   cancelSyncRegistrationRetry();
+   
+    // Main socket disconnected, but sync socket is independent.
+    // Preserve sync registration state and its retry timer.
+    // Sync socket disconnect handler owns registration cleanup.
+
     if (socket.heartbeatInterval) {
     clearInterval(socket.heartbeatInterval);
     socket.heartbeatInterval = null;
