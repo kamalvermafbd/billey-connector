@@ -937,20 +937,9 @@ async function fetchVerifiedReconciliationCompanyWithinOwner({
 
     control.assertActive();
 
-    const selectionXml =
-        buildReconciliationCompanySelectionRequest(companyName);
-
+   
     const companyRequestXml =
         buildReconciliationCompanyRequest(companyName);
-
-    const selectionResponseXml =
-        await sendToTally(selectionXml);
-
-    control.assertActive();
-
-    validateReconciliationCompanySelectionResponse(
-        selectionResponseXml
-    );
 
     control.assertActive();
 
@@ -965,6 +954,7 @@ async function fetchVerifiedReconciliationCompanyWithinOwner({
         expectedCompanyName: companyName.trim()
     });
 }
+
 
 async function fetchVerifiedReconciliationCompany({
     companyName,
