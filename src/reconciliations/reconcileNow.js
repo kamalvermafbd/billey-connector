@@ -27,7 +27,8 @@ const {
 
 const {
     sendToTally,
-    selectCompany
+    selectCompany,
+    runWithReconciliationTransportPolicy
 } = require("../tally/tallyService");
 
 const {
@@ -398,7 +399,10 @@ async function runReconciliationWithFifo(operation) {
         async control => {
             control.assertActive();
 
-            const result = await operation(control);
+            const result =
+                await runWithReconciliationTransportPolicy(
+                    () => operation(control)
+                );
 
             control.assertActive();
 

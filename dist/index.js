@@ -61284,7 +61284,8 @@ var require_secondSyncClientEvents = __commonJS({
             "HEALTH_UPDATE_UNVERIFIED",
             "REDIS_HEALTH_OWNER_UNVERIFIED",
             "REDIS_HEALTH_UNVERIFIED",
-            "REDIS_LEASE_UNVERIFIED"
+            "REDIS_LEASE_UNVERIFIED",
+            "COMPANY_CONTEXT_COMMIT_FAILED"
           ]);
           if (retryableReasons.has(data?.reason)) {
             retryingSyncConnectorIds.add(connectorId);

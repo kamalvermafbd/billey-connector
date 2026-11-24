@@ -4,6 +4,26 @@ const { AsyncLocalStorage } = require("async_hooks");
 
 const tallyMonitorStorage = new AsyncLocalStorage();
 
+// Dedicated Manual Reconciliation transport policy.
+// Normal Sync retains its existing HTTP timeout.
+const reconciliationTransportStorage =
+    new AsyncLocalStorage();
+
+function runWithReconciliationTransportPolicy(callback) {
+    if (typeof callback !== "function") {
+        throw new TypeError(
+            "RECONCILE_TRANSPORT_CALLBACK_REQUIRED"
+        );
+    }
+
+    return reconciliationTransportStorage.run(
+        Object.freeze({
+            enabled: true
+        }),
+        callback
+    );
+}
+
 const {
     withTallyRequestQueue,
     getTallyTransportUncertainty,
@@ -244,7 +264,10 @@ try {
             headers: {
                 "Content-Type": "application/xml"
             },
-            timeout: 120000
+            timeout:
+    reconciliationTransportStorage.getStore()?.enabled === true
+        ? 0
+        : 120000
         }
     );
 } catch (transportError) {
@@ -3366,6 +3389,7 @@ module.exports = {
 
   sendToTally,
     runWithTallyMonitor,
+    runWithReconciliationTransportPolicy,
   fetchTallyCollection,
 
   // =========================
