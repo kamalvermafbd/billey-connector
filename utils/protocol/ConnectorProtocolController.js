@@ -74,21 +74,24 @@ class ConnectorProtocolController {
     );
 
 }
-async sendStockGodownSummary(rows, requestId) {
+async sendStockGodownSummary(rows, requestId, operationSession) {
 
     await this.sendCollection(
         "getStockGodownSummary",
         rows || [],
-        requestId
+        requestId,
+        operationSession
     );
 
 }
-async sendTrialBalance(rows, requestId) {
+
+async sendTrialBalance(rows, requestId, operationSession) {
 
     await this.sendCollection(
         "getTrialBalance",
         rows || [],
-        requestId
+        requestId,
+        operationSession
     );
 
 }

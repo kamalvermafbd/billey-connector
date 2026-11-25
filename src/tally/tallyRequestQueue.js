@@ -318,7 +318,8 @@ function getTallyQueueStatus() {
             pendingOperations === 0 &&
             runningOperations === 0 &&
             tallyTransportUncertainty === null,
-        operationGeneration
+        operationGeneration,
+        connectorEpoch
     };
 }
 

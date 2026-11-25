@@ -180,7 +180,68 @@ function getMastersPayloadFingerprint(data) {
             .update(serialized, "utf8")
             .digest("hex");
 }
+function runDurableSyncTallyOperation(data, operation, callback, session) {
+    const hasDurableIdentity =
+        data?.identityScope !== undefined ||
+        data?.companyIdentity !== undefined ||
+        data?.payloadFingerprint !== undefined;
 
+    // Preserve existing non-durable operations.
+    if (!hasDurableIdentity) {
+        return withTallyOperationQueue(callback);
+    }
+
+    const validIdentity =
+        typeof data.requestId === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            data.requestId
+        ) &&
+        typeof data.identityScope === "string" &&
+        data.identityScope.trim().length > 0 &&
+        typeof data.companyIdentity === "string" &&
+        data.companyIdentity.startsWith("guid:") &&
+        data.companyIdentity.length > 5 &&
+        typeof data.payloadFingerprint === "string" &&
+        /^sha256:[0-9a-f]{64}$/i.test(
+            data.payloadFingerprint
+        );
+
+    if (!validIdentity) {
+        throw new Error("INVALID_DURABLE_SYNC_IDENTITY");
+    }
+
+    const admission = admitTallyRequest({
+        scope: data.identityScope,
+        requestId: data.requestId,
+        operation,
+        companyIdentity: data.companyIdentity,
+        payloadFingerprint: data.payloadFingerprint
+    });
+
+    if (admission.status !== "ADMITTED") {
+        throw new Error(
+            admission.status === "DUPLICATE"
+                ? "DUPLICATE_TALLY_REQUEST"
+                : "TALLY_REQUEST_IDENTITY_CONFLICT"
+        );
+    }
+
+        return withTallyOperationQueue(() =>
+        runWithTallyExecution(admission, async () => {
+            if (!session.isCurrent()) {
+                throw new Error("DURABLE_SYNC_SESSION_LOST");
+            }
+
+            const result = await callback();
+
+            if (!session.isCurrent()) {
+                throw new Error("DURABLE_SYNC_SESSION_LOST");
+            }
+
+            return result;
+        })
+    );
+}
 function connectServer() {
 
      console.log(
@@ -908,7 +969,7 @@ socket.on("getTallyCompanies", async () => {
         console.log("=================================");
 
        const result =
-    await withTallyOperationQueue(() =>
+   await withTallyOperationQueue(() =>
         getTallyCompanies()
     );
 
@@ -1148,7 +1209,124 @@ socket.on("getSalesVouchers", async (data) => {
     }
 
 });
+function registerDurableSyncHandler(event, handler) {
+    const operation = event.endsWith("Complete")
+        ? event.slice(0, -"Complete".length)
+        : event;
 
+    syncSocket.on(event, async (data) => {
+        const hasDurableIdentity =
+            data?.identityScope !== undefined ||
+            data?.companyIdentity !== undefined ||
+            data?.payloadFingerprint !== undefined;
+
+        const session = hasDurableIdentity
+            ? captureGetMastersSession()
+            : null;
+
+        let tallyExecutionCompleted = false;
+
+        function assertCurrent() {
+            if (session && !session.isCurrent()) {
+                throw new Error(
+                    "DURABLE_SYNC_SESSION_LOST"
+                );
+            }
+        }
+
+        const ctx = {
+            session,
+
+            async run(callback) {
+                assertCurrent();
+
+                const result =
+                    await runDurableSyncTallyOperation(
+                        data,
+                        operation,
+                        callback,
+                        session
+                    );
+
+                tallyExecutionCompleted = true;
+
+                assertCurrent();
+
+                return result;
+            },
+
+            emit(eventName, payload) {
+                if (session && !session.isCurrent()) {
+                    return;
+                }
+
+                const response =
+                    hasDurableIdentity &&
+                    tallyExecutionCompleted &&
+                    payload?.success === false
+                        ? {
+                            ...payload,
+                            outcomeUnknown: true
+                        }
+                        : payload;
+
+                (session?.socket || syncSocket).emit(
+                    eventName,
+                    response
+                );
+            },
+
+            async sendChunks(
+                targetSocket,
+                baseEvent,
+                items,
+                maxChunkSize,
+                requestId
+            ) {
+                assertCurrent();
+
+                return await sendChunkedResponse(
+                    session?.socket || targetSocket,
+                    baseEvent,
+                    items,
+                    maxChunkSize,
+                    requestId,
+                    session
+                );
+            },
+
+            progress(stage, progress, batchId) {
+                if (session && !session.isCurrent()) {
+                    return;
+                }
+
+                sendProgress(
+                    stage,
+                    progress,
+                    batchId
+                );
+            }
+        };
+
+        try {
+            await handler(data, ctx);
+        } catch (err) {
+            console.error(
+                "DURABLE SYNC HANDLER ERROR",
+                event,
+                err
+            );
+
+            ctx.emit(`${operation}Result`, {
+                requestId: data?.requestId,
+                success: false,
+                error: err.message
+            });
+        } finally {
+            session?.dispose();
+        }
+    });
+}
 
 function sendProgress(stage, progress, batchId) {
 
@@ -1177,7 +1355,7 @@ function sendProgress(stage, progress, batchId) {
 // STOCK GODOWN SUMMARY
 // ==========================================
 if (syncSocket) {
-syncSocket.on("getStockGodownSummary", async (data) => {
+registerDurableSyncHandler("getStockGodownSummary", async (data, ctx) => {
 
     try {
 
@@ -1201,7 +1379,7 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         // ======================================
 
       const stockGodownSummary =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importStockSummary({
             company: data.company,
             booksBeginningFrom: data.booksBeginningFrom
@@ -1223,7 +1401,7 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         // SEND RESULT COUNT
         // ======================================
 
-    syncSocket.emit(
+    ctx.emit(
     "getStockGodownSummaryResult",
     {
         requestId: data.requestId,
@@ -1243,9 +1421,9 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         // MASTER PROTOCOL CHUNK SYSTEM
         // ======================================
 
-        await syncProtocolController.sendStockGodownSummary(
+       await syncProtocolController.sendStockGodownSummary(
             stockGodownRows,
-            data.requestId
+            data.requestId, ctx.session
         );
 
         console.log(
@@ -1262,7 +1440,7 @@ syncSocket.on("getStockGodownSummary", async (data) => {
         console.error(err);
 
 
-      syncSocket.emit(
+      ctx.emit(
     "getStockGodownSummaryResult",
     {
         requestId: data?.requestId,
@@ -1914,7 +2092,7 @@ socket.emit(
 
 console.log("✅ Master data sent");
 
-await sendChunkedResponse(
+await ctx.sendChunks(
     socket,
     "getMastersGroups",
     result.groups || []
@@ -1926,7 +2104,7 @@ const vouchers = result.vouchers || [];
 
 if (vouchers.length > 0) {
 
-    await sendChunkedResponse(
+    await ctx.sendChunks(
         socket,
         "getMasters",
         vouchers
@@ -1945,7 +2123,7 @@ const vouchers = result.vouchers || [];
 
 if (vouchers.length > 0) {
 
-    await sendChunkedResponse(
+    await ctx.sendChunks(
         socket,
         "getMasters",
         vouchers
@@ -2131,11 +2309,11 @@ if (session.isCurrent()) {
     }
 }
 });
-syncSocket.on("getMastersVoucherGuids", async (data) => {
+registerDurableSyncHandler("getMastersVoucherGuids", async (data, ctx) => {
 
     try {
 
-        sendProgress(
+        ctx.progress(
             "VOUCHER_GUID_DISCOVERY",
             null,
             data.batchId
@@ -2159,7 +2337,7 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
         });
 
      const voucherGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importVoucherGuids({
             company: data.company,
             fromDate: data.fromDate,
@@ -2170,7 +2348,7 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
             syncPeriod: data.syncPeriod
         })
     );
-        sendProgress(
+        ctx.progress(
             "VOUCHER_GUIDS_RECEIVED",
             null,
             data.batchId
@@ -2187,7 +2365,7 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
         // SEND RESULT WITH REQUEST ID
         // =====================================
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersVoucherGuidsResult",
             {
                 requestId: data.requestId,
@@ -2203,13 +2381,13 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
 
         if (voucherGuids.length > 0) {
 
-            sendProgress(
+           ctx.progress(
                 "VOUCHER_CHUNK_SEND",
                 null,
                 data.batchId
             );
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "getMastersVoucherGuids",
                 voucherGuids,
@@ -2227,13 +2405,13 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
                 "No voucher GUIDs found"
             );
 
-            sendProgress(
+            ctx.progress(
                 "VOUCHER_CHUNK_SEND",
                 null,
                 data.batchId
             );
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "getMastersVoucherGuids",
                 [],
@@ -2253,7 +2431,7 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
             err
         );
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersVoucherGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2266,17 +2444,17 @@ syncSocket.on("getMastersVoucherGuids", async (data) => {
 
 });
 
-syncSocket.on("getMastersGroupGuids", async (data) => {
+registerDurableSyncHandler("getMastersGroupGuids", async (data, ctx) => {
 
     try {
 
         const groupGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importGroupGuids({
             company: data.company
         })
     );
-        syncSocket.emit(
+        ctx.emit(
             "getMastersGroupGuidsResult",
             {
                 requestId: data.requestId,
@@ -2288,7 +2466,7 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
 
         if (groupGuids.length > 0) {
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "getMastersGroupGuids",
                 groupGuids,
@@ -2306,7 +2484,7 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
                 "No Group GUIDs found"
             );
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "getMastersGroupGuids",
                 [],
@@ -2324,7 +2502,7 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
 
         console.error(err);
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersGroupGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2338,18 +2516,18 @@ syncSocket.on("getMastersGroupGuids", async (data) => {
 });
 
 
-syncSocket.on("getMastersLedgerGuids", async (data) => {
+registerDurableSyncHandler("getMastersLedgerGuids", async (data, ctx) => {
 
     try {
 
         const ledgerGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importLedgerGuids({
             company: data.company
         })
     );
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersLedgerGuidsResult",
             {
                 requestId: data.requestId,
@@ -2361,7 +2539,7 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
 
         if (ledgerGuids.length > 0) {
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "getMastersLedgerGuids",
                 ledgerGuids,
@@ -2379,7 +2557,7 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
                 "No Ledger GUIDs found"
             );
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "getMastersLedgerGuids",
                 [],
@@ -2397,7 +2575,7 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
 
         console.error(err);
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersLedgerGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2412,18 +2590,18 @@ syncSocket.on("getMastersLedgerGuids", async (data) => {
 
 
 
-syncSocket.on("getMastersStockGroupGuids", async (data) => {
+registerDurableSyncHandler("getMastersStockGroupGuids", async (data, ctx) => {
 
     try {
 
         const stockGroupGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importStockGroupGuids({
             company: data.company
         })
     );
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersStockGroupGuidsResult",
             {
                 requestId: data.requestId,
@@ -2433,7 +2611,7 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
             }
         );
 
-        await sendChunkedResponse(
+        await ctx.sendChunks(
             syncSocket,
             "getMastersStockGroupGuids",
             stockGroupGuids,
@@ -2445,7 +2623,7 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
 
         console.error(err);
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersStockGroupGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2458,17 +2636,17 @@ syncSocket.on("getMastersStockGroupGuids", async (data) => {
 
 });
 
-syncSocket.on("getMastersStockGuids", async (data) => {
+registerDurableSyncHandler("getMastersStockGuids", async (data, ctx) => {
 
     try {
 
         const stockGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importStockGuids({
             company: data.company
         })
     );
-        syncSocket.emit(
+        ctx.emit(
             "getMastersStockGuidsResult",
             {
                 requestId: data.requestId,
@@ -2478,7 +2656,7 @@ syncSocket.on("getMastersStockGuids", async (data) => {
             }
         );
 
-        await sendChunkedResponse(
+        await ctx.sendChunks(
             syncSocket,
             "getMastersStockGuids",
             stockGuids,
@@ -2490,7 +2668,7 @@ syncSocket.on("getMastersStockGuids", async (data) => {
 
         console.error(err);
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersStockGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2504,17 +2682,17 @@ syncSocket.on("getMastersStockGuids", async (data) => {
 });
 
 
-syncSocket.on("getMastersUnitGuids", async (data) => {
+registerDurableSyncHandler("getMastersUnitGuids", async (data, ctx) => {
 
     try {
 
         const unitGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importUnitGuids({
             company: data.company
         })
     );
-        syncSocket.emit(
+        ctx.emit(
             "getMastersUnitGuidsResult",
             {
                 requestId: data.requestId,
@@ -2524,7 +2702,7 @@ syncSocket.on("getMastersUnitGuids", async (data) => {
             }
         );
 
-        await sendChunkedResponse(
+        await ctx.sendChunks(
             syncSocket,
             "getMastersUnitGuids",
             unitGuids,
@@ -2536,7 +2714,7 @@ syncSocket.on("getMastersUnitGuids", async (data) => {
 
         console.error(err);
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersUnitGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2551,18 +2729,18 @@ syncSocket.on("getMastersUnitGuids", async (data) => {
 
 
 
-syncSocket.on("getMastersGodownGuids", async (data) => {
+registerDurableSyncHandler("getMastersGodownGuids", async (data, ctx) => {
 
     try {
 
         const godownGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importGodownGuids({
             company: data.company
         })
     );
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersGodownGuidsResult",
             {
                 requestId: data.requestId,
@@ -2572,7 +2750,7 @@ syncSocket.on("getMastersGodownGuids", async (data) => {
             }
         );
 
-        await sendChunkedResponse(
+        await ctx.sendChunks(
             syncSocket,
             "getMastersGodownGuids",
             godownGuids,
@@ -2584,7 +2762,7 @@ syncSocket.on("getMastersGodownGuids", async (data) => {
 
         console.error(err);
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersGodownGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2599,17 +2777,17 @@ syncSocket.on("getMastersGodownGuids", async (data) => {
 
 
 
-syncSocket.on("getMastersCostCentreGuids", async (data) => {
+registerDurableSyncHandler("getMastersCostCentreGuids", async (data, ctx) => {
 
     try {
 
         const costCentreGuids =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importCostCentreGuids({
             company: data.company
         })
     );
-        syncSocket.emit(
+        ctx.emit(
             "getMastersCostCentreGuidsResult",
             {
                 requestId: data.requestId,
@@ -2619,7 +2797,7 @@ syncSocket.on("getMastersCostCentreGuids", async (data) => {
             }
         );
 
-        await sendChunkedResponse(
+        await ctx.sendChunks(
             syncSocket,
             "getMastersCostCentreGuids",
             costCentreGuids,
@@ -2631,7 +2809,7 @@ syncSocket.on("getMastersCostCentreGuids", async (data) => {
 
         console.error(err);
 
-        syncSocket.emit(
+        ctx.emit(
             "getMastersCostCentreGuidsResult",
             {
                 requestId: data?.requestId,
@@ -2720,7 +2898,7 @@ syncSocket.on("stockByGuidChunk", (data) => {
 
 
 
-syncSocket.on("stockByGuidComplete", async (data) => {
+registerDurableSyncHandler("stockByGuidComplete", async (data, ctx) => {
 
     try {
 
@@ -2733,9 +2911,9 @@ syncSocket.on("stockByGuidComplete", async (data) => {
         }
 
         const stockGuids =
-            complete(data.batchId);
+            complete(data.batchId, data);
 
-       syncSocket.emit(
+       ctx.emit(
     "stockByGuidCompleteAck",
     {
         batchId: data.batchId,
@@ -2750,14 +2928,14 @@ syncSocket.on("stockByGuidComplete", async (data) => {
         );
 
         const stocks =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importStockBulkByGuid({
             company: data.company,
             stockGuids
         })
     );
 
-       syncSocket.emit(
+       ctx.emit(
     "stockByGuidResult",
     {
         requestId: data.requestId,
@@ -2769,7 +2947,7 @@ syncSocket.on("stockByGuidComplete", async (data) => {
 
         if (stocks.length > 0) {
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
     syncSocket,
     "stockByGuid",
     stocks,
@@ -2782,7 +2960,7 @@ syncSocket.on("stockByGuidComplete", async (data) => {
 
         } else {
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
     syncSocket,
     "stockByGuid",
     [],
@@ -2803,7 +2981,7 @@ syncSocket.on("stockByGuidComplete", async (data) => {
             err
         );
 
-       syncSocket.emit(
+       ctx.emit(
     "stockByGuidResult",
     {
         requestId: data?.requestId,
@@ -2834,7 +3012,7 @@ syncSocket.on("ledgerByGuidChunk", (data) => {
 
         console.error(err);
 
-       syncSocket.emit("ledgerByGuidChunkAck", {
+      syncSocket.emit("ledgerByGuidChunkAck", {
     batchId: data.batchId,
     requestId: data.requestId,
     chunkIndex: data.chunkIndex,
@@ -2848,7 +3026,7 @@ syncSocket.on("ledgerByGuidChunk", (data) => {
 
 
 
-syncSocket.on("ledgerByGuidComplete", async (data) => {
+registerDurableSyncHandler("ledgerByGuidComplete", async (data, ctx) => {
 
     try {
 
@@ -2861,9 +3039,9 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
         }
 
         const ledgerGuids =
-            complete(data.batchId);
+            complete(data.batchId, data);
 
-        syncSocket.emit(
+        ctx.emit(
     "ledgerByGuidCompleteAck",
     {
         batchId: data.batchId,
@@ -2878,14 +3056,14 @@ syncSocket.on("ledgerByGuidComplete", async (data) => {
         );
 /*071126
         const ledgers =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importLedgerBulkByGuid({
             company: data.company,
             ledgerGuids
         })
     );
 */
-const ledgers = await withTallyOperationQueue(async () => {
+const ledgers = await ctx.run(async () => {
     const companyInfo = await importCompany({
         company: data.company
     });
@@ -2910,7 +3088,7 @@ const ledgers = await withTallyOperationQueue(async () => {
         booksBeginningFrom
     });
 });
-       syncSocket.emit(
+       ctx.emit(
     "ledgerByGuidResult",
     {
         requestId: data.requestId,
@@ -2922,7 +3100,7 @@ const ledgers = await withTallyOperationQueue(async () => {
 
         if (ledgers.length > 0) {
 
-    await sendChunkedResponse(
+    await ctx.sendChunks(
         syncSocket,
         "ledgerByGuid",
         ledgers,
@@ -2936,7 +3114,7 @@ const ledgers = await withTallyOperationQueue(async () => {
 
 }else {
 
-          await sendChunkedResponse(
+          await ctx.sendChunks(
     syncSocket,
     "ledgerByGuid",
     [],
@@ -2957,7 +3135,7 @@ const ledgers = await withTallyOperationQueue(async () => {
             err
         );
 
-    syncSocket.emit(
+    ctx.emit(
     "ledgerByGuidResult",
     {
         requestId: data?.requestId,
@@ -2972,7 +3150,7 @@ const ledgers = await withTallyOperationQueue(async () => {
 
 
 
-syncSocket.on("voucherByGuidComplete", async (data) => {
+registerDurableSyncHandler("voucherByGuidComplete", async (data, ctx) => {
 
     try {
 
@@ -2985,9 +3163,9 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
         }
 
         const voucherGuids =
-            complete(data.batchId);
+            complete(data.batchId, data);
 
-        sendProgress(
+        ctx.progress(
             "VOUCHER_IMPORT",
             null,
             data.batchId
@@ -2998,7 +3176,7 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
             voucherGuids
         );
 
-       syncSocket.emit(
+       ctx.emit(
     "voucherByGuidCompleteAck",
     {
         batchId: data.batchId,
@@ -3013,14 +3191,14 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
         );
 
         const vouchers =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importVoucherBulkByGuid({
             company: data.company,
             voucherGuids
         })
     );
 
-       syncSocket.emit(
+       ctx.emit(
     "voucherByGuidResult",
             {
                 requestId: data.requestId,
@@ -3032,13 +3210,13 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
 
         if (vouchers.length > 0) {
 
-            sendProgress(
+            ctx.progress(
                 "VOUCHER_CHUNK_SEND",
                 null,
                 data.batchId
             );
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "voucherByGuid",
                 vouchers,
@@ -3048,13 +3226,13 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
 
         } else {
 
-            sendProgress(
+            ctx.progress(
                 "VOUCHER_CHUNK_SEND",
                 null,
                 data.batchId
             );
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "voucherByGuid",
                 [],
@@ -3064,7 +3242,7 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
 
         }
 
-        sendProgress(
+        ctx.progress(
             "VOUCHER_COMPLETE",
             null,
             data.batchId
@@ -3080,7 +3258,7 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
             err
         );
 
-       syncSocket.emit(
+       ctx.emit(
             "voucherByGuidResult",
             {
                 requestId: data?.requestId,
@@ -3095,19 +3273,19 @@ syncSocket.on("voucherByGuidComplete", async (data) => {
 
 
 
-syncSocket.on("voucherByGuid", async (data) => {
+registerDurableSyncHandler("voucherByGuid", async (data, ctx) => {
 
     try {
 
      const vouchers =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importVoucherBulkByGuid({
             company: data.company,
             voucherGuids: data.voucherGuids
         })
     );
 
-       syncSocket.emit(
+       ctx.emit(
             "voucherByGuidResult",
             {
                 requestId: data.requestId,
@@ -3119,7 +3297,7 @@ syncSocket.on("voucherByGuid", async (data) => {
 
         if (vouchers.length > 0) {
 
-            await sendChunkedResponse(
+            await ctx.sendChunks(
                 syncSocket,
                 "voucherByGuid",
                 vouchers,
@@ -3133,7 +3311,7 @@ syncSocket.on("voucherByGuid", async (data) => {
 
         } else {
 
-            await sendChunkedResponse(
+           await ctx.sendChunks(
                 syncSocket,
                 "voucherByGuid",
                 [],
@@ -3150,7 +3328,7 @@ syncSocket.on("voucherByGuid", async (data) => {
             err
         );
 
-       syncSocket.emit(
+      ctx.emit(
                 "voucherByGuidResult",
                 {
                     requestId: data?.requestId,
@@ -3165,19 +3343,19 @@ syncSocket.on("voucherByGuid", async (data) => {
 
 
 
-syncSocket.on("stockByGuid", async (data) => {
+registerDurableSyncHandler("stockByGuid", async (data, ctx) => {
 
     try {
 
         const stocks =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importStockBulkByGuid({
             company: data.company,
             stockGuids: data.stockGuids
         })
     );
 
-      syncSocket.emit(
+      ctx.emit(
     "stockByGuidResult",
     {
         requestId: data.requestId,
@@ -3189,7 +3367,7 @@ syncSocket.on("stockByGuid", async (data) => {
 
       if (stocks.length > 0) {
 
-    await sendChunkedResponse(
+    await ctx.sendChunks(
         syncSocket,
         "stockByGuid",
         stocks,
@@ -3202,7 +3380,7 @@ syncSocket.on("stockByGuid", async (data) => {
 
        } else {
 
-    await sendChunkedResponse(
+    await ctx.sendChunks(
         syncSocket,
         "stockByGuid",
         [],
@@ -3219,7 +3397,7 @@ syncSocket.on("stockByGuid", async (data) => {
             err
         );
 
-        syncSocket.emit(
+        ctx.emit(
     "stockByGuidResult",
     {
         requestId: data?.requestId,
@@ -3234,19 +3412,19 @@ syncSocket.on("stockByGuid", async (data) => {
 
 
 
-syncSocket.on("ledgerByGuid", async (data) => {
+registerDurableSyncHandler("ledgerByGuid", async (data, ctx) => {
 
     try {
 /* 071126
         const ledgers =
-    await withTallyOperationQueue(() =>
+    await ctx.run(() =>
         importLedgerBulkByGuid({
             company: data.company,
             ledgerGuids: data.ledgerGuids
         })
     );
     */
-const ledgers = await withTallyOperationQueue(async () => {
+const ledgers = await ctx.run(async () => {
     const companyInfo = await importCompany({
         company: data.company
     });
@@ -3272,7 +3450,7 @@ console.log("[LEDGER_BY_GUID] DATE CHECK", {
     });
 });
 
-   syncSocket.emit(
+  ctx.emit(
     "ledgerByGuidResult",
     {
         requestId: data.requestId,
@@ -3284,7 +3462,7 @@ console.log("[LEDGER_BY_GUID] DATE CHECK", {
 
         if (ledgers.length > 0) {
 
-           await sendChunkedResponse(
+           await ctx.sendChunks(
     syncSocket,
     "ledgerByGuid",
     ledgers,
@@ -3294,7 +3472,7 @@ console.log("[LEDGER_BY_GUID] DATE CHECK", {
 
         } else {
 
-           await sendChunkedResponse(
+           await ctx.sendChunks(
     syncSocket,
     "ledgerByGuid",
     [],
@@ -3315,7 +3493,7 @@ console.log("[LEDGER_BY_GUID] DATE CHECK", {
             err
         );
 
-        syncSocket.emit(
+        ctx.emit(
     "ledgerByGuidResult",
     {
         requestId: data?.requestId,
@@ -3368,16 +3546,36 @@ socket.on("getTrialBalance", async (data) => {
 
 syncSocket.on("getTrialBalance", async (data) => {
 
+    const hasDurableIdentity =
+        data?.identityScope !== undefined ||
+        data?.companyIdentity !== undefined ||
+        data?.payloadFingerprint !== undefined;
+
+    const session = hasDurableIdentity
+        ? captureGetMastersSession()
+        : null;
+
+    let tallyExecutionCompleted = false;
+
     try {
 
         const result =
-    await withTallyOperationQueue(() =>
-        getTrialBalance({
-            company: data.company,
-            asOnDate: data.asOnDate,
-            booksBeginningFrom: data.booksBeginningFrom
-        })
-    );
+            await runDurableSyncTallyOperation(
+                data,
+                "getTrialBalance",
+                () => getTrialBalance({
+                    company: data.company,
+                    asOnDate: data.asOnDate,
+                    booksBeginningFrom: data.booksBeginningFrom
+                }),
+                session
+            );
+
+        tallyExecutionCompleted = true;
+
+        if (session && !session.isCurrent()) {
+            throw new Error("DURABLE_SYNC_SESSION_LOST");
+        }
 
         const trialBalanceRows =
             Array.isArray(result)
@@ -3389,11 +3587,7 @@ syncSocket.on("getTrialBalance", async (data) => {
             trialBalanceRows.length
         );
 
-        // ======================================
-        // SEND RESULT COUNT WITH REQUEST ID
-        // ======================================
-
-        syncSocket.emit(
+        (session?.socket || syncSocket).emit(
             "getTrialBalanceResult",
             {
                 requestId: data.requestId,
@@ -3404,16 +3598,14 @@ syncSocket.on("getTrialBalance", async (data) => {
             }
         );
 
-        // ======================================
-        // SEND THROUGH PROTOCOL CHUNKS
-        // ======================================
-
         await syncProtocolController.sendTrialBalance(
-    trialBalanceRows,
-    data.requestId
-);
+            trialBalanceRows,
+            data.requestId,
+            session
+        );
+
         console.log(
-            "✅ Trial Balance sent through protocol"
+            "Trial Balance sent through protocol"
         );
 
     } catch (err) {
@@ -3423,19 +3615,120 @@ syncSocket.on("getTrialBalance", async (data) => {
             err
         );
 
-        syncSocket.emit(
-            "getTrialBalanceResult",
-            {
-                requestId: data?.requestId,
-                success: false,
-                error: err.message
-            }
-        );
+        if (!session || session.isCurrent()) {
+
+            (session?.socket || syncSocket).emit(
+                "getTrialBalanceResult",
+                {
+                    requestId: data?.requestId,
+                    success: false,
+                    error: err.message,
+                    ...(hasDurableIdentity &&
+                        tallyExecutionCompleted
+                        ? { outcomeUnknown: true }
+                        : {})
+                }
+            );
+
+        }
+
+    } finally {
+
+        session?.dispose();
 
     }
 
 });
+// ============================================================
+// DURABLE SYNC EXECUTION OBSERVATION
+// Read-only evidence. Does not authorize recovery or unlock.
+// ============================================================
 
+syncSocket.on("sync:observeExecution", (data = {}) => {
+    const requestId = data?.requestId;
+    const observationId = data?.observationId;
+
+    const uuidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (
+        typeof requestId !== "string" ||
+        !uuidPattern.test(requestId) ||
+        typeof observationId !== "string" ||
+        !uuidPattern.test(observationId)
+    ) {
+        return;
+    }
+
+    try {
+        if (
+            typeof data.identityScope !== "string" ||
+            !data.identityScope.trim() ||
+            typeof data.operation !== "string" ||
+            !data.operation.trim() ||
+            typeof data.companyIdentity !== "string" ||
+            !data.companyIdentity.startsWith("guid:") ||
+            data.companyIdentity.length <= 5 ||
+            typeof data.payloadFingerprint !== "string" ||
+            !/^sha256:[0-9a-f]{64}$/i.test(
+                data.payloadFingerprint
+            )
+        ) {
+            throw new Error(
+                "SYNC_OBSERVATION_IDENTITY_INVALID"
+            );
+        }
+
+        const execution = getTallyRequestIdentity(
+            data.identityScope,
+            requestId
+        );
+
+        const queueStatus = getTallyQueueStatus();
+
+        const identityMatches =
+            execution !== null &&
+            execution.requestId === requestId &&
+            execution.scope === data.identityScope &&
+            execution.operation === data.operation &&
+            execution.companyIdentity ===
+                data.companyIdentity &&
+            execution.payloadFingerprint ===
+                data.payloadFingerprint &&
+            execution.protectedAgainstRetransmission === true;
+
+        const executionFinished =
+            identityMatches &&
+            execution.state === "CALLBACK_FINISHED";
+
+        const locallyDrained =
+            queueStatus.idle === true &&
+            queueStatus.pendingOperations === 0 &&
+            queueStatus.runningOperations === 0;
+
+        syncSocket.emit("sync:observeExecutionResult", {
+            observationId,
+            requestId,
+            success: true,
+            executionKnown: execution !== null,
+            identityMatches,
+            executionFinished,
+            locallyDrained,
+            execution: identityMatches ? execution : null,
+            queueStatus,
+            settlementEligible: false
+        });
+
+    } catch (error) {
+        syncSocket.emit("sync:observeExecutionResult", {
+            observationId,
+            requestId,
+            success: false,
+            error: error.message,
+            settlementEligible: false
+        });
+    }
+});
 // Manual Reconciliation transport identity validation.
 // This does not establish a remote execution fence.
 const RECONCILE_UUID =
@@ -3517,7 +3810,7 @@ if (
             settlementEligible: false
         });
     } catch (error) {
-        syncSocket.emit("reconcile:installFenceResult", {
+       syncSocket.emit("reconcile:installFenceResult", {
             requestId,
             fenceId,
             success: false,

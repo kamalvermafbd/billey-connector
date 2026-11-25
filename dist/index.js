@@ -51873,6 +51873,20 @@ var require_tallyService = __commonJS({
     var axios = require_axios();
     var { AsyncLocalStorage } = require("async_hooks");
     var tallyMonitorStorage = new AsyncLocalStorage();
+    var reconciliationTransportStorage = new AsyncLocalStorage();
+    function runWithReconciliationTransportPolicy(callback) {
+      if (typeof callback !== "function") {
+        throw new TypeError(
+          "RECONCILE_TRANSPORT_CALLBACK_REQUIRED"
+        );
+      }
+      return reconciliationTransportStorage.run(
+        Object.freeze({
+          enabled: true
+        }),
+        callback
+      );
+    }
     var {
       withTallyRequestQueue,
       getTallyTransportUncertainty,
@@ -51999,7 +52013,7 @@ var require_tallyService = __commonJS({
               headers: {
                 "Content-Type": "application/xml"
               },
-              timeout: 12e4
+              timeout: reconciliationTransportStorage.getStore()?.enabled === true ? 0 : 12e4
             }
           );
         } catch (transportError) {
@@ -53658,6 +53672,7 @@ ${useAlterIdFilter ? `
     module2.exports = {
       sendToTally,
       runWithTallyMonitor,
+      runWithReconciliationTransportPolicy,
       fetchTallyCollection,
       // =========================
       // MASTER FLOW
@@ -53722,7 +53737,8 @@ var require_reconcileNow = __commonJS({
     } = require_parseReconciliationVoucherXml();
     var {
       sendToTally,
-      selectCompany
+      selectCompany,
+      runWithReconciliationTransportPolicy
     } = require_tallyService();
     var {
       runReconciliationTallyOperation
@@ -53955,7 +53971,9 @@ var require_reconcileNow = __commonJS({
       return runReconciliationTallyOperation(
         async (control) => {
           control.assertActive();
-          const result = await operation(control);
+          const result = await runWithReconciliationTransportPolicy(
+            () => operation(control)
+          );
           control.assertActive();
           return result;
         }

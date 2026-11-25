@@ -234,8 +234,22 @@ async function sendChunkedResponse(
     baseEvent,
     items,
     maxChunkSize,
-    requestId
+       requestId,
+    operationSession
 ) {
+    function assertTransferSession() {
+        if (
+            operationSession &&
+            (
+                operationSession.socket !== socket ||
+                !operationSession.isCurrent()
+            )
+        ) {
+            throw new Error("DURABLE_SYNC_SESSION_LOST");
+        }
+    }
+
+    assertTransferSession();
 
     let heartbeat;
 
@@ -243,9 +257,12 @@ function startHeartbeat() {
 
     heartbeat = setInterval(() => {
 
-    if (!socket.connected) {
-        return;
-    }
+if (
+    !socket.connected ||
+    (operationSession && !operationSession.isCurrent())
+) {
+    return;
+}
 
     socket.emit(`${baseEvent}Progress`, {
         batchId,
@@ -277,6 +294,8 @@ function startHeartbeat() {
 
     console.log("No chunks to send");
 
+      assertTransferSession();
+
     const completeAckPromise =
     waitForCompleteAck(
         socket,
@@ -294,8 +313,9 @@ socket.emit(`${baseEvent}Complete`, {
 });
 await completeAckPromise;
 
-    console.log("Empty collection completed");
+       assertTransferSession();
 
+    console.log("Empty collection completed");
     return;
 
 }
@@ -320,6 +340,8 @@ await completeAckPromise;
 
     try {
     for (const chunk of chunks) {
+
+               assertTransferSession();
 
         if (!socket.connected) {
 
@@ -357,6 +379,8 @@ await completeAckPromise;
         await ackPromise;
 
         
+                assertTransferSession();
+
         console.log(
             `ACK received for chunk ${chunk.chunkIndex}/${chunk.totalChunks}`
         );
@@ -374,6 +398,8 @@ console.log({
     totalChunks: chunks.length,
     totalItems: items.length
 });
+
+      assertTransferSession();
 
     const completeAckPromise =
     waitForCompleteAck(
@@ -395,6 +421,8 @@ socket.emit(
 );
 
 await completeAckPromise;
+
+       assertTransferSession();
 
     console.log(
             "Complete event sent"
